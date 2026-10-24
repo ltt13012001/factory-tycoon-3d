@@ -1,0 +1,117 @@
+## Isometric camera: Q/E rotate in 90° steps, mouse wheel zooms, right or
+## middle drag (or WASD / arrow keys) pans, left click selects or places.
+extends Node3D
+
+const PITCH := -35.264
+const MIN_SIZE := 12.0
+const MAX_SIZE := 70.0
+const PAN_SPEED := 22.0
+const BOUNDS := Rect2(-30, -22, 60, 46)
+
+var camera: Camera3D
+var build_mode := false
+
+var _yaw_target := 45.0
+var _size_target := 30.0
+var _dragging := false
+
+
+func _ready() -> void:
+	rotation_degrees = Vector3(0, _yaw_target, 0)
+	position = Vector3(-2, 0, 0)
+	var pitch := Node3D.new()
+	pitch.rotation_degrees.x = PITCH
+	add_child(pitch)
+	camera = Camera3D.new()
+	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
+	camera.size = _size_target
+	camera.position = Vector3(0, 0, 80)
+	camera.near = 1.0
+	camera.far = 300.0
+	pitch.add_child(camera)
+	camera.make_current()
+	EventBus.build_mode_changed.connect(func(active): build_mode = active)
+
+
+func _process(delta: float) -> void:
+	rotation_degrees.y = lerpf(rotation_degrees.y, _yaw_target, minf(1.0, delta * 8.0))
+	camera.size = lerpf(camera.size, _size_target, minf(1.0, delta * 10.0))
+	var input := Vector2(
+		Input.get_axis(&"ui_left", &"ui_right") + _key_axis(KEY_A, KEY_D),
+		Input.get_axis(&"ui_up", &"ui_down") + _key_axis(KEY_W, KEY_S))
+	if input.length() > 0.0 and not _ui_has_focus():
+		_pan(input.limit_length(1.0) * PAN_SPEED * delta * (camera.size / 34.0))
+
+
+func _key_axis(neg: Key, pos: Key) -> float:
+	return (1.0 if Input.is_physical_key_pressed(pos) else 0.0) - (1.0 if Input.is_physical_key_pressed(neg) else 0.0)
+
+
+func _ui_has_focus() -> bool:
+	var f := get_viewport().gui_get_focus_owner()
+	return f is LineEdit or f is TextEdit
+
+
+func _pan(screen_delta: Vector2) -> void:
+	var right := global_transform.basis.x
+	var forward := -global_transform.basis.z
+	right.y = 0
+	forward.y = 0
+	position += right.normalized() * screen_delta.x - forward.normalized() * screen_delta.y
+	position.x = clampf(position.x, BOUNDS.position.x, BOUNDS.end.x)
+	position.z = clampf(position.z, BOUNDS.position.y, BOUNDS.end.y)
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo:
+		match event.physical_keycode:
+			KEY_Q:
+				_yaw_target -= 90.0
+			KEY_E:
+				_yaw_target += 90.0
+			KEY_SPACE:
+				TimeManager.toggle_pause()
+			KEY_ESCAPE:
+				if build_mode:
+					EventBus.build_mode_changed.emit(false)
+				else:
+					EventBus.selection_changed.emit("", 0)
+	elif event is InputEventMouseButton:
+		match event.button_index:
+			MOUSE_BUTTON_WHEEL_UP:
+				_size_target = clampf(_size_target * 0.9, MIN_SIZE, MAX_SIZE)
+			MOUSE_BUTTON_WHEEL_DOWN:
+				_size_target = clampf(_size_target * 1.1, MIN_SIZE, MAX_SIZE)
+			MOUSE_BUTTON_RIGHT, MOUSE_BUTTON_MIDDLE:
+				_dragging = event.pressed
+			MOUSE_BUTTON_LEFT:
+				if event.pressed:
+					_click(event.position)
+	elif event is InputEventMouseMotion and _dragging:
+		var units_per_px := camera.size / get_viewport().get_visible_rect().size.y
+		_pan(-event.relative * units_per_px * Vector2(1, 1.6))
+	elif event is InputEventMagnifyGesture:
+		_size_target = clampf(_size_target / event.factor, MIN_SIZE, MAX_SIZE)
+	elif event is InputEventPanGesture:
+		_pan(event.delta * 0.5)
+
+
+func _click(screen_pos: Vector2) -> void:
+	var from := camera.project_ray_origin(screen_pos)
+	var to := from + camera.project_ray_normal(screen_pos) * 400.0
+	var query := PhysicsRayQueryParameters3D.create(from, to)
+	var hit := get_world_3d().direct_space_state.intersect_ray(query)
+	var body: Object = hit.get("collider")
+	var kind := ""
+	var id := 0
+	if body and body.has_meta("select_kind"):
+		kind = body.get_meta("select_kind")
+		id = body.get_meta("select_id")
+	if build_mode:
+		if kind == "slot":
+			if GameManager.buy_machine(id).ok:
+				EventBus.build_mode_changed.emit(false)
+		return
+	if kind == "slot":
+		return
+	EventBus.selection_changed.emit(kind, id)

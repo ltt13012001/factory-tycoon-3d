@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="MachineDef" format=3]
+
+[ext_resource type="Script" path="res://data/defs/machine_def.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "basic_injection_molder"
+display_name = "Máy ép nhựa cơ bản"
+price = 120000
+cycle_ticks = 24
+output_product_id = "plastic_box"
+defect_percent = 5
+power_cost_per_cycle = 15
+resale_percent = 50
+operators_required = 1
+output_buffer_capacity = 20
+view_scene = "res://scenes/machines/injection_molder.tscn"

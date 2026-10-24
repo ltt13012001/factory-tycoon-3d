@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="ProductDef" format=3]
+
+[ext_resource type="Script" path="res://data/defs/product_def.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "plastic_box"
+display_name = "Hộp nhựa"
+material_id = "plastic_pellets"
+material_per_unit = 1
+base_price = 700
