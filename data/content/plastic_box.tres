@@ -6,6 +6,8 @@
 script = ExtResource("1")
 id = "plastic_box"
 display_name = "Hộp nhựa"
+unit_name = "hộp"
 material_id = "plastic_pellets"
 material_per_unit = 1
 base_price = 700
+color = Color(0.31, 0.7, 0.91, 1)

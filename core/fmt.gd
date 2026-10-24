@@ -25,5 +25,5 @@ static func group(n: int) -> String:
 
 
 static func clock(tick: int, cfg: EconomyConfig) -> String:
-	var minute := (tick % cfg.ticks_per_day) * 1440 / cfg.ticks_per_day
+	var minute := ((tick % cfg.ticks_per_day) * 1440 / cfg.ticks_per_day + cfg.day_start_hour * 60) % 1440
 	return "%02d:%02d" % [minute / 60, minute % 60]

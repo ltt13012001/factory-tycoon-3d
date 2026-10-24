@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="MachineDef" format=3]
+
+[ext_resource type="Script" path="res://data/defs/machine_def.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "shelf_press"
+display_name = "Máy ép kệ lưu trữ"
+description = "Ép kệ lớn từ 5 hạt nhựa. Giá bán cao, khách đặt ít."
+price = 400000
+cycle_ticks = 60
+output_product_id = "storage_shelf"
+defect_percent = 4
+power_cost_per_cycle = 60
+operators_required = 1
+output_buffer_capacity = 8
+min_day = 4
+min_reputation = 60
+wear_cycles = 2
+repair_cost_per_point = 450
+model = "press"
+color = Color(0.85, 0.45, 0.2, 1)

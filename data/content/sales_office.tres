@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="ConstructionDef" format=3]
+
+[ext_resource type="Script" path="res://data/defs/construction_def.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "sales_office"
+display_name = "Phòng kinh doanh"
+description = "Nhân viên bán hàng tìm thêm khách: +40% đơn hàng mới mỗi ngày."
+level_costs = PackedInt32Array(250000)
+build_hours = 6
+min_reputation = 55
+order_rate_bonus_percent = 40

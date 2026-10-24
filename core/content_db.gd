@@ -1,4 +1,4 @@
-## Loads every definition resource the simulation needs, keyed by id.
+## Loads every definition resource in data/content/, keyed by id.
 class_name ContentDB
 extends RefCounted
 
@@ -9,20 +9,28 @@ var materials: Dictionary = {}
 var products: Dictionary = {}
 var machines: Dictionary = {}
 var order_templates: Dictionary = {}
+var constructions: Dictionary = {}
 
 
 static func load_default() -> ContentDB:
 	var db := ContentDB.new()
-	db.economy = load(CONTENT_DIR + "economy.tres")
-	db._add(load(CONTENT_DIR + "plastic_pellets.tres"))
-	db._add(load(CONTENT_DIR + "plastic_box.tres"))
-	db._add(load(CONTENT_DIR + "basic_injection_molder.tres"))
-	db._add(load(CONTENT_DIR + "small_customer.tres"))
+	var files := DirAccess.get_files_at(CONTENT_DIR)
+	var names := []
+	for f in files:
+		# Exported builds list converted resources as "name.tres.remap".
+		var n := f.trim_suffix(".remap")
+		if n.ends_with(".tres") and not names.has(n):
+			names.append(n)
+	names.sort()
+	for n in names:
+		db._add(load(CONTENT_DIR + n))
 	return db
 
 
 func _add(res: Resource) -> void:
-	if res is MaterialDef:
+	if res is EconomyConfig:
+		economy = res
+	elif res is MaterialDef:
 		materials[res.id] = res
 	elif res is ProductDef:
 		products[res.id] = res
@@ -30,6 +38,8 @@ func _add(res: Resource) -> void:
 		machines[res.id] = res
 	elif res is OrderTemplateDef:
 		order_templates[res.id] = res
+	elif res is ConstructionDef:
+		constructions[res.id] = res
 	else:
 		push_error("ContentDB: unknown resource %s" % res)
 
@@ -38,9 +48,14 @@ func material() -> MaterialDef:
 	return materials[economy.material_id]
 
 
-func product() -> ProductDef:
-	return products[economy.product_id]
+## Machine definitions sorted by price, the order the shop shows them.
+func machine_list() -> Array:
+	var list := machines.values()
+	list.sort_custom(func(a, b): return a.price < b.price)
+	return list
 
 
-func order_template() -> OrderTemplateDef:
-	return order_templates[economy.order_template_id]
+func construction_list() -> Array:
+	var list := constructions.values()
+	list.sort_custom(func(a, b): return a.level_costs[0] < b.level_costs[0])
+	return list

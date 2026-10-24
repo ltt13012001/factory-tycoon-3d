@@ -26,6 +26,11 @@ signal day_ended(data: Dictionary)
 signal day_started(data: Dictionary)
 signal cash_critical(data: Dictionary)
 signal tutorial_advanced(data: Dictionary)
+signal machine_upgraded(data: Dictionary)
+signal machine_broken(data: Dictionary)
+signal machine_repaired(data: Dictionary)
+signal construction_started(data: Dictionary)
+signal construction_finished(data: Dictionary)
 
 # Presentation events
 signal toast(text: String, good: bool)
@@ -34,6 +39,7 @@ signal speed_changed(speed: int)
 signal build_mode_changed(active: bool)
 signal inspect_requested(machine_id: int)
 signal report_requested(report: Dictionary)
+signal ui_scale_changed(scale: float)
 
 
 func forward(name: StringName, data: Dictionary) -> void:

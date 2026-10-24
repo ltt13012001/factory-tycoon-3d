@@ -4,7 +4,7 @@ extends RefCounted
 
 const STAT_KEYS := [
 	"produced", "defects", "revenue", "material_cost", "power", "wages",
-	"rent", "penalties", "interest", "orders_delivered", "orders_late",
+	"rent", "penalties", "interest", "repairs", "orders_delivered", "orders_late",
 ]
 
 var sim: Simulation
@@ -76,7 +76,7 @@ func end_of_day(day_number: int) -> Dictionary:
 		else:
 			expense -= int(e.amount)
 	var st := s.day_stats
-	var profit: int = st.revenue - st.material_cost - st.power - st.wages - st.rent - st.penalties - st.interest
+	var profit: int = st.revenue - st.material_cost - st.power - st.wages - st.rent - st.penalties - st.interest - int(st.get("repairs", 0))
 	var report := {
 		"day": day_number,
 		"start_cash": s.day_start_cash,

@@ -5,13 +5,14 @@ const CATEGORY_NAMES := {
 	"sales": "Bán hàng", "penalty": "Phạt giao trễ", "material": "Mua nguyên liệu",
 	"machine": "Mua máy", "machine_sale": "Bán máy", "hire": "Tuyển dụng",
 	"wages": "Lương", "rent": "Thuê đất", "power": "Tiền điện", "interest": "Lãi thấu chi",
+	"construction": "Xây dựng", "upgrade": "Nâng cấp máy", "repair": "Sửa máy",
 }
 
 var _box: VBoxContainer
 
 
 func _ready() -> void:
-	custom_minimum_size = Vector2(440, 0)
+	custom_minimum_size = Vector2(520, 0)
 	add_theme_stylebox_override("panel", UiTheme.panel_style(Color(0.08, 0.1, 0.14, 0.97), 14, 20))
 	_box = VBoxContainer.new()
 	_box.add_theme_constant_override("separation", 6)
@@ -28,8 +29,8 @@ func show_report(r: Dictionary) -> void:
 	_box.add_child(UiTheme.label("Báo cáo cuối ngày %d" % r.day, 22, UiTheme.TEXT, true))
 	_box.add_child(HSeparator.new())
 	_section("Sản xuất")
-	_row("Hộp đạt chuẩn", "%d" % st.produced)
-	_row("Hộp lỗi", "%d" % st.defects)
+	_row("Sản phẩm đạt chuẩn", "%d" % st.produced)
+	_row("Sản phẩm lỗi", "%d" % st.defects)
 	_row("Đơn đã giao", "%d (trễ %d)" % [st.orders_delivered, st.orders_late])
 	_section("Lãi lỗ (ghi nhận khi giao hàng)")
 	_row("Doanh thu", Fmt.money(st.revenue), UiTheme.GOOD)
@@ -39,6 +40,8 @@ func show_report(r: Dictionary) -> void:
 	_row("Thuê đất", "-" + Fmt.money(st.rent))
 	if st.penalties > 0:
 		_row("Phạt giao trễ", "-" + Fmt.money(st.penalties), UiTheme.BAD)
+	if int(st.get("repairs", 0)) > 0:
+		_row("Sửa máy", "-" + Fmt.money(st.repairs))
 	if st.interest > 0:
 		_row("Lãi thấu chi", "-" + Fmt.money(st.interest), UiTheme.BAD)
 	_row("Lợi nhuận", Fmt.money(r.profit), UiTheme.GOOD if r.profit >= 0 else UiTheme.BAD, true)

@@ -6,12 +6,12 @@
 script = ExtResource("1")
 id = "basic_injection_molder"
 display_name = "Máy ép nhựa cơ bản"
+description = "Rẻ, dễ dùng. Làm hộp nhựa."
 price = 120000
 cycle_ticks = 24
 output_product_id = "plastic_box"
 defect_percent = 5
 power_cost_per_cycle = 15
-resale_percent = 50
 operators_required = 1
-output_buffer_capacity = 20
-view_scene = "res://scenes/machines/injection_molder.tscn"
+model = "basic"
+color = Color(0.24, 0.49, 0.79, 1)

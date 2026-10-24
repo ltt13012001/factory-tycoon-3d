@@ -1,10 +1,14 @@
-## Staff list, hiring and firing, operator assignment and warehouse trips.
+## Staff list, hiring and firing, operator assignment, warehouse trips and
+## technician maintenance.
 class_name EmployeeManager
 extends RefCounted
 
 const OPERATOR := "operator"
 const WAREHOUSE := "warehouse"
-const ROLE_NAMES := {OPERATOR: "Vận hành máy", WAREHOUSE: "Nhân viên kho"}
+const TECHNICIAN := "technician"
+const ROLE_NAMES := {OPERATOR: "Vận hành máy", WAREHOUSE: "Nhân viên kho", TECHNICIAN: "Kỹ thuật viên"}
+## Technicians service machines at or below this condition.
+const SERVICE_BELOW := 60
 
 var sim: Simulation
 
@@ -18,6 +22,8 @@ func make_employee(role: String) -> Dictionary:
 	var n := "Công nhân %d" % (sim.state.name_index + 1)
 	if names.size() > 0:
 		n = names[sim.state.name_index % names.size()]
+		if sim.state.name_index >= names.size():
+			n += " %d" % (sim.state.name_index / names.size() + 1)
 	sim.state.name_index += 1
 	return {"id": sim.state.take_id(), "name": n, "role": role, "machine_id": 0, "job": {}}
 
@@ -54,6 +60,10 @@ func fire(employee_id: int) -> Dictionary:
 		var m := s.find_by_id(s.machines, e.machine_id)
 		if not m.is_empty():
 			m.operator_id = 0
+	for m in s.machines:
+		if int(m.repairer_id) == employee_id:
+			m.repairer_id = 0
+			m.repair_ticks_left = 0
 	s.employees.erase(e)
 	auto_assign()
 	sim.emit_event(&"employee_fired", {"id": employee_id})
@@ -62,31 +72,37 @@ func fire(employee_id: int) -> Dictionary:
 
 ## Goods in a fired worker's hands go back where they came from.
 func _drop_carried(e: Dictionary) -> void:
-	if e.job.is_empty() or int(e.job.qty) == 0:
+	if e.job.is_empty() or int(e.job.get("qty", 0)) == 0:
+		e.job = {}
 		return
 	var s := sim.state
 	if e.job.kind == "unload":
 		s.dock += int(e.job.qty)
-	else:
+	elif e.job.kind == "haul":
 		var m := s.find_by_id(s.machines, int(e.job.machine_id))
 		if m.is_empty():
-			var moved := mini(int(e.job.qty), sim.config.finished_capacity - s.finished)
-			s.finished += moved
+			var moved := mini(int(e.job.qty), sim.inventory.finished_free_space())
+			s.add_finished(e.job.product_id, moved)
 			s.scrap_total += int(e.job.qty) - moved
 		else:
 			m.buffer += int(e.job.qty)
 	e.job = {}
 
 
-## Gives every machine without an operator the first free operator.
+## Gives every machine that needs an operator the first free operator.
 func auto_assign() -> void:
 	var s := sim.state
 	for e in s.employees:
-		if e.role == OPERATOR and e.machine_id != 0 and s.find_by_id(s.machines, e.machine_id).is_empty():
-			e.machine_id = 0
+		if e.role == OPERATOR and e.machine_id != 0:
+			var m := s.find_by_id(s.machines, e.machine_id)
+			if m.is_empty() or not sim.production.needs_operator(m):
+				e.machine_id = 0
 	var machines := s.machines.duplicate()
 	machines.sort_custom(func(a, b): return a.slot < b.slot)
 	for m in machines:
+		if not sim.production.needs_operator(m):
+			m.operator_id = 0
+			continue
 		if m.operator_id != 0 and not s.find_by_id(s.employees, m.operator_id).is_empty():
 			continue
 		m.operator_id = 0
@@ -99,6 +115,10 @@ func auto_assign() -> void:
 
 func tick() -> void:
 	for e in sim.state.employees:
+		if e.role == TECHNICIAN:
+			if e.job.is_empty():
+				_pick_service(e)
+			continue
 		if e.role != WAREHOUSE:
 			continue
 		if e.job.is_empty():
@@ -115,6 +135,21 @@ func tick() -> void:
 			_deposit(e, job)
 
 
+func _pick_service(e: Dictionary) -> void:
+	var best := {}
+	for m in sim.state.machines:
+		if int(m.repairer_id) != 0:
+			continue
+		if not m.broken and int(m.condition) > SERVICE_BELOW:
+			continue
+		if best.is_empty() or (m.broken and not best.broken) or (m.broken == best.broken and int(m.condition) < int(best.condition)):
+			best = m
+	if best.is_empty():
+		return
+	e.job = {"kind": "repair", "phase": "to_source", "ticks_left": 0, "machine_id": best.id, "qty": 0, "product_id": ""}
+	sim.production.start_repair(best, e.id)
+
+
 func _targeted_machines() -> Array:
 	var ids := []
 	for e in sim.state.employees:
@@ -126,10 +161,10 @@ func _targeted_machines() -> Array:
 func _pick_job(_e: Dictionary) -> Dictionary:
 	var s := sim.state
 	var cfg := sim.config
-	var leg := cfg.haul_leg_ticks
-	if s.dock - _dock_claims() > 0 and s.raw + sim.inventory.carried("unload") < cfg.raw_capacity:
-		return {"kind": "unload", "phase": "to_source", "ticks_left": leg, "machine_id": 0, "qty": 0}
-	if s.finished + sim.inventory.carried("haul") >= cfg.finished_capacity:
+	var leg := sim.buildings.haul_leg_ticks()
+	if s.dock - _dock_claims() > 0 and s.raw + sim.inventory.carried("unload") < sim.buildings.raw_capacity():
+		return {"kind": "unload", "phase": "to_source", "ticks_left": leg, "machine_id": 0, "qty": 0, "product_id": ""}
+	if sim.inventory.finished_free_space() - sim.inventory.carried("haul") <= 0:
 		return {}
 	var targeted := _targeted_machines()
 	var best := {}
@@ -142,7 +177,8 @@ func _pick_job(_e: Dictionary) -> Dictionary:
 				best = m
 	if best.is_empty():
 		return {}
-	return {"kind": "haul", "phase": "to_source", "ticks_left": leg, "machine_id": best.id, "qty": 0}
+	return {"kind": "haul", "phase": "to_source", "ticks_left": leg, "machine_id": best.id, "qty": 0,
+		"product_id": sim.production.def_of(best).output_product_id}
 
 
 ## Workers already walking to the dock will each take up to one batch.
@@ -159,7 +195,7 @@ func _pick_up(e: Dictionary, job: Dictionary) -> void:
 	var cfg := sim.config
 	var qty := 0
 	if job.kind == "unload":
-		var space := cfg.raw_capacity - s.raw - sim.inventory.carried("unload")
+		var space := sim.buildings.raw_capacity() - s.raw - sim.inventory.carried("unload")
 		qty = mini(mini(cfg.haul_raw_batch, s.dock), space)
 		s.dock -= qty
 	else:
@@ -172,20 +208,19 @@ func _pick_up(e: Dictionary, job: Dictionary) -> void:
 		return
 	job.qty = qty
 	job.phase = "to_dest"
-	job.ticks_left = cfg.haul_leg_ticks
+	job.ticks_left = sim.buildings.haul_leg_ticks()
 	sim.emit_event(&"worker_picked_up", {"id": e.id, "kind": job.kind, "qty": qty})
 
 
 func _deposit(e: Dictionary, job: Dictionary) -> void:
 	var s := sim.state
-	var cfg := sim.config
 	var put := 0
 	if job.kind == "unload":
-		put = mini(int(job.qty), cfg.raw_capacity - s.raw)
+		put = mini(int(job.qty), sim.buildings.raw_capacity() - s.raw)
 		s.raw += put
 	else:
-		put = mini(int(job.qty), cfg.finished_capacity - s.finished)
-		s.finished += put
+		put = mini(int(job.qty), sim.inventory.finished_free_space())
+		s.add_finished(job.product_id, put)
 	job.qty -= put
 	if job.qty > 0:
 		job.ticks_left = 1  # store full: wait at the door until there is room

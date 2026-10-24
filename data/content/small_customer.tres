@@ -5,12 +5,11 @@
 [resource]
 script = ExtResource("1")
 id = "small_customer"
-display_name = "Khách hàng nhỏ"
+display_name = "Khách mua hộp nhựa"
 product_id = "plastic_box"
 min_quantity = 30
 max_quantity = 90
 quantity_per_day = 45
-min_deadline_days = 1
-max_deadline_days = 3
-offer_lifetime_days = 1
+orders_per_day_x100_base = 100
+orders_per_day_x100_per_reputation = 2
 customer_names = PackedStringArray("Tạp hóa Minh Anh", "Siêu thị Hòa Bình", "Cửa hàng Bếp Xinh", "Nhà sách Phương Nam", "Shop Gia Dụng 247", "Cơ sở Thành Đạt", "Quán Cơm Bà Năm", "Đại lý Kim Ngân", "Cửa hàng Tiện Lợi 365", "Công ty Quà Tặng Sao Việt")

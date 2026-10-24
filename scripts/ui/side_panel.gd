@@ -90,5 +90,5 @@ func buttons(parent: Container, items: Array) -> HBoxContainer:
 func wrap_label(text: String, size: int = 13, color: Color = UiTheme.MUTED) -> Label:
 	var l := UiTheme.label(text, size, color)
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	l.custom_minimum_size.x = 340
+	l.custom_minimum_size.x = 380
 	return l

@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="MachineDef" format=3]
+
+[ext_resource type="Script" path="res://data/defs/machine_def.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "auto_molder"
+display_name = "Máy ép tự động"
+description = "Tay robot tự vận hành, không cần công nhân. Làm hộp nhựa, rất ít lỗi."
+price = 650000
+cycle_ticks = 16
+output_product_id = "plastic_box"
+defect_percent = 2
+power_cost_per_cycle = 25
+operators_required = 0
+output_buffer_capacity = 30
+min_day = 5
+min_reputation = 70
+wear_cycles = 6
+repair_cost_per_point = 600
+model = "auto"
+color = Color(0.55, 0.36, 0.8, 1)

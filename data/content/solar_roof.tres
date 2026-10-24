@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="ConstructionDef" format=3]
+
+[ext_resource type="Script" path="res://data/defs/construction_def.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "solar_roof"
+display_name = "Điện mặt trời"
+description = "Mái che pin mặt trời trên bãi đỗ xe: giảm 40% tiền điện."
+level_costs = PackedInt32Array(300000)
+build_hours = 6
+power_discount_percent = 40

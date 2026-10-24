@@ -4,9 +4,9 @@ extends Node3D
 
 const PITCH := -35.264
 const MIN_SIZE := 12.0
-const MAX_SIZE := 70.0
+const MAX_SIZE := 90.0
 const PAN_SPEED := 22.0
-const BOUNDS := Rect2(-30, -22, 60, 46)
+const BOUNDS := Rect2(-50, -40, 100, 80)
 
 var camera: Camera3D
 var build_mode := false

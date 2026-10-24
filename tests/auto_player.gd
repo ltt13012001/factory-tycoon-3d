@@ -24,6 +24,10 @@ func act() -> void:
 		var lot := 250 if sim.inventory.raw_free_space() >= 250 else 100
 		if sim.economy.can_afford(sim.inventory.lot_cost(lot)) and s.cash > sim.inventory.lot_cost(lot):
 			sim.buy_material(lot)
+	for m in s.machines:
+		if (m.broken or int(m.condition) < 25) and int(m.repairer_id) == 0 \
+				and sim.economy.can_afford(sim.production.repair_cost(m)) and s.cash > sim.production.repair_cost(m):
+			sim.repair_machine(m.id)
 	if s.machines.size() < 2 and s.cash >= 120000 + 10000 + 25000:
 		var r := sim.buy_machine(1)
 		if r.ok:

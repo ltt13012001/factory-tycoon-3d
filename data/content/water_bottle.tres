@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="ProductDef" format=3]
+
+[ext_resource type="Script" path="res://data/defs/product_def.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "water_bottle"
+display_name = "Bình nước"
+unit_name = "bình"
+material_id = "plastic_pellets"
+material_per_unit = 2
+base_price = 1600
+color = Color(0.55, 0.85, 0.75, 1)

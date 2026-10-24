@@ -7,7 +7,7 @@ func _init() -> void:
 
 
 func signature(sim: Simulation) -> String:
-	return str([sim.state.raw, sim.state.dock, sim.inventory.pending_material(), sim.state.cash, int(sim.state.tick / 15)])
+	return str([sim.state.raw, sim.state.dock, sim.inventory.pending_material(), sim.state.cash / 100, int(sim.state.tick / 15), sim.state.settings, sim.buildings.raw_capacity()])
 
 
 func build(b: VBoxContainer, sim: Simulation) -> void:
@@ -18,14 +18,16 @@ func build(b: VBoxContainer, sim: Simulation) -> void:
 	row(c, "Giá", "%s / đơn vị" % Fmt.money(mat.unit_price))
 	row(c, "Phí chở mỗi lô", Fmt.money(cfg.shipping_per_lot))
 	row(c, "Thời gian giao", "%d giờ" % cfg.delivery_hours)
-	row(c, "Trong kho", "%d / %d" % [sim.state.raw, cfg.raw_capacity])
+	row(c, "Trong kho", "%d / %d" % [sim.state.raw, sim.buildings.raw_capacity()])
 	if sim.state.dock > 0:
 		row(c, "Đang chờ ở bãi giao nhận", "%d" % sim.state.dock, UiTheme.WARN)
 	row(c, "Đang trên đường", "%d" % sim.inventory.pending_material())
 	var per_day := 0
 	for m in sim.state.machines:
-		per_day += int(cfg.ticks_per_day / sim.production.def_of(m).cycle_ticks)
-	c.add_child(wrap_label("Mỗi máy dùng 1 hạt nhựa cho 1 chu kỳ. Các máy hiện tại dùng tối đa %d đơn vị mỗi ngày." % per_day))
+		per_day += int(cfg.ticks_per_day / sim.production.cycle_ticks(m)) * sim.production.product_of(m).material_per_unit
+	c.add_child(wrap_label("Các máy hiện tại dùng tối đa khoảng %d hạt nhựa mỗi ngày." % per_day))
+	b.add_child(UiTheme.toggle("Tự động mua %d khi còn dưới %d" % [cfg.auto_buy_lot, cfg.auto_buy_threshold],
+		sim.state.settings.get("auto_buy", false), func(on): GameManager.set_auto_buy(on)))
 
 	b.add_child(UiTheme.label("Đặt mua", 16, UiTheme.WARN, true))
 	var space := sim.inventory.raw_free_space()

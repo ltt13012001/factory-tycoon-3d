@@ -1,6 +1,7 @@
 ## A worker (or the owner) as a capsule with a hard hat. Position follows
 ## the simulation: operators stand at their machine, warehouse workers walk
-## each haul leg in step with the job's remaining ticks.
+## each haul leg in step with the job's remaining ticks, technicians and the
+## owner walk to the machine they are repairing.
 extends Node3D
 
 const WALK_SPEED := 3.5
@@ -18,6 +19,7 @@ var _walk_target := Vector3.INF
 var _walk_route := PackedVector3Array()
 var _time := 0.0
 var _moving := false
+var _working := false  # hammering animation while repairing
 
 # Owner only
 var _owner_target_machine := 0
@@ -31,6 +33,8 @@ func _ready() -> void:
 			color = Palette.WAREHOUSE
 		"owner":
 			color = Palette.OWNER
+		"technician":
+			color = Palette.TECHNICIAN
 	_visual = Node3D.new()
 	add_child(_visual)
 	var body := MeshInstance3D.new()
@@ -48,6 +52,8 @@ func _ready() -> void:
 		Palette.sphere(_visual, 0.27, Vector3(0, 1.55, 0), Palette.HELMET).scale = Vector3(1, 0.55, 1)
 	_carry = Palette.box(_visual, Vector3(0.5, 0.4, 0.4), Vector3(0, 0.9, 0.45), Palette.BOX)
 	_carry.visible = false
+	if role == "technician":
+		Palette.box(_visual, Vector3(0.45, 0.25, 0.2), Vector3(0.38, 0.45, 0), Color("d32f2f"))
 	if role != "owner":
 		Palette.pick_body(self, Vector3(0.8, 1.8, 0.8), Vector3(0, 0.9, 0), "worker", employee_id)
 
@@ -62,10 +68,13 @@ func _process(delta: float) -> void:
 		var e := sim.state.find_by_id(sim.state.employees, employee_id)
 		if e.is_empty():
 			return
-		if role == "operator":
-			_update_operator(sim, e, delta)
-		else:
-			_update_warehouse(sim, e, delta)
+		match role:
+			"operator":
+				_update_operator(sim, e, delta)
+			"technician":
+				_update_technician(sim, e, delta)
+			_:
+				_update_warehouse(sim, e, delta)
 	var moved := position - before
 	_moving = moved.length() > 0.001
 	if _moving:
@@ -73,10 +82,25 @@ func _process(delta: float) -> void:
 		if look.length() > 0.0001:
 			rotation.y = lerp_angle(rotation.y, atan2(look.x, look.z), minf(1.0, delta * 12.0))
 	_visual.position.y = absf(sin(_time * 12.0)) * 0.12 if _moving else 0.0
+	_visual.rotation.x = sin(_time * 14.0) * 0.25 if _working and not _moving else 0.0
+
+
+## Where idle operators and technicians wait: the break room once it exists.
+func _idle_spot(sim: Simulation, fallback: Vector3, step: Vector3) -> Vector3:
+	if sim.buildings.level("break_room") > 0:
+		var offset := idle_index + (0 if role == "operator" else 4)
+		return FactoryLayout.BREAK_IDLE + Vector3((offset % 3) * 0.9, 0, (offset / 3) * 1.3)
+	return fallback + step * idle_index
+
+
+## Stand beside a machine's control side, facing it.
+func _work_spot(m: Dictionary) -> Vector3:
+	return FactoryLayout.slot_position(int(m.slot)) + Vector3(-1.6, 0, 1.2)
 
 
 func _update_operator(sim: Simulation, e: Dictionary, delta: float) -> void:
-	var target := FactoryLayout.OPERATOR_IDLE + Vector3(idle_index * 0.9, 0, 0)
+	_working = false
+	var target := _idle_spot(sim, FactoryLayout.OPERATOR_IDLE, Vector3(0, 0, -0.9))
 	if e.machine_id != 0:
 		var m := sim.state.find_by_id(sim.state.machines, int(e.machine_id))
 		if not m.is_empty():
@@ -84,6 +108,20 @@ func _update_operator(sim: Simulation, e: Dictionary, delta: float) -> void:
 	_walk(target, delta)
 	if not _moving and e.machine_id != 0:
 		rotation.y = lerp_angle(rotation.y, PI, minf(1.0, delta * 8.0))
+
+
+func _update_technician(sim: Simulation, e: Dictionary, delta: float) -> void:
+	var job: Dictionary = e.job
+	var target := _idle_spot(sim, FactoryLayout.TECH_IDLE, Vector3(0.9, 0, 0))
+	var m := {}
+	if not job.is_empty() and job.kind == "repair":
+		m = sim.state.find_by_id(sim.state.machines, int(job.machine_id))
+		if not m.is_empty():
+			target = _work_spot(m)
+	_walk(target, delta)
+	_working = not m.is_empty() and position.distance_to(target) < 0.3
+	if _working:
+		rotation.y = lerp_angle(rotation.y, atan2(1.6, -1.2), minf(1.0, delta * 8.0))
 
 
 func _update_warehouse(sim: Simulation, e: Dictionary, delta: float) -> void:
@@ -98,12 +136,15 @@ func _update_warehouse(sim: Simulation, e: Dictionary, delta: float) -> void:
 		_phase_key = key
 		_phase_start = position
 		_phase_route = FactoryLayout.route(position, _job_destination(sim, job))
-	var leg := float(sim.config.haul_leg_ticks)
+	var leg := float(sim.buildings.haul_leg_ticks())
 	var frac := sim.tick_fraction() if TimeManager.speed > 0 else 0.0
 	var t := (leg - int(job.ticks_left) + frac) / leg
 	position = FactoryLayout.point_along(_phase_start, _phase_route, t)
 	_carry.visible = job.phase == "to_dest" and int(job.qty) > 0
-	_carry.material_override = Palette.mat(Palette.PELLET_BAG if job.kind == "unload" else Palette.BOX)
+	var color := Palette.PELLET_BAG
+	if job.kind != "unload" and sim.content.products.has(job.get("product_id", "")):
+		color = sim.content.products[job.product_id].color
+	_carry.material_override = Palette.mat(color)
 
 
 func _job_destination(sim: Simulation, job: Dictionary) -> Vector3:
@@ -124,12 +165,23 @@ func inspect_machine(machine_id: int) -> void:
 
 func _update_owner(sim: Simulation, delta: float) -> void:
 	var target := FactoryLayout.OWNER_DESK
-	if _owner_target_machine != 0:
+	_working = false
+	var repairing := {}
+	for m in sim.state.machines:
+		if int(m.repairer_id) == ProductionManager.OWNER:
+			repairing = m
+			break
+	if not repairing.is_empty():
+		target = _work_spot(repairing)
+		_working = position.distance_to(target) < 0.3
+		if _working:
+			rotation.y = lerp_angle(rotation.y, atan2(1.6, -1.2), minf(1.0, delta * 8.0))
+	elif _owner_target_machine != 0:
 		var m := sim.state.find_by_id(sim.state.machines, _owner_target_machine)
 		if m.is_empty():
 			_owner_target_machine = 0
 		else:
-			target = FactoryLayout.slot_position(int(m.slot)) + Vector3(-1.6, 0, 1.2)
+			target = _work_spot(m)
 			if position.distance_to(target) < 0.2:
 				_owner_wait -= delta
 				if _owner_wait <= 0.0:

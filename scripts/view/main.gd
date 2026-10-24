@@ -32,6 +32,16 @@ func _ready() -> void:
 
 	add_child(preload("res://scripts/view/camera_rig.gd").new())
 	add_child(preload("res://scripts/view/factory_view.gd").new())
+	var scenery: Node3D = preload("res://scripts/view/scenery.gd").new()
+	add_child(scenery)
+
+	var cycle: Node = preload("res://scripts/view/day_night.gd").new()
+	cycle.name = "DayNight"
+	cycle.sun = sun
+	cycle.environment = e
+	cycle.sky_material = sky_mat
+	cycle.scenery = scenery
+	add_child(cycle)
 
 	var ui := CanvasLayer.new()
 	var hud: Control = preload("res://scripts/ui/hud.gd").new()

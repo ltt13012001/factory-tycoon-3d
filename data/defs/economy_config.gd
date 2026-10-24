@@ -7,6 +7,8 @@ extends Resource
 @export var tick_seconds: float = 0.25
 @export var ticks_per_day: int = 1440
 @export var ticks_per_hour: int = 60
+## Clock time at which each game day starts (the shift begins in the morning).
+@export var day_start_hour: int = 7
 
 @export_group("Start")
 @export var start_cash: int = 100000
@@ -15,9 +17,7 @@ extends Resource
 @export var start_machine_id: String = "basic_injection_molder"
 @export var start_operators: int = 1
 @export var start_warehouse_workers: int = 1
-@export var product_id: String = "plastic_box"
 @export var material_id: String = "plastic_pellets"
-@export var order_template_id: String = "small_customer"
 
 @export_group("Factory")
 @export var machine_slots: int = 6
@@ -35,6 +35,13 @@ extends Resource
 @export var haul_raw_batch: int = 25
 ## A worker only fetches from a machine once this many boxes wait (or it is full).
 @export var haul_min_boxes: int = 5
+## Ticks a technician or the owner needs to walk to a machine.
+@export var repair_walk_ticks: int = 20
+
+@export_group("Automation")
+## Auto-buy orders a lot when material on hand + incoming drops below this.
+@export var auto_buy_threshold: int = 150
+@export var auto_buy_lot: int = 250
 
 @export_group("Purchasing")
 @export var lot_sizes: PackedInt32Array = PackedInt32Array([100, 250, 500])
@@ -42,13 +49,10 @@ extends Resource
 @export var delivery_hours: int = 2
 
 @export_group("Sales")
-## New orders per day = (base + per_reputation * reputation) / 100.
-@export var orders_per_day_x100_base: int = 100
-@export var orders_per_day_x100_per_reputation: int = 2
 ## Unit price = base * (1 - spread/2 + spread * random) * (1 - spread/2 + spread * reputation / 100).
 @export var price_random_spread_percent: int = 20
 @export var price_reputation_spread_percent: int = 20
-@export var max_open_offers: int = 4
+@export var max_open_offers: int = 6
 @export var customer_truck_ticks: int = 60
 @export var reputation_on_time: int = 2
 @export var reputation_late: int = -5

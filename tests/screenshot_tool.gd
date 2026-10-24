@@ -48,7 +48,51 @@ func _run() -> void:
 	EventBus.report_requested.emit(GameManager.sim.state.reports[-1])
 	await get_tree().create_timer(0.6).timeout
 	await _shot("05_report")
+	hud.find_child("DailyReport", true, false).visible = false
+	_showcase()
+	await get_tree().create_timer(2.5).timeout
+	await _shot("06_showcase")
+	var rig: Node3D = get_viewport().get_camera_3d().get_parent().get_parent()
+	rig._size_target = 75.0
+	await get_tree().create_timer(1.5).timeout
+	await _shot("07_wide")
+	rig._size_target = 42.0
+	var sim := GameManager.sim
+	TimeManager.set_speed(0)
+	sim.state.tick = (sim.day() - 1) * sim.config.ticks_per_day + (20 - sim.config.day_start_hour) * sim.config.ticks_per_hour
+	await get_tree().create_timer(1.5).timeout
+	await _shot("08_night")
 	get_tree().quit()
+
+
+## Late-game look: every building, every machine type, a repair under way
+## and a construction site.
+func _showcase() -> void:
+	var sim := GameManager.sim
+	sim.state.cash += 10000000
+	sim.state.reputation = 80
+	sim.state.tick += sim.config.ticks_per_day * 3
+	for id in ["hall_expansion", "sales_office", "solar_roof", "break_room"]:
+		sim.state.buildings[id] = 1
+	var types := ["blow_molder", "industrial_molder", "shelf_press", "auto_molder", "basic_injection_molder", "blow_molder", "shelf_press"]
+	var slot := 0
+	for def_id in types:
+		while not sim.production.machine_in_slot(slot).is_empty():
+			slot += 1
+		if slot >= sim.buildings.machine_slots():
+			break
+		print("buy ", def_id, " ", sim.buy_machine(slot, def_id))
+	sim.hire(EmployeeManager.TECHNICIAN)
+	for i in 3:
+		sim.hire(EmployeeManager.OPERATOR)
+	sim.buy_material(250)
+	var m: Dictionary = sim.state.machines[1]
+	m.broken = true
+	m.condition = 10
+	print("upgrade ", sim.upgrade_machine(sim.state.machines[0].id))
+	print("build ", sim.build("warehouse_expansion"))
+	sim.state.construction.ticks_left = sim.state.construction.total_ticks / 2
+	TimeManager.set_speed(1)
 
 
 func _shot(name: String) -> void:

@@ -17,6 +17,7 @@ var production: ProductionManager
 var orders: OrderManager
 var employees: EmployeeManager
 var tutorial: Tutorial
+var buildings: BuildingManager
 
 var _tick_remainder := 0.0
 
@@ -30,6 +31,7 @@ func _init(p_content: ContentDB = null) -> void:
 	orders = OrderManager.new(self)
 	employees = EmployeeManager.new(self)
 	tutorial = Tutorial.new(self)
+	buildings = BuildingManager.new(self)
 
 
 ## Breaks the reference cycles between the simulation, its managers and
@@ -43,6 +45,7 @@ func dispose() -> void:
 	orders = null
 	employees = null
 	tutorial = null
+	buildings = null
 
 
 static func ok(message: String = "") -> Dictionary:
@@ -69,7 +72,7 @@ func new_game(world_seed: int = 12345) -> void:
 		state.employees.append(employees.make_employee(EmployeeManager.WAREHOUSE))
 	employees.auto_assign()
 	economy.reset_day_stats()
-	orders.generate_offer()
+	orders.generate_offer("small_customer")
 	_tick_remainder = 0.0
 	emit_event(&"game_loaded", {})
 
@@ -78,8 +81,9 @@ func day() -> int:
 	return state.tick / config.ticks_per_day + 1
 
 
+## Clock hour 0..24; day 1 starts at config.day_start_hour.
 func hour_of_day() -> float:
-	return float(state.tick % config.ticks_per_day) / config.ticks_per_hour
+	return fmod(float(state.tick % config.ticks_per_day) / config.ticks_per_hour + config.day_start_hour, 24.0)
 
 
 ## How far (0..1) real time has moved into the next tick; the 3D view uses
@@ -104,6 +108,7 @@ func advance_ticks(n: int) -> void:
 
 func step() -> void:
 	state.tick += 1
+	buildings.tick()
 	inventory.tick()
 	employees.tick()
 	production.tick()
@@ -145,6 +150,26 @@ func buy_machine(slot: int, def_id: String = "") -> Dictionary:
 
 func sell_machine(id: int) -> Dictionary:
 	return production.sell_machine(id)
+
+
+func upgrade_machine(id: int) -> Dictionary:
+	return production.upgrade(id)
+
+
+func repair_machine(id: int) -> Dictionary:
+	return production.repair(id)
+
+
+func build(construction_id: String) -> Dictionary:
+	return buildings.start(construction_id)
+
+
+func set_auto_buy(enabled: bool) -> Dictionary:
+	return inventory.set_auto_buy(enabled)
+
+
+func set_auto_ship(enabled: bool) -> Dictionary:
+	return orders.set_auto_ship(enabled)
 
 
 func hire(role: String) -> Dictionary:

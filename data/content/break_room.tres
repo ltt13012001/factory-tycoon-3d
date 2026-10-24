@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="ConstructionDef" format=3]
+
+[ext_resource type="Script" path="res://data/defs/construction_def.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "break_room"
+display_name = "Phòng nghỉ nhân viên"
+description = "Nhân viên kho nghỉ ngơi tốt hơn và đi lại nhanh hơn 25%."
+level_costs = PackedInt32Array(150000)
+build_hours = 4
+haul_speed_bonus_percent = 25

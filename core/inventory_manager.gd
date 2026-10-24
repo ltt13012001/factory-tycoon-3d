@@ -30,7 +30,11 @@ func material_on_hand() -> int:
 
 
 func raw_free_space() -> int:
-	return sim.config.raw_capacity - material_on_hand() - pending_material()
+	return sim.buildings.raw_capacity() - material_on_hand() - pending_material()
+
+
+func finished_free_space() -> int:
+	return sim.buildings.finished_capacity() - sim.state.finished_total()
 
 
 func lot_cost(qty: int) -> int:
@@ -58,6 +62,11 @@ func buy_material(qty: int) -> Dictionary:
 	return Simulation.ok("Đã đặt %d %s, giao sau %d giờ." % [qty, sim.content.material().display_name, cfg.delivery_hours])
 
 
+func set_auto_buy(enabled: bool) -> Dictionary:
+	sim.state.settings.auto_buy = enabled
+	return Simulation.ok("Đã bật tự động mua hạt nhựa." if enabled else "Đã tắt tự động mua hạt nhựa.")
+
+
 func tick() -> void:
 	var s := sim.state
 	var arrived := []
@@ -69,9 +78,16 @@ func tick() -> void:
 		s.dock += int(p.qty)
 		s.raw_value += int(p.cost)
 		sim.emit_event(&"material_arrived", p.duplicate())
+	# Auto-buy checks once per game hour so it never floods orders.
+	if s.settings.get("auto_buy", false) and s.tick % sim.config.ticks_per_hour == 0:
+		var lot := sim.config.auto_buy_lot
+		var cost := lot_cost(lot)
+		if material_on_hand() + pending_material() < sim.config.auto_buy_threshold \
+				and lot <= raw_free_space() and s.cash - cost >= 0:
+			buy_material(lot)
 
 
-## Removes one unit from the raw store and returns its book value, so the
+## Removes units from the raw store and returns their book value, so the
 ## total value reaches exactly zero when the last unit is used.
 func consume_raw(units: int) -> int:
 	var s := sim.state

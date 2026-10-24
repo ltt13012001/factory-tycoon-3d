@@ -3,6 +3,8 @@
 extends Node
 
 var sim: Simulation
+## Machine type chosen in the build panel; placed on the next slot click.
+var pending_machine_id := "basic_injection_molder"
 
 
 func _ready() -> void:
@@ -35,7 +37,17 @@ func accept_order(id: int) -> Dictionary: return command(sim.accept_order(id))
 func reject_order(id: int) -> Dictionary: return command(sim.reject_order(id))
 func ship_order(id: int) -> Dictionary: return command(sim.ship_order(id))
 func buy_material(qty: int) -> Dictionary: return command(sim.buy_material(qty))
-func buy_machine(slot: int) -> Dictionary: return command(sim.buy_machine(slot))
+func buy_machine(slot: int) -> Dictionary: return command(sim.buy_machine(slot, pending_machine_id))
+func upgrade_machine(id: int) -> Dictionary: return command(sim.upgrade_machine(id))
+func repair_machine(id: int) -> Dictionary: return command(sim.repair_machine(id))
+func build(id: String) -> Dictionary: return command(sim.build(id))
+func set_auto_buy(on: bool) -> Dictionary: return command(sim.set_auto_buy(on))
+func set_auto_ship(on: bool) -> Dictionary: return command(sim.set_auto_ship(on))
+
+
+func start_placing(def_id: String) -> void:
+	pending_machine_id = def_id
+	EventBus.build_mode_changed.emit(true)
 func sell_machine(id: int) -> Dictionary: return command(sim.sell_machine(id))
 func hire(role: String) -> Dictionary: return command(sim.hire(role))
 func fire(id: int) -> Dictionary: return command(sim.fire(id))

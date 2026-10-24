@@ -1,8 +1,9 @@
 # Factory Tycoon 3D (Quản Lý Nhà Máy)
 
 Game 3D Idle Tycoon về quản lý nhà máy, viết bằng **Godot 4.7.2 + GDScript**.
-Đây là **Prototype 0.1**: một xưởng nhựa nhỏ làm hộp nhựa, chơi trọn vòng
-nhận đơn, mua nguyên liệu, sản xuất, giao hàng, trả chi phí và mua máy thứ hai.
+Đây là **bản 0.2**: một xưởng nhựa làm hộp, bình nước và kệ lưu trữ với 5 loại
+máy, nâng cấp và sửa máy, kỹ thuật viên, 5 công trình mở rộng, chu kỳ ngày đêm
+và khu phố xung quanh. Xem thay đổi trong `docs/changelog.md`.
 
 ## Chơi thử
 
@@ -17,6 +18,7 @@ nhận đơn, mua nguyên liệu, sản xuất, giao hàng, trả chi phí và m
 | Phóng to, thu nhỏ | Lăn chuột |
 | Di chuyển camera | Kéo chuột phải hoặc chuột giữa, WASD, phím mũi tên |
 | Chọn máy hoặc công nhân | Bấm chuột trái |
+| Phóng to / thu nhỏ giao diện | Menu → A+ / A− |
 | Tạm dừng / tiếp tục | Space |
 | Hủy chế độ xây / bỏ chọn | Esc |
 
@@ -48,12 +50,13 @@ và giao diện chỉ đọc trạng thái lõi và nghe sự kiện qua `EventB
 
 ```
 autoload/      EventBus, GameManager, TimeManager, SaveManager
-core/          Simulation, GameState, Economy/Inventory/Production/Order/EmployeeManager,
+core/          Simulation, GameState, Economy/Inventory/Production/Order/Employee/BuildingManager,
                Tutorial, SaveMigrations, ContentDB, Fmt
-data/defs/     Định nghĩa Resource (máy, sản phẩm, nguyên liệu, mẫu đơn, kinh tế)
+data/defs/     Định nghĩa Resource (máy, sản phẩm, nguyên liệu, mẫu đơn, công trình, kinh tế)
 data/content/  Số liệu cân bằng (.tres), sửa ở đây không cần sửa code
 scenes/        main.tscn, machines/, actors/
-scripts/view/  Thế giới 3D: camera, nhà xưởng, máy, công nhân, xe tải
+scripts/view/  Thế giới 3D: camera, nhà xưởng, máy, công nhân, xe tải, công trình,
+               cảnh quan, ngày đêm
 scripts/ui/    Giao diện: thanh thông tin, 5 bảng quản lý, báo cáo ngày
 tests/         Trình chạy test, các bộ test, người chơi tự động, smoke test
 assets/fonts/  Be Vietnam Pro (SIL OFL 1.1)

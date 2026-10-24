@@ -7,7 +7,7 @@ func _init() -> void:
 
 
 func signature(sim: Simulation) -> String:
-	var parts := [sim.state.finished, sim.orders.free_stock(), int(sim.state.tick / sim.config.ticks_per_hour), sim.production.hourly_capacity()]
+	var parts := [sim.state.finished, int(sim.state.tick / sim.config.ticks_per_hour), sim.production.hourly_capacity(), sim.state.settings]
 	for o in sim.state.orders:
 		parts.append("%d:%s:%d" % [o.id, o.status, o.ship_ticks_left])
 	return str(parts)
@@ -20,13 +20,16 @@ func build(b: VBoxContainer, sim: Simulation) -> void:
 	var shipping := sim.orders.with_status(OrderManager.SHIPPING)
 	var alloc := sim.orders.allocation()
 
+	b.add_child(UiTheme.toggle("Tự động giao khi đủ hàng", sim.state.settings.get("auto_ship", false), func(on): GameManager.set_auto_ship(on)))
 	b.add_child(UiTheme.label("Đơn mới (%d)" % offered.size(), 16, UiTheme.WARN, true))
 	if offered.is_empty():
-		b.add_child(wrap_label("Chưa có đơn mới. Khách hàng gửi khoảng 2 đơn mỗi ngày, uy tín càng cao càng nhiều đơn."))
+		b.add_child(wrap_label("Chưa có đơn mới. Uy tín càng cao càng nhiều đơn. Mua máy làm sản phẩm mới để có thêm khách."))
 	for o in offered:
+		var p: ProductDef = sim.content.products[o.product_id]
 		var c := card(b)
 		c.add_child(UiTheme.label(o.customer, 16, UiTheme.TEXT, true))
-		row(c, "Số lượng", "%d hộp × %s" % [o.qty, Fmt.money(o.unit_price)])
+		row(c, "Sản phẩm", p.display_name, p.color.lightened(0.3))
+		row(c, "Số lượng", "%d %s × %s" % [o.qty, p.unit_name, Fmt.money(o.unit_price)])
 		row(c, "Thành tiền", Fmt.money(o.qty * o.unit_price), UiTheme.GOOD)
 		row(c, "Hạn giao", "%d ngày sau khi nhận" % o.deadline_days)
 		var h := sim.orders.hours_needed(o.id)
@@ -46,16 +49,12 @@ func build(b: VBoxContainer, sim: Simulation) -> void:
 	var sorted := accepted.duplicate()
 	sorted.sort_custom(func(x, y): return x.deadline_tick < y.deadline_tick)
 	for o in sorted:
+		var p: ProductDef = sim.content.products[o.product_id]
 		var c := card(b)
 		c.add_child(UiTheme.label(o.customer, 16, UiTheme.TEXT, true))
 		var have := int(alloc.get(o.id, 0))
-		row(c, "Hàng đã có", "%d / %d hộp" % [have, o.qty], UiTheme.GOOD if have >= o.qty else UiTheme.TEXT)
-		var pb := ProgressBar.new()
-		pb.max_value = o.qty
-		pb.value = have
-		pb.show_percentage = false
-		pb.custom_minimum_size.y = 8
-		c.add_child(pb)
+		row(c, p.display_name, "%d / %d %s" % [have, o.qty, p.unit_name], UiTheme.GOOD if have >= o.qty else UiTheme.TEXT)
+		c.add_child(UiTheme.bar(have, o.qty))
 		var left := int(o.deadline_tick) - sim.state.tick
 		if left >= 0:
 			row(c, "Còn lại", "%d giờ" % ceili(float(left) / tph), UiTheme.TEXT if left > 6 * tph else UiTheme.WARN)
@@ -74,4 +73,4 @@ func build(b: VBoxContainer, sim: Simulation) -> void:
 		b.add_child(UiTheme.label("Đang giao (%d)" % shipping.size(), 16, UiTheme.GOOD, true))
 		for o in shipping:
 			var c := card(b)
-			row(c, o.customer, "Xe tải đang lấy %d hộp" % o.qty)
+			row(c, o.customer, "Xe tải đang lấy %d %s" % [o.qty, sim.content.products[o.product_id].unit_name])

@@ -14,7 +14,7 @@ func test_full_day_output() -> void:
 	check(st.defects >= 0 and st.defects <= 10, "about 5%% defects (got %d)" % st.defects)
 	check_eq(st.power, 60 * 15, "power $0,15 per cycle")
 	check_eq(sim.state.raw, 600 - 60, "one unit per cycle")
-	check_eq(sim.state.finished + m.buffer + sim.inventory.carried("haul"), st.produced, "every good box is in a store")
+	check_eq(sim.state.finished_total() + m.buffer + sim.inventory.carried("haul"), st.produced, "every good box is in a store")
 
 
 func test_stops_without_operator() -> void:
@@ -48,10 +48,10 @@ func test_stops_when_output_full() -> void:
 
 func test_stops_when_finished_store_full() -> void:
 	var sim := new_sim()
-	sim.state.finished = sim.config.finished_capacity
+	sim.state.finished = {"plastic_box": sim.config.finished_capacity}
 	sim.advance_ticks(24 * 40)
 	var m: Dictionary = sim.state.machines[0]
-	check_eq(sim.state.finished, 300, "store stays at capacity")
+	check_eq(sim.state.finished_total(), 300, "store stays at capacity")
 	check_eq(m.status, ProductionManager.OUTPUT_FULL, "machine stops when store is full")
 
 

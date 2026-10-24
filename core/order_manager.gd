@@ -24,16 +24,16 @@ func with_status(status: String) -> Array:
 	return out
 
 
-func generate_offer() -> Dictionary:
+func generate_offer(template_id: String = "small_customer") -> Dictionary:
 	var s := sim.state
 	var cfg := sim.config
-	var t := sim.content.order_template()
+	var t: OrderTemplateDef = sim.content.order_templates[template_id]
 	var qty := sim.rng.randi_range(t.min_quantity, t.max_quantity)
 	var days := clampi(roundi(float(qty) / t.quantity_per_day) + 1, t.min_deadline_days, t.max_deadline_days)
 	var u := sim.rng.randf()
 	var rs := cfg.price_random_spread_percent / 100.0
 	var rp := cfg.price_reputation_spread_percent / 100.0
-	var price := roundi(sim.content.product().base_price
+	var price := roundi(sim.content.products[t.product_id].base_price
 		* (1.0 - rs / 2.0 + rs * u)
 		* (1.0 - rp / 2.0 + rp * s.reputation / 100.0))
 	var customer := "Khách hàng"
@@ -41,6 +41,7 @@ func generate_offer() -> Dictionary:
 		customer = t.customer_names[sim.rng.randi_range(0, t.customer_names.size() - 1)]
 	var o := {
 		"id": s.take_id(),
+		"product_id": t.product_id,
 		"customer": customer,
 		"qty": qty,
 		"unit_price": price,
@@ -81,24 +82,27 @@ func reject(order_id: int) -> Dictionary:
 
 ## Finished stock is reserved for accepted orders, earliest deadline first.
 ## Returns {order_id: units reserved}.
+## Each product's stock is shared out separately.
 func allocation() -> Dictionary:
 	var accepted := with_status(ACCEPTED)
 	accepted.sort_custom(func(a, b): return a.deadline_tick < b.deadline_tick or (a.deadline_tick == b.deadline_tick and a.id < b.id))
-	var remaining := sim.state.finished
+	var remaining := sim.state.finished.duplicate()
 	var out := {}
 	for o in accepted:
-		var take := mini(remaining, int(o.qty))
+		var have := int(remaining.get(o.product_id, 0))
+		var take := mini(have, int(o.qty))
 		out[o.id] = take
-		remaining -= take
+		remaining[o.product_id] = have - take
 	return out
 
 
-func free_stock() -> int:
+func free_stock(product_id: String) -> int:
 	var reserved := 0
 	var alloc := allocation()
-	for k in alloc:
-		reserved += int(alloc[k])
-	return sim.state.finished - reserved
+	for o in with_status(ACCEPTED):
+		if o.product_id == product_id:
+			reserved += int(alloc.get(o.id, 0))
+	return sim.state.finished_of(product_id) - reserved
 
 
 func is_ready(order_id: int) -> bool:
@@ -112,15 +116,17 @@ func hours_needed(order_id: int) -> int:
 	var o := sim.state.find_by_id(sim.state.orders, order_id)
 	if o.is_empty():
 		return 0
-	var have := int(allocation().get(order_id, 0)) if o.status == ACCEPTED else maxi(0, free_stock())
+	var alloc := allocation()
+	var have := int(alloc.get(order_id, 0)) if o.status == ACCEPTED else maxi(0, free_stock(o.product_id))
 	var missing := maxi(0, int(o.qty) - have)
 	if o.status == OFFERED:
-		# Accepted orders in the queue have to be made first.
+		# Accepted orders for the same product have to be made first.
 		for a in with_status(ACCEPTED):
-			missing += int(a.qty) - int(allocation().get(a.id, 0))
+			if a.product_id == o.product_id:
+				missing += int(a.qty) - int(alloc.get(a.id, 0))
 	if missing == 0:
 		return 0
-	var rate := sim.production.hourly_capacity()
+	var rate := sim.production.hourly_capacity(o.product_id)
 	if rate <= 0.0:
 		return -1
 	return ceili(missing / rate)
@@ -132,22 +138,41 @@ func ship(order_id: int) -> Dictionary:
 		return Simulation.fail("Đơn hàng không thể giao.")
 	if not is_ready(order_id):
 		return Simulation.fail("Chưa đủ hàng trong kho.")
-	sim.state.finished -= int(o.qty)
+	sim.state.add_finished(o.product_id, -int(o.qty))
 	o.status = SHIPPING
 	o.ship_ticks_left = sim.config.customer_truck_ticks
 	sim.emit_event(&"order_shipping", o.duplicate())
 	return Simulation.ok("Xe tải của %s đang đến lấy hàng." % o.customer)
 
 
+func set_auto_ship(enabled: bool) -> Dictionary:
+	sim.state.settings.auto_ship = enabled
+	return Simulation.ok("Đã bật tự động giao hàng." if enabled else "Đã tắt tự động giao hàng.")
+
+
 func tick() -> void:
 	var s := sim.state
 	var cfg := sim.config
-	s.order_spawn_acc += cfg.orders_per_day_x100_base + cfg.orders_per_day_x100_per_reputation * s.reputation
 	var threshold := cfg.ticks_per_day * 100
-	while s.order_spawn_acc >= threshold:
-		s.order_spawn_acc -= threshold
-		if with_status(OFFERED).size() < cfg.max_open_offers:
-			generate_offer()
+	var bonus := 100 + sim.buildings.bonus("order_rate_bonus_percent")
+	var ids := sim.content.order_templates.keys()
+	ids.sort()
+	for id in ids:
+		var t: OrderTemplateDef = sim.content.order_templates[id]
+		# Customers only ask for products the factory can make.
+		if not sim.production.produces(t.product_id):
+			continue
+		var acc := int(s.order_spawn.get(id, 0))
+		acc += (t.orders_per_day_x100_base + t.orders_per_day_x100_per_reputation * s.reputation) * bonus / 100
+		while acc >= threshold:
+			acc -= threshold
+			if with_status(OFFERED).size() < cfg.max_open_offers:
+				generate_offer(id)
+		s.order_spawn[id] = acc
+	if s.settings.get("auto_ship", false):
+		for o in with_status(ACCEPTED):
+			if is_ready(o.id):
+				ship(o.id)
 	for o in s.orders.duplicate():
 		if o.status == OFFERED and s.tick >= o.expire_tick:
 			s.orders.erase(o)
@@ -171,7 +196,7 @@ func _complete(o: Dictionary) -> void:
 	var late := late_days(o, s.tick)
 	var pct := mini(cfg.late_penalty_max_percent, late * cfg.late_penalty_percent_per_day)
 	var penalty := value * pct / 100
-	sim.economy.book("sales", value, "%s: %d hộp" % [o.customer, o.qty])
+	sim.economy.book("sales", value, "%s: %d %s" % [o.customer, o.qty, sim.content.products[o.product_id].unit_name])
 	sim.economy.add_stat("revenue", value)
 	sim.economy.add_stat("orders_delivered", 1)
 	s.total_revenue += value

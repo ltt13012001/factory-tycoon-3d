@@ -13,11 +13,11 @@ func test_accept_ship_and_pay() -> void:
 	check(sim.accept_order(o.id).ok, "accept")
 	check_eq(o.deadline_tick, sim.state.tick + o.deadline_days * 1440, "deadline from acceptance")
 	check(not sim.ship_order(o.id).ok, "cannot ship without stock")
-	sim.state.finished = o.qty
+	sim.state.finished = {"plastic_box": o.qty}
 	check(sim.orders.is_ready(o.id), "ready when stock covers it")
 	var cash := sim.state.cash
 	check(sim.ship_order(o.id).ok, "ship")
-	check_eq(sim.state.finished, 0, "boxes loaded on truck")
+	check_eq(sim.state.finished_total(), 0, "boxes loaded on truck")
 	check_eq(sim.state.cash, cash, "no money before truck leaves")
 	sim.advance_ticks(sim.config.customer_truck_ticks)
 	check_eq(sim.state.cash, cash + o.qty * o.unit_price, "paid on delivery")
@@ -32,7 +32,7 @@ func test_late_penalty() -> void:
 	sim.fire(sim.state.employees[0].id)
 	# 1.5 days late -> 2 started days -> 20%
 	sim.advance_ticks(o.deadline_days * 1440 + days(sim, 1.5) - sim.config.customer_truck_ticks)
-	sim.state.finished = o.qty
+	sim.state.finished = {"plastic_box": o.qty}
 	var cash := sim.state.cash
 	sim.ship_order(o.id)
 	sim.advance_ticks(sim.config.customer_truck_ticks)
@@ -49,7 +49,7 @@ func test_penalty_cap() -> void:
 	sim.accept_order(o.id)
 	sim.fire(sim.state.employees[0].id)
 	sim.advance_ticks(days(sim, 12))
-	sim.state.finished = o.qty
+	sim.state.finished = {"plastic_box": o.qty}
 	sim.ship_order(o.id)
 	sim.advance_ticks(sim.config.customer_truck_ticks)
 	check_eq(o.penalty, o.qty * o.unit_price * 50 / 100, "penalty capped at 50%")
@@ -71,10 +71,10 @@ func test_reservation_earliest_deadline_first() -> void:
 	b.deadline_days = a.deadline_days + 1
 	sim.accept_order(b.id)
 	sim.accept_order(a.id)
-	sim.state.finished = a.qty
+	sim.state.finished = {"plastic_box": a.qty}
 	check(sim.orders.is_ready(a.id), "earliest deadline gets the stock")
 	check(not sim.orders.is_ready(b.id), "later order waits")
-	check_eq(sim.orders.free_stock(), 0, "no free stock")
+	check_eq(sim.orders.free_stock("plastic_box"), 0, "no free stock")
 
 
 func test_demand_rate_and_prices() -> void:

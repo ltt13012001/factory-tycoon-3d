@@ -7,9 +7,9 @@ func _init() -> void:
 
 
 func signature(sim: Simulation) -> String:
-	var parts := [sim.state.cash, sim.state.reports.size(), str(sim.state.day_stats), sim.state.power_accrued]
+	var parts := [sim.state.cash / 100, sim.state.reports.size(), str(sim.state.day_stats), sim.state.finished]
 	for m in sim.state.machines:
-		parts.append(m.status)
+		parts.append("%s%d%d" % [m.status, m.level, m.condition])
 	return str(parts)
 
 
@@ -18,8 +18,8 @@ func build(b: VBoxContainer, sim: Simulation) -> void:
 	var st := sim.state.day_stats
 	var c := card(b)
 	c.add_child(UiTheme.label("Hôm nay (ngày %d)" % sim.day(), 16, UiTheme.TEXT, true))
-	row(c, "Hộp đạt chuẩn", "%d" % st.produced)
-	row(c, "Hộp lỗi", "%d" % st.defects, UiTheme.BAD if st.defects > 0 else UiTheme.TEXT)
+	row(c, "Sản phẩm đạt chuẩn", "%d" % st.produced)
+	row(c, "Sản phẩm lỗi", "%d" % st.defects, UiTheme.BAD if st.defects > 0 else UiTheme.TEXT)
 	row(c, "Doanh thu", Fmt.money(st.revenue), UiTheme.GOOD)
 	row(c, "Giá vốn nguyên liệu", Fmt.money(st.material_cost))
 	row(c, "Tiền điện (trả cuối ngày)", Fmt.money(sim.state.power_accrued))
@@ -28,12 +28,21 @@ func build(b: VBoxContainer, sim: Simulation) -> void:
 	var est: int = st.revenue - st.material_cost - sim.state.power_accrued - fixed - st.penalties
 	row(c, "Lợi nhuận dự kiến", Fmt.money(est), UiTheme.GOOD if est >= 0 else UiTheme.BAD)
 
+	var sc := card(b)
+	sc.add_child(UiTheme.label("Kho thành phẩm  %d / %d" % [sim.state.finished_total(), sim.buildings.finished_capacity()], 16, UiTheme.TEXT, true))
+	for pid in sim.content.products:
+		var p: ProductDef = sim.content.products[pid]
+		if sim.production.produces(pid) or sim.state.finished_of(pid) > 0:
+			row(sc, p.display_name, "%d %s · %.1f / giờ" % [sim.state.finished_of(pid), p.unit_name, sim.production.hourly_capacity(pid)], p.color.lightened(0.3))
+
 	var mc := card(b)
 	mc.add_child(UiTheme.label("Máy móc", 16, UiTheme.TEXT, true))
-	for m in sim.state.machines:
+	var ms := sim.state.machines.duplicate()
+	ms.sort_custom(func(x, y): return x.slot < y.slot)
+	for m in ms:
 		var status: String = SelectionPanel.STATUS_NAMES.get(m.status, m.status)
-		row(mc, "Máy ô %d" % (int(m.slot) + 1), status, UiTheme.GOOD if m.status == "running" else UiTheme.WARN)
-	row(mc, "Công suất", "%.1f hộp / giờ game" % sim.production.hourly_capacity())
+		var d: MachineDef = sim.content.machines[m.def_id]
+		row(mc, "Ô %d · %s (cấp %d, %d%%)" % [int(m.slot) + 1, d.display_name, m.level, m.condition], status, SelectionPanel.status_color(m.status))
 
 	if sim.state.cash < cfg.overdraft_limit:
 		b.add_child(wrap_label("Tiền mặt đã vượt hạn mức thấu chi. Hãy bán bớt máy hoặc cho bớt người nghỉ để phục hồi.", 14, UiTheme.BAD))

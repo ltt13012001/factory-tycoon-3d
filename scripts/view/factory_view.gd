@@ -1,5 +1,5 @@
-## Builds the static factory lot and keeps the dynamic 3D objects (machines,
-## workers, trucks, stock piles) in sync with the simulation state.
+## Builds the factory lot and keeps the dynamic 3D objects (machines,
+## workers, trucks, stock piles, buildings) in sync with the simulation state.
 extends Node3D
 
 const MachineScene := preload("res://scenes/machines/injection_molder.tscn")
@@ -15,8 +15,9 @@ var _supplier_trucks := {}
 var _customer_trucks := {}
 var _owner: Node3D
 var _raw_piles: Array[Node3D] = []
-var _finished_piles: Array[Node3D] = []
+var _finished_piles: Array[MeshInstance3D] = []
 var _dock_piles: Array[Node3D] = []
+var _buildings: Node3D
 var _slot_pads: Array[Node3D] = []
 var _select_ring: MeshInstance3D
 var _selected_kind := ""
@@ -29,6 +30,9 @@ func _ready() -> void:
 	_build_warehouse()
 	_build_dock_and_office()
 	_build_slot_pads()
+	_buildings = preload("res://scripts/view/buildings_view.gd").new()
+	add_child(_buildings)
+	_build_annex_piles()
 	_select_ring = MeshInstance3D.new()
 	var torus := TorusMesh.new()
 	torus.inner_radius = 1.1
@@ -63,31 +67,24 @@ func _process(delta: float) -> void:
 # --- Static world ------------------------------------------------------------
 
 func _build_ground() -> void:
-	Palette.box(self, Vector3(160, 0.2, 120), Vector3(0, -0.1, 0), Palette.GRASS)
-	Palette.box(self, Vector3(160, 0.04, 6), Vector3(0, 0.02, FactoryLayout.ROAD_Z), Palette.ROAD)
-	for i in range(-15, 16):
+	Palette.box(self, Vector3(260, 0.2, 200), Vector3(0, -0.1, 0), Palette.GRASS)
+	Palette.box(self, Vector3(260, 0.04, 6), Vector3(0, 0.02, FactoryLayout.ROAD_Z), Palette.ROAD)
+	for i in range(-25, 26):
 		Palette.box(self, Vector3(2.2, 0.05, 0.18), Vector3(i * 5.0, 0.03, FactoryLayout.ROAD_Z), Color("f2f2f2"))
 	var lot_size := FactoryLayout.LOT_MAX - FactoryLayout.LOT_MIN
 	var lot_center := (FactoryLayout.LOT_MAX + FactoryLayout.LOT_MIN) / 2.0
 	Palette.box(self, Vector3(lot_size.x, 0.03, lot_size.y), Vector3(lot_center.x, 0.015, lot_center.y), Palette.CONCRETE)
-	# Driveway from the road to the dock
+	# Driveways from the road to the dock and to the car park
 	Palette.box(self, Vector3(6, 0.035, 6), Vector3(16, 0.02, 15.5), Palette.ROAD)
+	Palette.box(self, Vector3(4, 0.035, 4), Vector3(1, 0.02, 15.0), Palette.ROAD)
 	# Fence with a gap at the driveway
 	var y := 0.6
 	_fence(Vector3(FactoryLayout.LOT_MIN.x, y, FactoryLayout.LOT_MIN.y), Vector3(FactoryLayout.LOT_MAX.x, y, FactoryLayout.LOT_MIN.y))
 	_fence(Vector3(FactoryLayout.LOT_MIN.x, y, FactoryLayout.LOT_MIN.y), Vector3(FactoryLayout.LOT_MIN.x, y, FactoryLayout.LOT_MAX.y))
 	_fence(Vector3(FactoryLayout.LOT_MAX.x, y, FactoryLayout.LOT_MIN.y), Vector3(FactoryLayout.LOT_MAX.x, y, FactoryLayout.LOT_MAX.y))
-	_fence(Vector3(FactoryLayout.LOT_MIN.x, y, FactoryLayout.LOT_MAX.y), Vector3(13, y, FactoryLayout.LOT_MAX.y))
+	_fence(Vector3(FactoryLayout.LOT_MIN.x, y, FactoryLayout.LOT_MAX.y), Vector3(-1, y, FactoryLayout.LOT_MAX.y))
+	_fence(Vector3(3, y, FactoryLayout.LOT_MAX.y), Vector3(13, y, FactoryLayout.LOT_MAX.y))
 	_fence(Vector3(19, y, FactoryLayout.LOT_MAX.y), Vector3(FactoryLayout.LOT_MAX.x, y, FactoryLayout.LOT_MAX.y))
-	# A few trees outside the lot
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 7
-	for i in 26:
-		var p := Vector3(rng.randf_range(-60, 60), 0, rng.randf_range(-45, 45))
-		if p.x > -28 and p.x < 28 and p.z > -20 and p.z < 25:
-			continue
-		Palette.cylinder(self, 0.25, 1.6, p + Vector3(0, 0.8, 0), Color("7a5432"))
-		Palette.sphere(self, 1.3, p + Vector3(0, 2.4, 0), Color("4f8a3c"))
 
 
 func _fence(a: Vector3, b: Vector3) -> void:
@@ -142,10 +139,11 @@ func _walls(min_c: Vector2, max_c: Vector2, gaps: Array, height: float = 1.1) ->
 
 func _build_hall() -> void:
 	_floor(FactoryLayout.HALL_MIN, FactoryLayout.HALL_MAX, Palette.HALL_FLOOR)
-	_walls(FactoryLayout.HALL_MIN, FactoryLayout.HALL_MAX, [["e", -8, 0], ["s", -8, -4]])
-	Palette.label3d(self, "XƯỞNG SẢN XUẤT", Vector3(-6, 0.3, -12.8), 90, Color("2b3440")).billboard = BaseMaterial3D.BILLBOARD_DISABLED
-	# Yellow walkway lines
-	Palette.box(self, Vector3(23, 0.07, 0.12), Vector3(-6, 0.04, -4), Palette.STATUS_WARN)
+	_walls(FactoryLayout.HALL_MIN, FactoryLayout.HALL_MAX, [["e", -8, 0], ["s", -8, -4], ["w", -1.5, 1.5]])
+	var title := Palette.label3d(self, "XƯỞNG SẢN XUẤT", Vector3(-6, 0.05, -14.2), 80, Color("2b3440"))
+	title.billboard = BaseMaterial3D.BILLBOARD_DISABLED
+	title.no_depth_test = false
+	title.rotation.x = -PI / 2
 	# Scrap bin
 	Palette.box(self, Vector3(1.2, 0.9, 1.0), FactoryLayout.SCRAP_BIN + Vector3(0, 0.45, 0), Palette.SCRAP)
 	Palette.label3d(self, "Phế phẩm", FactoryLayout.SCRAP_BIN + Vector3(0, 1.4, 0), 32)
@@ -158,20 +156,42 @@ func _build_warehouse() -> void:
 	Palette.label3d(self, "Kho nguyên liệu", Vector3(16, 2.2, -11), 40)
 	Palette.label3d(self, "Kho thành phẩm", Vector3(16, 2.2, -3), 40)
 	for i in 24:
-		var p := Node3D.new()
-		p.position = FactoryLayout.RAW_STACK_ORIGIN + Vector3((i % 6) * 1.1, (i / 12) * 0.75, ((i / 6) % 2) * 1.2)
-		Palette.cylinder(p, 0.45, 0.7, Vector3(0, 0.4, 0), Palette.PELLET_BAG)
-		p.visible = false
-		add_child(p)
-		_raw_piles.append(p)
+		_raw_piles.append(_raw_pile(FactoryLayout.RAW_STACK_ORIGIN + Vector3((i % 6) * 1.1, (i / 12) * 0.75, ((i / 6) % 2) * 1.2)))
 	for i in 30:
-		var p := Node3D.new()
-		p.position = FactoryLayout.FINISHED_STACK_ORIGIN + Vector3((i % 6) * 1.1, (i / 18) * 0.85, ((i / 6) % 3) * 1.2)
-		Palette.box(p, Vector3(1.0, 0.12, 1.0), Vector3(0, 0.06, 0), Palette.PALLET)
-		Palette.box(p, Vector3(0.9, 0.6, 0.9), Vector3(0, 0.45, 0), Palette.BOX)
-		p.visible = false
-		add_child(p)
-		_finished_piles.append(p)
+		_finished_piles.append(_finished_pile(FactoryLayout.FINISHED_STACK_ORIGIN + Vector3((i % 6) * 1.1, (i / 18) * 0.85, ((i / 6) % 3) * 1.2)))
+
+
+## A pallet with one load on it; the load's colour shows which product it is.
+func _finished_pile(pos: Vector3) -> MeshInstance3D:
+	var p := Node3D.new()
+	p.position = pos
+	Palette.box(p, Vector3(1.0, 0.12, 1.0), Vector3(0, 0.06, 0), Palette.PALLET)
+	var load := Palette.box(p, Vector3(0.9, 0.6, 0.9), Vector3(0, 0.45, 0), Palette.BOX)
+	p.visible = false
+	add_child(p)
+	return load
+
+
+func _raw_pile(pos: Vector3) -> Node3D:
+	var p := Node3D.new()
+	p.position = pos
+	Palette.cylinder(p, 0.45, 0.7, Vector3(0, 0.4, 0), Palette.PELLET_BAG)
+	p.visible = false
+	add_child(p)
+	return p
+
+
+## Extra stock spots on the racks of the warehouse annex (shown once it is
+## built and the main warehouse spots are full).
+func _build_annex_piles() -> void:
+	for i in 48:
+		var level := i / 16
+		var cell := i % 16
+		_raw_piles.append(_raw_pile(Vector3(21.3 + (cell % 2) * 1.2, 0.1 + level * 0.85, -11.4 + (cell / 2) * 0.95)))
+	for i in 64:
+		var level := i / 16
+		var cell := i % 16
+		_finished_piles.append(_finished_pile(Vector3(21.3 + (cell % 2) * 1.2, 0.1 + level * 0.85, -3.4 + (cell / 2) * 0.95)))
 
 
 func _build_dock_and_office() -> void:
@@ -193,7 +213,7 @@ func _build_dock_and_office() -> void:
 
 
 func _build_slot_pads() -> void:
-	for slot in GameManager.sim.config.machine_slots:
+	for slot in FactoryLayout.MAX_SLOTS:
 		var pad := Node3D.new()
 		pad.position = FactoryLayout.slot_position(slot)
 		var mi := Palette.box(pad, Vector3(4.6, 0.05, 2.4), Vector3(0.9, 0.08, 0), Color(0.3, 0.9, 0.4, 0.45))
@@ -210,7 +230,7 @@ func _on_build_mode(active: bool) -> void:
 	var sim: Simulation = GameManager.sim
 	for slot in _slot_pads.size():
 		var free := sim.production.machine_in_slot(slot).is_empty()
-		var show := active and free
+		var show := active and free and slot < sim.buildings.machine_slots()
 		_slot_pads[slot].visible = show
 		_slot_pads[slot].process_mode = Node.PROCESS_MODE_INHERIT if show else Node.PROCESS_MODE_DISABLED
 		for c in _slot_pads[slot].get_children():
@@ -232,13 +252,11 @@ func _sync_machines(sim: Simulation) -> void:
 	for m in sim.state.machines:
 		seen[m.id] = true
 		if not _machines.has(m.id):
-			var d: MachineDef = sim.content.machines[m.def_id]
-			var scene: PackedScene = load(d.view_scene) if d.view_scene != "" else MachineScene
-			var v: Node3D = scene.instantiate()
+			var v: Node3D = MachineScene.instantiate()
 			v.machine_id = m.id
 			v.position = FactoryLayout.slot_position(int(m.slot))
 			add_child(v)
-			Palette.pick_body(v, Vector3(4.2, 2.5, 1.8), Vector3(0.8, 1.2, 0), "machine", m.id)
+			Palette.pick_body(v, Vector3(4.4, 3.0, 2.4), Vector3(0.8, 1.4, 0), "machine", m.id)
 			_machines[m.id] = v
 	for id in _machines.keys():
 		if not seen.has(id):
@@ -248,7 +266,7 @@ func _sync_machines(sim: Simulation) -> void:
 
 func _sync_workers(sim: Simulation) -> void:
 	var seen := {}
-	var idle := {"operator": 0, "warehouse": 0}
+	var idle := {"operator": 0, "warehouse": 0, "technician": 0}
 	for e in sim.state.employees:
 		seen[e.id] = true
 		if not _workers.has(e.id):
@@ -260,8 +278,8 @@ func _sync_workers(sim: Simulation) -> void:
 				w.position = FactoryLayout.DOOR_HALL_YARD + Vector3(0, 0, 3)  # new hires walk in from the yard
 			add_child(w)
 			_workers[e.id] = w
-		_workers[e.id].idle_index = idle[e.role]
-		idle[e.role] += 1
+		_workers[e.id].idle_index = idle.get(e.role, 0)
+		idle[e.role] = idle.get(e.role, 0) + 1
 	for id in _workers.keys():
 		if not seen.has(id):
 			_workers[id].queue_free()
@@ -341,7 +359,21 @@ func _sync_piles(sim: Simulation) -> void:
 	var cfg := sim.config
 	_show_count(_raw_piles, ceili(float(sim.state.raw) / cfg.haul_raw_batch))
 	_show_count(_dock_piles, ceili(float(sim.state.dock) / cfg.haul_raw_batch))
-	_show_count(_finished_piles, ceili(float(sim.state.finished) / cfg.haul_finished_batch))
+	# One pallet per started batch of each product, in the product's colour.
+	var i := 0
+	for pid in sim.content.products:
+		var qty := sim.state.finished_of(pid)
+		if qty <= 0:
+			continue
+		var m := Palette.mat(sim.content.products[pid].color)
+		for k in ceili(float(qty) / cfg.haul_finished_batch):
+			if i >= _finished_piles.size():
+				break
+			_finished_piles[i].material_override = m
+			_finished_piles[i].get_parent().visible = true
+			i += 1
+	for k in range(i, _finished_piles.size()):
+		_finished_piles[k].get_parent().visible = false
 
 
 func _show_count(nodes: Array[Node3D], n: int) -> void:

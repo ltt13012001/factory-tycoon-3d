@@ -4,7 +4,7 @@
 class_name SaveMigrations
 extends RefCounted
 
-const CURRENT_VERSION := 1
+const CURRENT_VERSION := 2
 
 
 static func migrate(data: Dictionary) -> Dictionary:
@@ -16,6 +16,8 @@ static func migrate(data: Dictionary) -> Dictionary:
 		match version:
 			0:
 				data = _from_0(data)
+			1:
+				data = _from_1(data)
 		version += 1
 		data.save_version = version
 	return data
@@ -23,4 +25,20 @@ static func migrate(data: Dictionary) -> Dictionary:
 
 ## Version 0 never shipped; it only marks files without a version field.
 static func _from_0(data: Dictionary) -> Dictionary:
+	return data
+
+
+## 0.1 -> 0.2: several products, machine levels and wear, buildings.
+static func _from_1(data: Dictionary) -> Dictionary:
+	var boxes = data.get("finished", 0)
+	data.finished = {"plastic_box": int(boxes)} if not boxes is Dictionary else boxes
+	for m in data.get("machines", []):
+		m.merge({"level": 1, "condition": 100, "wear_count": 0, "broken": false, "repair_ticks_left": 0, "repairer_id": 0})
+	for o in data.get("orders", []):
+		o.merge({"product_id": "plastic_box"})
+	for e in data.get("employees", []):
+		if e.job is Dictionary and not e.job.is_empty():
+			e.job.merge({"product_id": "plastic_box" if e.job.kind == "haul" else ""})
+	data.order_spawn = {"small_customer": int(data.get("order_spawn_acc", 0))}
+	data.merge({"buildings": {}, "construction": {}, "settings": {"auto_buy": false, "auto_ship": false}})
 	return data

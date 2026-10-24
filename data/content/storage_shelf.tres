@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="ProductDef" format=3]
+
+[ext_resource type="Script" path="res://data/defs/product_def.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "storage_shelf"
+display_name = "Kệ lưu trữ"
+unit_name = "kệ"
+material_id = "plastic_pellets"
+material_per_unit = 5
+base_price = 4200
+color = Color(0.95, 0.6, 0.3, 1)

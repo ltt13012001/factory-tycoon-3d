@@ -19,11 +19,12 @@ func build(b: VBoxContainer, sim: Simulation) -> void:
 	row(b, "Tổng lương mỗi ngày", Fmt.money(sim.state.employees.size() * cfg.wage_per_day), UiTheme.WARN)
 	var c := card(b)
 	c.add_child(UiTheme.label("Tuyển dụng", 16, UiTheme.TEXT, true))
-	c.add_child(wrap_label("Phí tuyển %s, lương %s mỗi ngày. Người vận hành tự nhận máy còn trống. Nhân viên kho chuyển hàng từ bãi vào kho và từ máy sang kho thành phẩm." % [Fmt.money(cfg.hire_fee), Fmt.money(cfg.wage_per_day)]))
+	c.add_child(wrap_label("Phí tuyển %s, lương %s mỗi ngày.\n· Vận hành máy: tự nhận máy còn trống.\n· Nhân viên kho: chuyển hàng từ bãi vào kho và từ máy sang kho thành phẩm.\n· Kỹ thuật viên: tự bảo trì máy dưới %d%% và sửa máy hỏng, không mất phí sửa." % [Fmt.money(cfg.hire_fee), Fmt.money(cfg.wage_per_day), EmployeeManager.SERVICE_BELOW]))
 	var poor := not sim.economy.can_afford(cfg.hire_fee)
 	buttons(c, [
-		UiTheme.button("+ Vận hành máy", func(): GameManager.hire(EmployeeManager.OPERATOR), poor),
-		UiTheme.button("+ Nhân viên kho", func(): GameManager.hire(EmployeeManager.WAREHOUSE), poor),
+		UiTheme.button("+ Vận hành", func(): GameManager.hire(EmployeeManager.OPERATOR), poor),
+		UiTheme.button("+ Kho", func(): GameManager.hire(EmployeeManager.WAREHOUSE), poor),
+		UiTheme.button("+ Kỹ thuật", func(): GameManager.hire(EmployeeManager.TECHNICIAN), poor),
 	])
 	for e in sim.state.employees:
 		var ec := card(b)
