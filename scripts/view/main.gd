@@ -19,7 +19,7 @@ func _ready() -> void:
 	e.ambient_light_energy = 0.55
 	e.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	e.tonemap_exposure = 0.95
-	e.ssao_enabled = true
+	e.ssao_enabled = RenderingServer.get_current_rendering_method() != "mobile"  # no SSAO there
 	env.environment = e
 	add_child(env)
 

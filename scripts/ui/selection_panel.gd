@@ -98,7 +98,9 @@ func _header(text: String) -> void:
 	var l := UiTheme.label(text, 17, UiTheme.TEXT, true)
 	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	h.add_child(l)
-	h.add_child(UiTheme.button("×", func(): EventBus.selection_changed.emit("", 0)))
+	var close := UiTheme.button("×", func(): EventBus.selection_changed.emit("", 0))
+	close.custom_minimum_size = Vector2(44, 40)
+	h.add_child(close)
 	_box.add_child(h)
 
 

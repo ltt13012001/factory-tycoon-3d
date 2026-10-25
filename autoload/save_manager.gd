@@ -1,5 +1,6 @@
-## Reads and writes the single save slot as JSON. Autosaves every 60 s
-## and when the game closes.
+## Reads and writes the single save slot as JSON. Autosaves every 60 s,
+## when the game closes and when a phone sends the app to the background
+## (the system may kill it there without a close request).
 extends Node
 
 const SAVE_DIR := "user://saves/"
@@ -17,6 +18,8 @@ func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST:
 		save_game()
 		get_tree().quit()
+	elif what == NOTIFICATION_APPLICATION_PAUSED or (what == NOTIFICATION_APPLICATION_FOCUS_OUT and OS.has_feature("mobile")):
+		save_game()
 
 
 func _process(delta: float) -> void:

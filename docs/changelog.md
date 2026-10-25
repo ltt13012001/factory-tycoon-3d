@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.3.0 – Bản di động
+
+- Chạy trên Android và iOS (màn hình ngang), có preset xuất cho cả hai và
+  icon ứng dụng. Xem `docs/mobile.md`.
+- Điều khiển cảm ứng: kéo một ngón để di chuyển, chụm hai ngón để phóng to,
+  xoay hai ngón hoặc bấm nút Xoay để xoay, chạm để chọn và đặt máy. Nút Quay
+  lại của Android đóng bảng đang mở.
+- Giao diện cho màn hình nhỏ: tự chọn cỡ giao diện theo kích thước màn hình,
+  tránh tai thỏ, thanh thông tin gọn hơn trên màn hình hẹp, bảng bên co theo
+  chiều rộng, báo cáo cuối ngày cuộn được, ít thông báo hơn cùng lúc.
+- Đồ họa trên điện thoại dùng renderer Mobile (tự lùi về OpenGL ES 3), tắt
+  SSAO, bóng đổ nhẹ hơn.
+- Tự lưu khi chuyển ứng dụng xuống nền.
+
 ## 0.2.0
 
 Theo góp ý chơi thử: giao diện nhỏ, chữ chưa rõ, ít tương tác, ít máy và cảnh.

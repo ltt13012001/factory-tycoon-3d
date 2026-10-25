@@ -40,6 +40,7 @@ signal build_mode_changed(active: bool)
 signal inspect_requested(machine_id: int)
 signal report_requested(report: Dictionary)
 signal ui_scale_changed(scale: float)
+signal camera_rotate_requested(steps: int)
 
 
 func forward(name: StringName, data: Dictionary) -> void:

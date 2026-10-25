@@ -1,5 +1,7 @@
 ## Isometric camera: Q/E rotate in 90° steps, mouse wheel zooms, right or
 ## middle drag (or WASD / arrow keys) pans, left click selects or places.
+## Touch: one finger drags to pan, a tap selects or places, two fingers pinch
+## to zoom, move to pan and twist to rotate.
 extends Node3D
 
 const PITCH := -35.264
@@ -7,6 +9,10 @@ const MIN_SIZE := 12.0
 const MAX_SIZE := 90.0
 const PAN_SPEED := 22.0
 const BOUNDS := Rect2(-50, -40, 100, 80)
+## A touch that moves further than this (in screen pixels) is a drag, not a tap.
+const TAP_SLOP := 14.0
+## Two-finger twist (degrees) that turns the camera one 90° step.
+const TWIST_STEP := 40.0
 
 var camera: Camera3D
 var build_mode := false
@@ -14,6 +20,10 @@ var build_mode := false
 var _yaw_target := 45.0
 var _size_target := 30.0
 var _dragging := false
+var _touches := {}  # finger index -> screen position
+var _tap_pos := Vector2.ZERO
+var _tap_valid := false
+var _twist := 0.0
 
 
 func _ready() -> void:
@@ -31,6 +41,7 @@ func _ready() -> void:
 	pitch.add_child(camera)
 	camera.make_current()
 	EventBus.build_mode_changed.connect(func(active): build_mode = active)
+	EventBus.camera_rotate_requested.connect(rotate_step)
 
 
 func _process(delta: float) -> void:
@@ -62,7 +73,19 @@ func _pan(screen_delta: Vector2) -> void:
 	position.z = clampf(position.z, BOUNDS.position.y, BOUNDS.end.y)
 
 
+## Rotates the camera by 90° steps (negative turns left).
+func rotate_step(steps: int) -> void:
+	_yaw_target += 90.0 * steps
+
+
 func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventScreenTouch or event is InputEventScreenDrag:
+		_touch(event)
+		return
+	# Touchscreens also send emulated mouse events; the touch handler above
+	# already deals with them.
+	if (event is InputEventMouseButton or event is InputEventMouseMotion) and event.device == InputEvent.DEVICE_ID_EMULATION:
+		return
 	if event is InputEventKey and event.pressed and not event.echo:
 		match event.physical_keycode:
 			KEY_Q:
@@ -88,12 +111,58 @@ func _unhandled_input(event: InputEvent) -> void:
 				if event.pressed:
 					_click(event.position)
 	elif event is InputEventMouseMotion and _dragging:
-		var units_per_px := camera.size / get_viewport().get_visible_rect().size.y
-		_pan(-event.relative * units_per_px * Vector2(1, 1.6))
+		_pan(-event.relative * _units_per_px() * Vector2(1, 1.6))
 	elif event is InputEventMagnifyGesture:
 		_size_target = clampf(_size_target / event.factor, MIN_SIZE, MAX_SIZE)
 	elif event is InputEventPanGesture:
 		_pan(event.delta * 0.5)
+
+
+func _touch(event: InputEvent) -> void:
+	if event is InputEventScreenTouch:
+		if event.pressed:
+			_touches[event.index] = event.position
+			_tap_valid = _touches.size() == 1
+			_tap_pos = event.position
+			_twist = 0.0
+		else:
+			_touches.erase(event.index)
+			if _tap_valid and _touches.is_empty() and not event.canceled:
+				_click(event.position)
+			_tap_valid = false
+		return
+	if not _touches.has(event.index):
+		return
+	if _touches.size() == 1:
+		if _tap_valid and event.position.distance_to(_tap_pos) < TAP_SLOP:
+			return
+		_tap_valid = false
+		_touches[event.index] = event.position
+		_pan(-event.relative * _units_per_px() * Vector2(1, 1.6))
+		return
+	# Two (or more) fingers: use the first two.
+	_tap_valid = false
+	var keys := _touches.keys()
+	var other: int = keys[1] if keys[0] == event.index else keys[0]
+	var a_old: Vector2 = _touches[event.index]
+	var b: Vector2 = _touches[other]
+	var a_new: Vector2 = event.position
+	_touches[event.index] = a_new
+	var d_old := a_old.distance_to(b)
+	var d_new := a_new.distance_to(b)
+	if d_old > 1.0 and d_new > 1.0:
+		_size_target = clampf(_size_target * d_old / d_new, MIN_SIZE, MAX_SIZE)
+		camera.size = _size_target
+	_pan(-(a_new - a_old) * 0.5 * _units_per_px() * Vector2(1, 1.6))
+	_twist += rad_to_deg((a_new - b).angle() - (a_old - b).angle())
+	_twist = wrapf(_twist, -180.0, 180.0)
+	if absf(_twist) >= TWIST_STEP:
+		rotate_step(1 if _twist > 0 else -1)
+		_twist = 0.0
+
+
+func _units_per_px() -> float:
+	return camera.size / get_viewport().get_visible_rect().size.y
 
 
 func _click(screen_pos: Vector2) -> void:
