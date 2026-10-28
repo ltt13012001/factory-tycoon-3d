@@ -19,7 +19,8 @@ func _ready() -> void:
 	e.ambient_light_energy = 0.55
 	e.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	e.tonemap_exposure = 0.95
-	e.ssao_enabled = true
+	# No SSAO on the Mobile renderer, and too slow for tablets in a browser.
+	e.ssao_enabled = RenderingServer.get_current_rendering_method() != "mobile" and not OS.has_feature("web")
 	env.environment = e
 	add_child(env)
 
@@ -28,6 +29,12 @@ func _ready() -> void:
 	sun.light_energy = 1.0
 	sun.shadow_enabled = true
 	sun.directional_shadow_max_distance = 140.0
+	if OS.has_feature("web"):
+		# Browsers on tablets: one shadow split instead of four, and the 3D
+		# scene drawn at 75% resolution (the interface stays sharp).
+		sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
+		sun.directional_shadow_max_distance = 90.0
+		get_viewport().scaling_3d_scale = 0.75
 	add_child(sun)
 
 	add_child(preload("res://scripts/view/camera_rig.gd").new())

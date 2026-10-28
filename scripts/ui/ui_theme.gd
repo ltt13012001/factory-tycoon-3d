@@ -18,6 +18,40 @@ const TEXT_SCALE := 1.2
 static var _fonts := {}
 
 
+## True on phones and tablets, including the web build opened on a touch
+## screen (Safari on iPad reports itself as a Mac, so check for touch), or
+## with `-- --mobile` on desktop, for testing.
+static func is_mobile() -> bool:
+	if OS.has_feature("web") and DisplayServer.is_touchscreen_available():
+		return true
+	return OS.has_feature("mobile") or "--mobile" in OS.get_cmdline_user_args()
+
+
+## Interface scale that keeps text and buttons a comfortable size on a small
+## screen: about 190 logical pixels per inch of the screen's short side, but
+## never less than 1.2 times the desktop size. Pass `-- --dpi=400` to test it on desktop.
+static func auto_ui_scale() -> float:
+	if not is_mobile():
+		return 1.0
+	if OS.has_feature("web"):
+		# Browsers hide the real DPI: a short side under 600 CSS pixels is a phone.
+		var css_short := float(JavaScriptBridge.eval("Math.min(screen.width, screen.height)", true))
+		return 1.5 if css_short > 0.0 and css_short < 600.0 else 1.2
+	var dpi := DisplayServer.screen_get_dpi()
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--dpi="):
+			dpi = a.trim_prefix("--dpi=").to_int()
+	var screen := DisplayServer.screen_get_size()
+	var short_px := float(mini(screen.x, screen.y))
+	var long_px := float(maxi(screen.x, screen.y))
+	if short_px <= 0.0 or dpi <= 0:
+		return 1.4
+	# Logical height at scale 1 with the "expand" stretch aspect, in landscape.
+	var base_h := short_px / minf(long_px / 1280.0, short_px / 720.0)
+	var target_h := clampf(short_px / dpi * 190.0, 480.0, base_h)
+	return clampf(snappedf(base_h / target_h, 0.1), 1.2, 1.8)
+
+
 static func font(weight: int = 400) -> Font:
 	if _fonts.has(weight):
 		return _fonts[weight]

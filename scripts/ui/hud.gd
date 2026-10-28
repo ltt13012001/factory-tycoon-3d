@@ -29,6 +29,12 @@ var _banner_label: Label
 var _toasts: VBoxContainer
 var _confirm: ConfirmationDialog
 var _current := ""
+var _top_bar: HBoxContainer
+var _nav: VBoxContainer
+var _report: PanelContainer
+var _selection: SelectionPanel
+var _help: Label
+var _compact := false
 
 const SETTINGS_PATH := "user://settings.cfg"
 
@@ -43,7 +49,11 @@ func _ready() -> void:
 	_build_toasts()
 	_build_corner_panels()
 	_build_help()
+	if UiTheme.is_mobile():
+		_build_touch_buttons()
 	_load_ui_scale()
+	get_viewport().size_changed.connect(_relayout)
+	_relayout.call_deferred()
 	EventBus.toast.connect(show_toast)
 	EventBus.speed_changed.connect(func(_s): _update_speed_buttons())
 	EventBus.build_mode_changed.connect(func(active):
@@ -75,7 +85,10 @@ func _process(_delta: float) -> void:
 	_rep.text = "Uy tín %d" % s.reputation
 	_clock.text = TimeManager.clock_text()
 	var incoming := sim.inventory.pending_material() + s.dock
-	_raw.text = "Hạt nhựa %d/%d%s" % [s.raw, sim.buildings.raw_capacity(), (" (+%d)" % incoming) if incoming > 0 else ""]
+	if _compact:
+		_raw.text = "Nhựa %d/%d" % [s.raw, sim.buildings.raw_capacity()]
+	else:
+		_raw.text = "Hạt nhựa %d/%d%s" % [s.raw, sim.buildings.raw_capacity(), (" (+%d)" % incoming) if incoming > 0 else ""]
 	_raw.add_theme_color_override("font_color", UiTheme.BAD if s.raw < 20 else UiTheme.TEXT)
 	_finished.text = "Kho %d/%d" % [s.finished_total(), sim.buildings.finished_capacity()]
 	var broken := 0
@@ -114,6 +127,7 @@ func _build_top_bar() -> void:
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", 18)
 	bar.add_child(h)
+	_top_bar = h
 	_cash = UiTheme.label("", 18, UiTheme.GOOD, true)
 	_rep = UiTheme.label("", 16)
 	_clock = UiTheme.label("", 16)
@@ -174,7 +188,7 @@ func _on_menu(id: int) -> void:
 
 ## Scales the whole interface (and the 3D labels stay as they are).
 func set_ui_scale(value: float) -> void:
-	_ui_scale = clampf(snappedf(value, 0.1), 0.8, 1.8)
+	_ui_scale = clampf(snappedf(value, 0.1), 0.8, 2.2)
 	get_tree().root.content_scale_factor = _ui_scale
 	var cfg := ConfigFile.new()
 	cfg.load(SETTINGS_PATH)
@@ -184,10 +198,40 @@ func set_ui_scale(value: float) -> void:
 
 
 func _load_ui_scale() -> void:
+	_ui_scale = UiTheme.auto_ui_scale()
 	var cfg := ConfigFile.new()
 	if cfg.load(SETTINGS_PATH) == OK:
-		_ui_scale = float(cfg.get_value("ui", "scale", 1.0))
-		get_tree().root.content_scale_factor = _ui_scale
+		_ui_scale = float(cfg.get_value("ui", "scale", _ui_scale))
+	get_tree().root.content_scale_factor = _ui_scale
+
+
+## Fits the layout to the current logical screen size: keeps clear of notches
+## and rounded corners on phones, narrows the side panels and shortens the
+## top bar when space runs out.
+func _relayout() -> void:
+	var vp := get_viewport_rect().size
+	if OS.has_feature("mobile"):
+		var win := Vector2(DisplayServer.window_get_size())
+		var safe := Rect2(DisplayServer.get_display_safe_area())
+		if win.x > 0 and win.y > 0 and safe.size.x > 0:
+			var k := vp / win
+			offset_left = safe.position.x * k.x
+			offset_top = safe.position.y * k.y
+			offset_right = -(win.x - safe.end.x) * k.x
+			offset_bottom = -(win.y - safe.end.y) * k.y
+	var w := size.x
+	var panel_w := clampf(w - 192 - 16, 300, 480)
+	for k in _panels:
+		_panels[k].offset_right = 192 + panel_w
+	# Narrow screens (most phones): smaller top bar text and shorter labels.
+	_compact = w < 1000
+	_top_bar.add_theme_constant_override("separation", 10 if _compact else 18)
+	_cash.add_theme_font_size_override("font_size", roundi((15 if _compact else 18) * UiTheme.TEXT_SCALE))
+	for l in [_rep, _clock, _raw, _finished]:
+		l.add_theme_font_size_override("font_size", roundi((13 if _compact else 16) * UiTheme.TEXT_SCALE))
+	for b in _speed_buttons:
+		b.custom_minimum_size.x = 38 if _compact else 46
+	_report.max_height = size.y - 24
 
 
 func _update_speed_buttons() -> void:
@@ -198,15 +242,16 @@ func _update_speed_buttons() -> void:
 
 func _build_nav() -> void:
 	var nav := VBoxContainer.new()
+	_nav = nav
 	nav.position = Vector2(12, 72)
-	nav.add_theme_constant_override("separation", 6)
+	nav.add_theme_constant_override("separation", 4 if UiTheme.is_mobile() else 6)
 	nav.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(nav)
 	for p in PANELS:
 		var id: String = p[0]
 		var b := UiTheme.button(p[1], func(): toggle_panel(id))
 		b.toggle_mode = true
-		b.custom_minimum_size = Vector2(170, 46)
+		b.custom_minimum_size = Vector2(170, 42 if UiTheme.is_mobile() else 46)
 		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		nav.add_child(b)
 		_nav_buttons[id] = b
@@ -250,6 +295,12 @@ func toggle_panel(id: String) -> void:
 	for k in _panels:
 		_panels[k].visible = k == _current
 		_nav_buttons[k].set_pressed_no_signal(k == _current)
+	_update_help()
+
+
+func _update_help() -> void:
+	if _help:
+		_help.visible = _current == "" and not _selection.visible
 
 
 func _build_tutorial() -> void:
@@ -275,8 +326,11 @@ func _build_tutorial() -> void:
 	var bh := HBoxContainer.new()
 	bh.add_theme_constant_override("separation", 12)
 	_banner_label = UiTheme.label("Bấm vào ô xanh trong xưởng để đặt máy.", 16, Color.WHITE, true)
+	if UiTheme.is_mobile():
+		_banner_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_banner_label.custom_minimum_size.x = 420
 	bh.add_child(_banner_label)
-	bh.add_child(UiTheme.button("Hủy (Esc)", func(): EventBus.build_mode_changed.emit(false)))
+	bh.add_child(UiTheme.button("Hủy" if UiTheme.is_mobile() else "Hủy (Esc)", func(): EventBus.build_mode_changed.emit(false)))
 	_build_banner.add_child(bh)
 	_build_banner.visible = false
 	add_child(_build_banner)
@@ -301,10 +355,10 @@ func show_toast(text: String, good: bool = true) -> void:
 	pc.add_theme_stylebox_override("panel", UiTheme.panel_style(color, 8, 10))
 	var l := UiTheme.label(text, 15, Color.WHITE)
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	l.custom_minimum_size.x = 330
+	l.custom_minimum_size.x = 280 if UiTheme.is_mobile() else 330
 	pc.add_child(l)
 	_toasts.add_child(pc)
-	while _toasts.get_child_count() > 5:
+	while _toasts.get_child_count() > (3 if UiTheme.is_mobile() else 5):
 		var old := _toasts.get_child(0)
 		_toasts.remove_child(old)
 		old.queue_free()
@@ -316,6 +370,8 @@ func show_toast(text: String, good: bool = true) -> void:
 
 func _build_corner_panels() -> void:
 	var sel := SelectionPanel.new()
+	_selection = sel
+	sel.visibility_changed.connect(_update_help)
 	sel.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
 	sel.offset_right = -16
 	sel.offset_bottom = -16
@@ -324,6 +380,7 @@ func _build_corner_panels() -> void:
 	add_child(sel)
 	var report: PanelContainer = preload("res://scripts/ui/daily_report.gd").new()
 	report.name = "DailyReport"
+	_report = report
 	report.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
 	report.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	report.grow_vertical = Control.GROW_DIRECTION_BOTH
@@ -331,14 +388,56 @@ func _build_corner_panels() -> void:
 
 
 func _build_help() -> void:
-	var l := UiTheme.label("Q / E xoay · Lăn chuột phóng to · Chuột phải kéo hoặc WASD di chuyển · Bấm vào máy để xem và sửa · Space tạm dừng", 13, Color(1, 1, 1, 0.85))
+	var text := "Q / E xoay · Lăn chuột phóng to · Chuột phải kéo hoặc WASD di chuyển · Bấm vào máy để xem và sửa · Space tạm dừng"
+	var l := UiTheme.label(text, 13, Color(1, 1, 1, 0.85))
 	l.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
 	l.offset_left = 14
 	l.offset_top = -30
+	if UiTheme.is_mobile():
+		# Next to the rotate buttons, wrapping onto two lines if needed.
+		l.text = "Kéo để di chuyển · Chụm hai ngón để phóng to · Xoay hai ngón để xoay · Chạm vào máy để xem"
+		l.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+		l.offset_left = 224
+		l.offset_right = -16
+		l.offset_top = -62
+		l.offset_bottom = -10
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	l.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.7))
 	l.add_theme_constant_override("outline_size", 4)
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(l)
+	_help = l
+
+
+## Phones have no Q / E keys: big rotate buttons in the bottom-left corner.
+func _build_touch_buttons() -> void:
+	var h := HBoxContainer.new()
+	h.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
+	h.offset_left = 12
+	h.offset_top = -62
+	h.offset_bottom = -10
+	h.add_theme_constant_override("separation", 8)
+	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	for step in [-1, 1]:
+		var b := UiTheme.button("< Xoay" if step < 0 else "Xoay >", func(): EventBus.camera_rotate_requested.emit(step))
+		b.custom_minimum_size = Vector2(96, 52)
+		h.add_child(b)
+	add_child(h)
+
+
+## Android back button / gesture: closes whatever is open, one thing at a time.
+func _notification(what: int) -> void:
+	if what != NOTIFICATION_WM_GO_BACK_REQUEST:
+		return
+	if _report.visible:
+		_report.visible = false
+	elif _build_banner.visible:
+		EventBus.build_mode_changed.emit(false)
+	elif _current != "":
+		toggle_panel(_current)
+	elif _selection.visible:
+		EventBus.selection_changed.emit("", 0)
 
 
 func _on_order_completed(d: Dictionary) -> void:

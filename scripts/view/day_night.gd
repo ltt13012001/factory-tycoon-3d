@@ -13,11 +13,20 @@ const DUSK_HORIZON := Color("f2a65e")
 const NIGHT_TOP := Color("0d1b33")
 const NIGHT_HORIZON := Color("2a3b5c")
 
+## Changing the sky redraws it, so phones and browsers update the light a few
+## times a second instead of every frame; the change per step is invisible.
+var _interval := 0.25 if OS.has_feature("mobile") or OS.has_feature("web") else 0.0
+var _wait := 0.0
 
-func _process(_delta: float) -> void:
+
+func _process(delta: float) -> void:
 	var sim: Simulation = GameManager.sim
 	if sim == null:
 		return
+	_wait -= delta
+	if _wait > 0.0:
+		return
+	_wait = _interval
 	var frac := sim.tick_fraction() if TimeManager.speed > 0 else 0.0
 	var h := fmod(sim.hour_of_day() + frac / sim.config.ticks_per_hour, 24.0)
 	apply_hour(h)

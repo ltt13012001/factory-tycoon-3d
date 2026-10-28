@@ -8,15 +8,23 @@ const CATEGORY_NAMES := {
 	"construction": "Xây dựng", "upgrade": "Nâng cấp máy", "repair": "Sửa máy",
 }
 
+## Taller reports scroll instead of running off small screens.
+var max_height := 10000.0
 var _box: VBoxContainer
+var _scroll: ScrollContainer
 
 
 func _ready() -> void:
 	custom_minimum_size = Vector2(520, 0)
 	add_theme_stylebox_override("panel", UiTheme.panel_style(Color(0.08, 0.1, 0.14, 0.97), 14, 20))
+	_scroll = ScrollContainer.new()
+	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	add_child(_scroll)
+	TouchScroll.attach(_scroll)
 	_box = VBoxContainer.new()
+	_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_box.add_theme_constant_override("separation", 6)
-	add_child(_box)
+	_scroll.add_child(_box)
 	visible = false
 	EventBus.day_ended.connect(show_report)
 	EventBus.report_requested.connect(show_report)
@@ -24,6 +32,7 @@ func _ready() -> void:
 
 func show_report(r: Dictionary) -> void:
 	for c in _box.get_children():
+		_box.remove_child(c)
 		c.queue_free()
 	var st: Dictionary = r.stats
 	_box.add_child(UiTheme.label("Báo cáo cuối ngày %d" % r.day, 22, UiTheme.TEXT, true))
@@ -62,6 +71,19 @@ func show_report(r: Dictionary) -> void:
 		_box.add_child(warn)
 	_box.add_child(UiTheme.button("Tiếp tục", func(): visible = false))
 	visible = true
+	_fit.call_deferred()
+
+
+func _fit() -> void:
+	var content := _box.get_combined_minimum_size()
+	_scroll.custom_minimum_size = Vector2(content.x, minf(content.y, max_height - 40))
+	_scroll.scroll_vertical = 0
+	# Re-centre on the new size (the old offsets may hold a taller report).
+	var s := get_combined_minimum_size()
+	offset_left = -s.x / 2
+	offset_right = s.x / 2
+	offset_top = -s.y / 2
+	offset_bottom = s.y / 2
 
 
 func _section(text: String) -> void:
