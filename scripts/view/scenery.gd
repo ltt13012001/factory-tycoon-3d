@@ -305,6 +305,8 @@ func _build_traffic() -> void:
 
 ## Warm yard lights that come on at night.
 func _build_site_lights() -> void:
+	if OS.has_feature("web"):
+		return  # each extra light redraws the scene again in a browser; the lamps still glow
 	for p in [Vector3(16, 5, 9), Vector3(1, 5, 10), Vector3(-6, 5, 6.5), Vector3(-13, 5, 1), Vector3(13, 5, -4), Vector3(-6, 5, 22)]:
 		var l := OmniLight3D.new()
 		l.position = p
