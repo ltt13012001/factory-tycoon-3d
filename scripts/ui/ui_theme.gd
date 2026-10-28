@@ -18,8 +18,12 @@ const TEXT_SCALE := 1.2
 static var _fonts := {}
 
 
-## True on phones and tablets (or with `-- --mobile` on desktop, for testing).
+## True on phones and tablets, including the web build opened on a touch
+## screen (Safari on iPad reports itself as a Mac, so check for touch), or
+## with `-- --mobile` on desktop, for testing.
 static func is_mobile() -> bool:
+	if OS.has_feature("web") and DisplayServer.is_touchscreen_available():
+		return true
 	return OS.has_feature("mobile") or "--mobile" in OS.get_cmdline_user_args()
 
 
@@ -29,6 +33,10 @@ static func is_mobile() -> bool:
 static func auto_ui_scale() -> float:
 	if not is_mobile():
 		return 1.0
+	if OS.has_feature("web"):
+		# Browsers hide the real DPI: a short side under 600 CSS pixels is a phone.
+		var css_short := float(JavaScriptBridge.eval("Math.min(screen.width, screen.height)", true))
+		return 1.5 if css_short > 0.0 and css_short < 600.0 else 1.2
 	var dpi := DisplayServer.screen_get_dpi()
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--dpi="):

@@ -19,7 +19,8 @@ func _ready() -> void:
 	e.ambient_light_energy = 0.55
 	e.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	e.tonemap_exposure = 0.95
-	e.ssao_enabled = RenderingServer.get_current_rendering_method() != "mobile"  # no SSAO there
+	# No SSAO on the Mobile renderer, and too slow for tablets in a browser.
+	e.ssao_enabled = RenderingServer.get_current_rendering_method() != "mobile" and not OS.has_feature("web")
 	env.environment = e
 	add_child(env)
 
