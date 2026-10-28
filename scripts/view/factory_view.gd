@@ -451,6 +451,19 @@ func _bag_mesh() -> Mesh:
 	return _bag_shared
 
 
+## Extra stock spots on the racks of the warehouse annex (shown once it is
+## built and the main warehouse spots are full).
+func _build_annex_piles() -> void:
+	for i in 48:
+		var level := i / 16
+		var cell := i % 16
+		_raw_piles.append(_raw_pile(Vector3(21.3 + (cell % 2) * 1.2, 0.1 + level * 0.85, -11.4 + (cell / 2) * 0.95)))
+	for i in 64:
+		var level := i / 16
+		var cell := i % 16
+		_finished_piles.append(_finished_pile(Vector3(21.3 + (cell % 2) * 1.2, 0.1 + level * 0.85, -3.4 + (cell / 2) * 0.95)))
+
+
 func _build_dock_and_office() -> void:
 	var a := FactoryLayout.DOCK_MIN
 	var b := FactoryLayout.DOCK_MAX
