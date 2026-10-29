@@ -7,13 +7,13 @@ func test_full_day_output() -> void:
 	sim.state.raw_value = 600 * 200
 	var m: Dictionary = sim.state.machines[0]
 	sim.advance_ticks(days(sim, 1) - 1)
-	check_eq(m.produced + m.defects, 59, "59 cycles finished before the last tick")
+	check_eq(m.produced + m.defects, 119, "119 cycles finished before the last tick")
 	sim.advance_ticks(1)
 	var st: Dictionary = sim.state.reports[-1].stats
-	check_eq(st.produced + st.defects, 60, "6 s cycle -> 60 cycles per day")
-	check(st.defects >= 0 and st.defects <= 10, "about 5%% defects (got %d)" % st.defects)
-	check_eq(st.power, 60 * 15, "power $0,15 per cycle")
-	check_eq(sim.state.raw, 600 - 60, "one unit per cycle")
+	check_eq(st.produced + st.defects, 120, "3 s cycle -> 120 cycles per day")
+	check(st.defects >= 0 and st.defects <= 16, "about 5%% defects (got %d)" % st.defects)
+	check_eq(st.power, 120 * 8, "power $0,08 per cycle")
+	check_eq(sim.state.raw, 600 - 120, "one unit per cycle")
 	check_eq(sim.state.finished_total() + m.buffer + sim.inventory.carried("haul"), st.produced, "every good box is in a store")
 
 
@@ -57,6 +57,8 @@ func test_stops_when_finished_store_full() -> void:
 
 func test_second_machine_needs_operator() -> void:
 	var sim := new_sim()
+	sim.state.cash = 100000
+	sim.state.day_start_cash = 100000
 	check(sim.buy_machine(1).ok, "buy second machine")
 	check_eq(sim.state.cash, 100000 - 120000, "price $1.200 into overdraft")
 	sim.advance_ticks(10)
@@ -67,5 +69,5 @@ func test_second_machine_needs_operator() -> void:
 	check(not sim.buy_machine(1).ok, "slot taken")
 	var r := sim.sell_machine(m2.id)
 	check(r.ok, "sell machine")
-	check_eq(sim.state.cash, 100000 - 120000 - 10000 + 60000, "50% resale")
+	check_eq(sim.state.cash, 100000 - 120000 - 5000 + 60000, "50% resale")
 	check(sim.state.ledger.size() > 0 and sim.economy.ledger_balanced(), "ledger balanced")

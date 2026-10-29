@@ -29,12 +29,12 @@ func _open(sim: Simulation, id: String, lines: int = 0) -> void:
 func test_line_speed_and_manager_make_machines_faster() -> void:
 	var sim := _rich_sim()
 	var m: Dictionary = sim.state.machines[0]
-	check_eq(sim.production.cycle_ticks(m), 24, "base cycle")
+	check_eq(sim.production.cycle_ticks(m), 12, "base cycle")
 	check(sim.upgrade_line_speed().ok, "line speed 1")
-	check_eq(sim.production.cycle_ticks(m), 22, "10% faster: 24 / 1.1")
+	check_eq(sim.production.cycle_ticks(m), 11, "10% faster: 12 / 1.1")
 	check(sim.hire(EmployeeManager.MANAGER).ok, "hire factory manager")
 	check(not sim.hire(EmployeeManager.MANAGER).ok, "only one factory manager")
-	check_eq(sim.production.cycle_ticks(m), 19, "25% faster: 24 / 1.25")
+	check_eq(sim.production.cycle_ticks(m), 10, "25% faster: 12 / 1.25")
 	for i in 4:
 		sim.upgrade_line_speed()
 	check(not sim.upgrade_line_speed().ok, "line speed max level")
@@ -76,13 +76,13 @@ func test_site_earns_only_with_head() -> void:
 	var s := sim.expansion.site("lot_2")
 	check_eq(sim.expansion.daily_income(s), 0, "no income without a factory manager")
 	sim.hire_site_head("lot_2")
-	check_eq(sim.expansion.daily_income(s), 3 * 18000, "3 lines earn")
+	check_eq(sim.expansion.daily_income(s), 3 * 45000, "3 lines earn")
 	check(sim.automate_site("lot_2").ok, "automate")
-	check_eq(sim.expansion.daily_income(s), 3 * 18000 * 120 / 100, "+20% automation")
+	check_eq(sim.expansion.daily_income(s), 3 * 45000 * 120 / 100, "+20% automation")
 	# The day's books include the site and still balance.
 	sim.advance_ticks(sim.config.ticks_per_day - sim.state.tick % sim.config.ticks_per_day)
 	var r: Dictionary = sim.state.reports[-1]
-	check_eq(int(r.stats.branch_income), 3 * 18000 * 120 / 100, "income in report")
+	check_eq(int(r.stats.branch_income), 3 * 45000 * 120 / 100, "income in report")
 	check(int(r.stats.branch_costs) > 0, "costs in report")
 	check(r.ledger_ok, "ledger balanced")
 
@@ -134,3 +134,18 @@ func test_old_save_migrates() -> void:
 	check(b.load_save_dict(d), "v2 save loads")
 	check_eq(b.state.sites.size(), 0, "no sites")
 	check_eq(b.expansion.tier(), 0, "workshop stage")
+
+
+func test_rebalance_tops_up_old_saves() -> void:
+	var sim := new_sim()
+	var d := sim.to_save_dict()
+	d.save_version = 3
+	var spent := 0
+	for e in d.ledger:
+		spent += int(e.amount)
+	d.cash = -20000
+	d.day_start_cash = -20000 - spent
+	var b := blank_sim()
+	check(b.load_save_dict(d), "v3 save loads")
+	check_eq(b.state.cash, 300000, "cash topped up to the new start")
+	check(b.economy.ledger_balanced(), "ledger still balances")

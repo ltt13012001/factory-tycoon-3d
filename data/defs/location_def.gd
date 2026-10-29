@@ -29,6 +29,6 @@ extends Resource
 @export_group("Production")
 @export var line_cost: int = 150000
 ## Profit per production line per day before bonuses.
-@export var line_profit_per_day: int = 18000
+@export var line_profit_per_day: int = 45000
 @export var max_lines: int = 9
 @export var head_wage_per_day: int = 12000

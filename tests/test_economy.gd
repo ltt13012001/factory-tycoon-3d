@@ -3,7 +3,7 @@ extends TestCase
 
 func test_start_state() -> void:
 	var sim := new_sim()
-	check_eq(sim.state.cash, 100000, "start cash $1.000")
+	check_eq(sim.state.cash, 300000, "start cash $3.000")
 	check_eq(sim.state.reputation, 50, "start reputation")
 	check_eq(sim.state.raw, 100, "start material")
 	check_eq(sim.state.machines.size(), 1, "one machine")
@@ -17,14 +17,14 @@ func test_buy_material_and_delivery() -> void:
 	var sim := new_sim()
 	var r := sim.buy_material(100)
 	check(r.ok, "buy 100 ok")
-	check_eq(sim.state.cash, 100000 - 22000, "100 x $2 + $20 shipping")
+	check_eq(sim.state.cash, 300000 - 22000, "100 x $2 + $20 shipping")
 	check_eq(sim.state.dock, 0, "nothing at dock yet")
 	sim.advance_ticks(hours(sim, 2) - 1)
 	check_eq(sim.state.dock, 0, "not arrived 1 tick early")
 	sim.advance_ticks(1)
 	check_eq(sim.state.dock, 100, "arrives after 2 game hours")
-	# 4 trips of 25 bags, 10 s each
-	sim.advance_ticks(4 * 2 * sim.config.haul_leg_ticks + 4)
+	# 3 trips of up to 40 bags
+	sim.advance_ticks(3 * 2 * sim.config.haul_leg_ticks + 4)
 	check_eq(sim.state.dock, 0, "warehouse worker unloaded the dock")
 	check_eq(sim.state.purchases.size(), 0, "purchase closed")
 	check(not sim.buy_material(123).ok, "invalid lot size rejected")
@@ -43,24 +43,24 @@ func test_end_of_day_costs() -> void:
 	var cash_before := sim.state.cash
 	sim.advance_ticks(days(sim, 1))
 	var report: Dictionary = sim.state.reports[-1]
-	check_eq(sim.state.cash, cash_before - 4000 - 4000, "1 wage + rent")
+	check_eq(sim.state.cash, cash_before - 3000 - 3000, "1 wage + rent")
 	check(report.ledger_ok, "ledger balanced")
-	check_eq(report.stats.wages, 4000, "wages in report")
-	check_eq(report.profit, -8000, "profit = -wages - rent")
+	check_eq(report.stats.wages, 3000, "wages in report")
+	check_eq(report.profit, -6000, "profit = -wages - rent")
 	check_eq(report.end_cash, sim.state.cash, "report end cash")
 
 
 func test_overdraft() -> void:
 	var sim := new_sim()
-	sim.state.cash = 60000
-	check(not sim.buy_machine(1).ok, "cannot go below -$500")
+	sim.state.cash = -40000
+	check(not sim.buy_machine(1).ok, "cannot go below -$1.500")
 	sim.state.cash = -10000
 	sim.economy.reset_day_stats()
 	sim.fire(sim.state.employees[0].id)
 	sim.advance_ticks(days(sim, 1))
-	# -100 - 40 wage - 40 rent = -180 -> 2% interest = 3,60
-	check_eq(sim.state.reports[-1].stats.interest, 360, "2% interest on negative cash")
-	check_eq(sim.state.cash, -18000 - 360, "cash after interest")
+	# -100 - 30 wage - 30 rent = -160 -> 2% interest = 3,20
+	check_eq(sim.state.reports[-1].stats.interest, 320, "2% interest on negative cash")
+	check_eq(sim.state.cash, -16000 - 320, "cash after interest")
 	check(sim.state.reports[-1].ledger_ok, "ledger balanced with overdraft")
 
 

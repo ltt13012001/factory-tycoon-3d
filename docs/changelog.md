@@ -23,6 +23,12 @@
   giám đốc điều hành; mỗi người có lương và hiệu quả riêng.
 - Lãi và chi phí của các xưởng, chi nhánh và lương lãnh đạo được ghi vào báo
   cáo cuối ngày. Bản lưu cũ tự nâng cấp lên phiên bản 3.
+- Cân bằng lại kinh tế (người chơi thường bị lỗ): mọi máy chạy nhanh gấp đôi
+  (tiền điện mỗi sản phẩm giữ nguyên), khách đặt nhiều đơn hơn và đơn lớn gấp
+  đôi, vốn đầu $3.000, lương và thuê đất $30/ngày, phí tuyển $50, hạn mức thấu
+  chi $1.500, nhân viên kho chở nhiều và đi nhanh hơn. Dây chuyền ở xưởng mới
+  và chi nhánh lãi gấp 2,5 lần. Bản lưu cũ có ít hơn $3.000 được bù lên $3.000.
+  `tests/balance_report.gd` in diễn biến tiền của một người chơi điển hình.
 
 ## Chưa phát hành: đồ hoạ chân thực hơn
 

@@ -18,6 +18,6 @@ build_cost = 2000000
 build_hours = 30
 upkeep_per_day = 24000
 line_cost = 220000
-line_profit_per_day = 25000
+line_profit_per_day = 62500
 max_lines = 12
 head_wage_per_day = 25000

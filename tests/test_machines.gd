@@ -47,16 +47,16 @@ func test_auto_machine_needs_no_operator() -> void:
 func test_upgrade_makes_faster() -> void:
 	var sim := new_sim()
 	var m: Dictionary = sim.state.machines[0]
-	check_eq(sim.production.cycle_ticks(m), 24, "level 1 cycle")
+	check_eq(sim.production.cycle_ticks(m), 12, "level 1 cycle")
 	check_eq(sim.production.upgrade_cost(m), 60000, "upgrade to 2 costs 50% of price")
 	check(sim.upgrade_machine(m.id).ok, "upgrade")
-	check_eq(sim.production.cycle_ticks(m), 20, "15% faster")
+	check_eq(sim.production.cycle_ticks(m), 10, "15% faster")
 	sim.state.cash = 1000000
 	check(sim.upgrade_machine(m.id).ok, "upgrade to 3")
-	check_eq(sim.production.cycle_ticks(m), 17, "30% faster")
+	check_eq(sim.production.cycle_ticks(m), 8, "30% faster")
 	check(sim.upgrade_machine(m.id).ok, "upgrade to 4")
 	check(sim.upgrade_machine(m.id).ok, "upgrade to 5")
-	check_eq(sim.production.cycle_ticks(m), 10, "60% faster at level 5")
+	check_eq(sim.production.cycle_ticks(m), 5, "60% faster at level 5")
 	check(not sim.upgrade_machine(m.id).ok, "max level 5")
 
 

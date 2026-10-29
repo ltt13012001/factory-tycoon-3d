@@ -62,7 +62,7 @@ func needs_operator(m: Dictionary) -> bool:
 func cycle_ticks(m: Dictionary) -> int:
 	var d := def_of(m)
 	var base := d.cycle_ticks * (100 - d.upgrade_speed_percent * (int(m.level) - 1)) / 100.0
-	return maxi(4, roundi(base * 100.0 / (100 + sim.expansion.speed_bonus_percent())))
+	return maxi(2, roundi(base * 100.0 / (100 + sim.expansion.speed_bonus_percent())))
 
 
 func upgrade_cost(m: Dictionary) -> int:

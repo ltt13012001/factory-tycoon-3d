@@ -4,7 +4,7 @@
 class_name SaveMigrations
 extends RefCounted
 
-const CURRENT_VERSION := 3
+const CURRENT_VERSION := 4
 
 
 static func migrate(data: Dictionary) -> Dictionary:
@@ -20,6 +20,8 @@ static func migrate(data: Dictionary) -> Dictionary:
 				data = _from_1(data)
 			2:
 				data = _from_2(data)
+			3:
+				data = _from_3(data)
 		version += 1
 		data.save_version = version
 	return data
@@ -49,4 +51,16 @@ static func _from_1(data: Dictionary) -> Dictionary:
 ## 0.3 -> 0.4: line speed, more factories and branches, company stages.
 static func _from_2(data: Dictionary) -> Dictionary:
 	data.merge({"line_speed_level": 0, "company_tier": 0, "sites": [], "executives": {}})
+	return data
+
+
+## 0.4 rebalance: games started on the old, tighter economy get their cash
+## topped up to the new starting amount so they are not stuck in debt.
+static func _from_3(data: Dictionary) -> Dictionary:
+	const NEW_START_CASH := 300000
+	var cash := int(data.get("cash", 0))
+	if cash < NEW_START_CASH:
+		var gift := NEW_START_CASH - cash
+		data.cash = NEW_START_CASH
+		data.day_start_cash = int(data.get("day_start_cash", cash)) + gift
 	return data
