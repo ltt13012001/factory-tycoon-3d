@@ -1,5 +1,34 @@
 # Changelog
 
+## Chưa phát hành: đồ hoạ chân thực hơn
+
+Theo góp ý: đồ hoạ nên thực tế hơn, cảnh quan và máy móc nhà xưởng chi tiết hơn.
+
+- Ánh sáng: bóng mềm, sương xa làm mờ đồi núi, bloom nhẹ cho đèn và cửa sổ ban
+  đêm, bầu trời có mặt đất và mặt trời. Vật liệu mới: sơn bóng, thép, kính,
+  nước, mặt đất có vân (cỏ, nhựa đường, bê tông không còn một màu phẳng).
+- Nhà xưởng: tường sau cao có cửa sổ, cột thép, đường ống nước, ống cứu hỏa,
+  máng cáp, tủ điện, bảng tên xưởng; tường thấp bằng tôn có gân, cột chắn ở cửa;
+  sàn epoxy với ô máy kẻ vàng và lối đi; bàn nguội, máy nén khí; kho có xe nâng,
+  cửa cuốn, vạch khu hàng; hạt nhựa đóng bao jumbo trên pallet gỗ; văn phòng có
+  bàn ghế, màn hình, tủ sách, sofa, cây cảnh. Tường sau tự ẩn khi xoay camera ra
+  phía sau để không che máy.
+- Máy móc: cả 5 loại máy có bệ, chân, vạch an toàn, bảng điều khiển có màn
+  hình, đèn tháp tín hiệu; máy ép có trục ép, xi lanh có vòng gia nhiệt, phễu;
+  máy thổi có tủ kính; máy công nghiệp có tay gắp và băng tải; máy dập có
+  rèm sáng an toàn và nút hai tay; máy tự động có cánh tay robot 6 trục.
+- Xe tải, ô tô có cửa kính, đèn, cản, bánh có mâm, thùng có pallet.
+- Cảnh quan: silo hạt nhựa và máy làm lạnh sau xưởng, trạm biến áp, chốt bảo vệ
+  và barie, đường có bó vỉa, vạch kẻ, vạch qua đường, trạm xe buýt, đường điện;
+  nhà dân có cửa sổ, cửa chính, ống khói, hàng rào, hộp thư; xưởng bên cạnh có
+  cửa cuốn, ống khói sơn sọc, bồn chứa; hồ có lau sậy, lá sen, đá, cầu gỗ;
+  nông trại có kho thóc, silo, rơm, máy cày, ruộng lúa chín; đồi có rừng thông,
+  hàng nghìn bụi cỏ, cây nhiều tán, bụi cây, đá, mây nhiều lớp.
+- Hiệu năng: mọi vật tĩnh được gộp thành vài lưới (MeshBatch), giảm mạnh số lệnh vẽ
+  so với trước (mỗi khối hộp từng là một lệnh vẽ riêng). Bầu trời chỉ
+  cập nhật vài giây một lần thay vì mỗi khung hình. Máy yếu (web, di động) dùng
+  ít cây, ít cỏ và bản đồ phản chiếu nhỏ hơn.
+
 ## 0.3.0 – Bản di động
 
 - Chạy trên Android và iOS (màn hình ngang), có preset xuất cho cả hai và

@@ -18,6 +18,10 @@ const NIGHT_HORIZON := Color("2a3b5c")
 var _interval := 0.25 if OS.has_feature("mobile") or OS.has_feature("web") else 0.0
 var _wait := 0.0
 
+## Hour last written to the sky. Every sky change re-renders its
+## reflection map, so the sky is only refreshed every few game minutes.
+var _sky_hour := -100.0
+
 
 func _process(delta: float) -> void:
 	var sim: Simulation = GameManager.sim
@@ -53,15 +57,20 @@ func apply_hour(h: float) -> void:
 
 	environment.ambient_light_energy = lerpf(0.42, 0.55, day)
 	environment.ambient_light_color = Color(0.42, 0.48, 0.68).lerp(Color(0.62, 0.68, 0.78), day)
-	sky_material.sky_top_color = NIGHT_TOP.lerp(DAY_TOP, day)
 	var horizon := NIGHT_HORIZON.lerp(DAY_HORIZON, day).lerp(DUSK_HORIZON, dusk * 0.8)
-	sky_material.sky_horizon_color = horizon
-	sky_material.ground_horizon_color = horizon
+	environment.fog_light_color = horizon.lerp(Color("cfe0f0"), day * 0.4)
+	if absf(h - _sky_hour) >= 0.08:
+		_sky_hour = h
+		sky_material.sky_top_color = NIGHT_TOP.lerp(DAY_TOP, day)
+		sky_material.sky_horizon_color = horizon
+		sky_material.ground_horizon_color = horizon
+		sky_material.ground_bottom_color = Color("1c2230").lerp(Color("5a6b4a"), day)
 
 	var glow := smoothstep(0.35, 0.8, night)
 	if scenery:
 		scenery.lamp_material.emission_energy_multiplier = glow * 3.0
 		scenery.window_material.emission_energy_multiplier = glow * 1.6
+		scenery.window_material.albedo_color = Color("8fb6d6").lerp(Color("3a4656"), glow)
 		for l in scenery.night_lights:
 			l.visible = glow > 0.02
 			l.light_energy = glow * 1.4
