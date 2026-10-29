@@ -62,7 +62,43 @@ func _run() -> void:
 	sim.state.tick = (sim.day() - 1) * sim.config.ticks_per_day + (20 - sim.config.day_start_hour) * sim.config.ticks_per_hour
 	await get_tree().create_timer(1.5).timeout
 	await _shot("08_night")
+	sim.state.tick = (sim.day() - 1) * sim.config.ticks_per_day + (13 - sim.config.day_start_hour) * sim.config.ticks_per_hour
+	_expansion()
+	TimeManager.set_speed(1)
+	rig.rotation_degrees.y = 45.0
+	rig._yaw_target = 45.0
+	EventBus.camera_focus_requested.emit(Vector3(70, 0, 2), 62.0)
+	await get_tree().create_timer(3.0).timeout
+	await _shot("09_new_factories")
+	hud.toggle_panel("expansion")
+	await get_tree().create_timer(0.8).timeout
+	await _shot("10_expansion_panel")
 	get_tree().quit()
+
+
+## A growing company: factory 2 running, factory 3 being built, a branch.
+func _expansion() -> void:
+	var sim := GameManager.sim
+	sim.state.cash += 100000000
+	sim.hire(EmployeeManager.MANAGER)
+	sim.upgrade_line_speed()
+	for slot in sim.buildings.machine_slots():
+		if sim.production.machine_in_slot(slot).is_empty():
+			sim.buy_machine(slot)
+	for id in ["lot_2", "lot_3"]:
+		print(id, sim.expand(id), sim.expand(id))
+		if id == "lot_2":
+			sim.advance_ticks(sim.content.locations[id].build_hours * sim.config.ticks_per_hour)
+			sim.hire_site_head(id)
+			for i in 9:
+				sim.buy_line(id)
+			sim.automate_site(id)
+			sim.automate_site(id)
+	var s3 := sim.expansion.site("lot_3")
+	s3.ticks_left = s3.total_ticks * 2 / 5
+	print("tier ", sim.advance_tier())
+	sim.hire_executive("production_director")
+	print("survey ", sim.expand("binh_duong"))
 
 
 ## Late-game look: every building, every machine type, a repair under way

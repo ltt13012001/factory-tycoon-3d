@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="LocationDef" format=3]
+
+[ext_resource type="Script" path="res://data/defs/location_def.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+region = "domestic"
+id = "hai_phong"
+display_name = "Chi nhánh Hải Phòng"
+country = "Việt Nam"
+description = "Cảng biển lớn, chi phí vận chuyển thấp."
+order = 3
+min_tier = 1
+survey_cost = 100000
+survey_hours = 10
+land_cost = 2000000
+build_cost = 2000000
+build_hours = 30
+upkeep_per_day = 24000
+line_cost = 220000
+line_profit_per_day = 62500
+max_lines = 12
+head_wage_per_day = 25000

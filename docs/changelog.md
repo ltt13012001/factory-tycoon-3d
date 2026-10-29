@@ -1,5 +1,78 @@
 # Changelog
 
+## 0.4.0 – Từ xưởng thành tập đoàn đa quốc gia
+
+- Camera: kéo chuột trái hoặc một ngón để di chuyển, vuốt nhanh để camera lướt
+  tiếp, xoay hai ngón để xoay tự do (nút Xoay quay 45°), phạm vi di chuyển rộng
+  tới các lô đất mới. Trên iPad và điện thoại có bàn điều hướng: mũi tên (giữ
+  để di chuyển), + / − phóng to, "Về" quay lại nhà máy chính.
+- Tốc độ sản xuất: "Cải tiến dây chuyền" 5 cấp (+10% mỗi cấp cho mọi máy),
+  máy nâng cấp được tới cấp 5.
+- Xưởng trưởng: tuyển ở bảng Nhân sự hoặc Mở rộng, máy nhanh hơn 15%, tự gọi
+  sửa máy hỏng khi không có kỹ thuật viên rảnh. Đi tuần quanh các máy.
+- Bảng "Mở rộng": đặt đủ máy thì mua lô đất bên cạnh, xây Xưởng 2, 3, 4 (thấy
+  trong 3D, từ đất bán đến công trường và nhà xưởng có dây chuyền). Mỗi xưởng
+  cần xưởng trưởng, mua dây chuyền và tự động hoá để tăng lãi.
+- Các cấp doanh nghiệp: Xưởng sản xuất → Công ty TNHH → Tổng công ty → Tập
+  đoàn → Tập đoàn đa quốc gia. Công ty mở được chi nhánh trong nước (Bình Dương,
+  Bắc Ninh, Hải Phòng, Đà Nẵng), Tổng công ty mở chi nhánh nước ngoài (Thái Lan,
+  Indonesia, Ấn Độ, Mexico, Đức, Hoa Kỳ). Mỗi nơi phải khảo sát thị trường
+  trước, chi nhánh cần giám đốc chi nhánh.
+- Ban lãnh đạo theo từng cấp: Giám đốc sản xuất, Kế toán trưởng, Giám đốc kinh
+  doanh, Giám đốc nhân sự, Giám đốc tài chính, Giám đốc khu vực quốc tế, Tổng
+  giám đốc điều hành; mỗi người có lương và hiệu quả riêng.
+- Lãi và chi phí của các xưởng, chi nhánh và lương lãnh đạo được ghi vào báo
+  cáo cuối ngày. Bản lưu cũ tự nâng cấp lên phiên bản 3.
+- Cân bằng lại kinh tế (người chơi thường bị lỗ): mọi máy chạy nhanh gấp đôi
+  (tiền điện mỗi sản phẩm giữ nguyên), khách đặt nhiều đơn hơn và đơn lớn gấp
+  đôi, vốn đầu $3.000, lương và thuê đất $30/ngày, phí tuyển $50, hạn mức thấu
+  chi $1.500, nhân viên kho chở nhiều và đi nhanh hơn. Dây chuyền ở xưởng mới
+  và chi nhánh lãi gấp 2,5 lần. Bản lưu cũ có ít hơn $3.000 được bù lên $3.000.
+  `tests/balance_report.gd` in diễn biến tiền của một người chơi điển hình.
+
+## Chưa phát hành: đồ hoạ chân thực hơn
+
+Theo góp ý: đồ hoạ nên thực tế hơn, cảnh quan và máy móc nhà xưởng chi tiết hơn.
+
+- Ánh sáng: bóng mềm, sương xa làm mờ đồi núi, bloom nhẹ cho đèn và cửa sổ ban
+  đêm, bầu trời có mặt đất và mặt trời. Vật liệu mới: sơn bóng, thép, kính,
+  nước, mặt đất có vân (cỏ, nhựa đường, bê tông không còn một màu phẳng).
+- Nhà xưởng: tường sau cao có cửa sổ, cột thép, đường ống nước, ống cứu hỏa,
+  máng cáp, tủ điện, bảng tên xưởng; tường thấp bằng tôn có gân, cột chắn ở cửa;
+  sàn epoxy với ô máy kẻ vàng và lối đi; bàn nguội, máy nén khí; kho có xe nâng,
+  cửa cuốn, vạch khu hàng; hạt nhựa đóng bao jumbo trên pallet gỗ; văn phòng có
+  bàn ghế, màn hình, tủ sách, sofa, cây cảnh. Tường sau tự ẩn khi xoay camera ra
+  phía sau để không che máy.
+- Máy móc: cả 5 loại máy có bệ, chân, vạch an toàn, bảng điều khiển có màn
+  hình, đèn tháp tín hiệu; máy ép có trục ép, xi lanh có vòng gia nhiệt, phễu;
+  máy thổi có tủ kính; máy công nghiệp có tay gắp và băng tải; máy dập có
+  rèm sáng an toàn và nút hai tay; máy tự động có cánh tay robot 6 trục.
+- Xe tải, ô tô có cửa kính, đèn, cản, bánh có mâm, thùng có pallet.
+- Cảnh quan: silo hạt nhựa và máy làm lạnh sau xưởng, trạm biến áp, chốt bảo vệ
+  và barie, đường có bó vỉa, vạch kẻ, vạch qua đường, trạm xe buýt, đường điện;
+  nhà dân có cửa sổ, cửa chính, ống khói, hàng rào, hộp thư; xưởng bên cạnh có
+  cửa cuốn, ống khói sơn sọc, bồn chứa; hồ có lau sậy, lá sen, đá, cầu gỗ;
+  nông trại có kho thóc, silo, rơm, máy cày, ruộng lúa chín; đồi có rừng thông,
+  hàng nghìn bụi cỏ, cây nhiều tán, bụi cây, đá, mây nhiều lớp.
+- Hiệu năng: mọi vật tĩnh được gộp thành vài lưới (MeshBatch), giảm mạnh số lệnh vẽ
+  so với trước (mỗi khối hộp từng là một lệnh vẽ riêng). Bầu trời chỉ
+  cập nhật vài giây một lần thay vì mỗi khung hình. Máy yếu (web, di động) dùng
+  ít cây, ít cỏ và bản đồ phản chiếu nhỏ hơn.
+
+## 0.3.0 – Bản di động
+
+- Chạy trên Android và iOS (màn hình ngang), có preset xuất cho cả hai và
+  icon ứng dụng. Xem `docs/mobile.md`.
+- Điều khiển cảm ứng: kéo một ngón để di chuyển, chụm hai ngón để phóng to,
+  xoay hai ngón hoặc bấm nút Xoay để xoay, chạm để chọn và đặt máy. Nút Quay
+  lại của Android đóng bảng đang mở.
+- Giao diện cho màn hình nhỏ: tự chọn cỡ giao diện theo kích thước màn hình,
+  tránh tai thỏ, thanh thông tin gọn hơn trên màn hình hẹp, bảng bên co theo
+  chiều rộng, báo cáo cuối ngày cuộn được, ít thông báo hơn cùng lúc.
+- Đồ họa trên điện thoại dùng renderer Mobile (tự lùi về OpenGL ES 3), tắt
+  SSAO, bóng đổ nhẹ hơn.
+- Tự lưu khi chuyển ứng dụng xuống nền.
+
 ## 0.2.0
 
 Theo góp ý chơi thử: giao diện nhỏ, chữ chưa rõ, ít tương tác, ít máy và cảnh.

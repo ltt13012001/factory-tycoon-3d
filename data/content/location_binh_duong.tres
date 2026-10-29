@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="LocationDef" format=3]
+
+[ext_resource type="Script" path="res://data/defs/location_def.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+region = "domestic"
+id = "binh_duong"
+display_name = "Chi nhánh Bình Dương"
+country = "Việt Nam"
+description = "Khu công nghiệp lớn, gần cảng và nhiều khách hàng."
+order = 1
+min_tier = 1
+survey_cost = 80000
+survey_hours = 8
+land_cost = 1500000
+build_cost = 1500000
+build_hours = 24
+upkeep_per_day = 20000
+line_cost = 200000
+line_profit_per_day = 55000
+max_lines = 12
+head_wage_per_day = 25000

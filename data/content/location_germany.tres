@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="LocationDef" format=3]
+
+[ext_resource type="Script" path="res://data/defs/location_def.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+region = "abroad"
+id = "germany"
+display_name = "Chi nhánh Đức"
+country = "Đức"
+description = "Khách hàng khó tính nhưng trả giá cao."
+order = 5
+min_tier = 2
+survey_cost = 800000
+survey_hours = 24
+land_cost = 16000000
+build_cost = 16000000
+build_hours = 72
+upkeep_per_day = 140000
+line_cost = 800000
+line_profit_per_day = 180000
+max_lines = 15
+head_wage_per_day = 80000

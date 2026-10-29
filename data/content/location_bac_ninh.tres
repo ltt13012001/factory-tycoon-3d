@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="LocationDef" format=3]
+
+[ext_resource type="Script" path="res://data/defs/location_def.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+region = "domestic"
+id = "bac_ninh"
+display_name = "Chi nhánh Bắc Ninh"
+country = "Việt Nam"
+description = "Trung tâm điện tử phía Bắc, đặt nhiều linh kiện nhựa."
+order = 2
+min_tier = 1
+survey_cost = 90000
+survey_hours = 8
+land_cost = 1800000
+build_cost = 1700000
+build_hours = 24
+upkeep_per_day = 22000
+line_cost = 220000
+line_profit_per_day = 60000
+max_lines = 12
+head_wage_per_day = 25000

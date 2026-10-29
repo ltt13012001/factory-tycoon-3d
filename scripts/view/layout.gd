@@ -53,6 +53,11 @@ const TRUCK_STOP := Vector3(16, 0, ROAD_Z - 1.5)
 const ROAD_WEST := Vector3(-70, 0, ROAD_Z - 1.5)
 const ROAD_EAST := Vector3(70, 0, ROAD_Z + 1.5)
 
+## Plots east of the first factory where Xưởng 2, 3 and 4 are built
+## (location id -> centre). Each plot is PLOT_SIZE metres.
+const PLOTS := {"lot_2": Vector3(52, 0, 0.5), "lot_3": Vector3(78, 0, 0.5), "lot_4": Vector3(104, 0, 0.5)}
+const PLOT_SIZE := Vector2(22, 25)
+
 const RAW_STACK_ORIGIN := Vector3(13, 0, -11)
 const FINISHED_STACK_ORIGIN := Vector3(13, 0, -2.5)
 const DOCK_STACK_ORIGIN := Vector3(13, 0, 8)

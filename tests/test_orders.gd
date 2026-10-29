@@ -8,7 +8,7 @@ func _first_offer(sim: Simulation) -> Dictionary:
 func test_accept_ship_and_pay() -> void:
 	var sim := new_sim()
 	var o := _first_offer(sim)
-	check(o.qty >= 30 and o.qty <= 90, "quantity 30-90")
+	check(o.qty >= 60 and o.qty <= 180, "quantity 60-180")
 	check(o.deadline_days >= 1 and o.deadline_days <= 3, "deadline 1-3 days")
 	check(sim.accept_order(o.id).ok, "accept")
 	check_eq(o.deadline_tick, sim.state.tick + o.deadline_days * 1440, "deadline from acceptance")
@@ -88,8 +88,8 @@ func test_demand_rate_and_prices() -> void:
 			prices.append(data.unit_price)
 			sim.reject_order(data.id))
 	sim.advance_ticks(days(sim, 10))
-	# reputation 50 -> 2 orders per game day
-	check_eq(offers[0], 21, "1 initial + 2 per day for 10 days")
+	# reputation 50 -> 4.5 orders per game day
+	check_eq(offers[0], 46, "1 initial + 4.5 per day for 10 days")
 	for p in prices:
 		check(p >= roundi(700 * 0.9 * 0.99) and p <= roundi(700 * 1.1 * 1.01), "price in range (%d)" % p)
 
@@ -98,7 +98,7 @@ func test_capacity_estimate() -> void:
 	var sim := new_sim()
 	var o := _first_offer(sim)
 	var h := sim.orders.hours_needed(o.id)
-	# 2.375 good boxes per game hour with one machine
-	check_eq(h, ceili(o.qty / 2.375), "hours with current capacity")
+	# 4.75 good boxes per game hour with one machine
+	check_eq(h, ceili(o.qty / 4.75), "hours with current capacity")
 	sim.fire(sim.state.employees[0].id)
 	check_eq(sim.orders.hours_needed(o.id), -1, "no running machine")

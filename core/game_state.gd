@@ -10,7 +10,7 @@ const FIELDS := [
 	"order_spawn_acc", "power_accrued", "day_start_cash", "day_stats",
 	"ledger", "reports", "tutorial_step", "next_id", "name_index",
 	"total_revenue", "machines_bought", "buildings", "construction", "settings",
-	"order_spawn",
+	"order_spawn", "line_speed_level", "company_tier", "sites", "executives",
 ]
 
 var tick: int = 0
@@ -56,6 +56,15 @@ var buildings: Dictionary = {}
 ## {} or {id, ticks_left, total_ticks}
 var construction: Dictionary = {}
 var settings: Dictionary = {"auto_buy": false, "auto_ship": false}
+## Production line improvements bought for the first factory.
+var line_speed_level: int = 0
+## Company stage, see ExpansionManager.TIER_NAMES.
+var company_tier: int = 0
+## Other factories and branches: {id (location id), status, ticks_left,
+##  total_ticks, lines, automation, head (name or ""), market (percent)}
+var sites: Array = []
+## Executive position id -> name of the person holding it.
+var executives: Dictionary = {}
 
 
 func finished_total() -> int:

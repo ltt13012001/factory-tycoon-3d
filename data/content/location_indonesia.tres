@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="LocationDef" format=3]
+
+[ext_resource type="Script" path="res://data/defs/location_def.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+region = "abroad"
+id = "indonesia"
+display_name = "Chi nhánh Indonesia"
+country = "Indonesia"
+description = "Dân số đông, nhu cầu đồ gia dụng lớn."
+order = 2
+min_tier = 2
+survey_cost = 350000
+survey_hours = 16
+land_cost = 7000000
+build_cost = 7000000
+build_hours = 48
+upkeep_per_day = 65000
+line_cost = 420000
+line_profit_per_day = 105000
+max_lines = 15
+head_wage_per_day = 50000

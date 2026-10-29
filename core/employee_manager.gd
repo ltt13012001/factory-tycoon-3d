@@ -6,7 +6,11 @@ extends RefCounted
 const OPERATOR := "operator"
 const WAREHOUSE := "warehouse"
 const TECHNICIAN := "technician"
-const ROLE_NAMES := {OPERATOR: "Vận hành máy", WAREHOUSE: "Nhân viên kho", TECHNICIAN: "Kỹ thuật viên"}
+## Factory manager of the first factory: one at most.
+const MANAGER := "manager"
+const ROLE_NAMES := {OPERATOR: "Vận hành máy", WAREHOUSE: "Nhân viên kho", TECHNICIAN: "Kỹ thuật viên", MANAGER: "Xưởng trưởng"}
+## A factory manager earns this many times the normal wage.
+const MANAGER_WAGE_FACTOR := 3
 ## Technicians service machines at or below this condition.
 const SERVICE_BELOW := 60
 
@@ -18,6 +22,11 @@ func _init(p_sim: Simulation) -> void:
 
 
 func make_employee(role: String) -> Dictionary:
+	return {"id": sim.state.take_id(), "name": next_name(), "role": role, "machine_id": 0, "job": {}}
+
+
+## The next name from the name list (also used for managers and executives).
+func next_name() -> String:
 	var names := sim.config.worker_names
 	var n := "Công nhân %d" % (sim.state.name_index + 1)
 	if names.size() > 0:
@@ -25,7 +34,18 @@ func make_employee(role: String) -> Dictionary:
 		if sim.state.name_index >= names.size():
 			n += " %d" % (sim.state.name_index / names.size() + 1)
 	sim.state.name_index += 1
-	return {"id": sim.state.take_id(), "name": n, "role": role, "machine_id": 0, "job": {}}
+	return n
+
+
+func wage_of(e: Dictionary) -> int:
+	return sim.config.wage_per_day * (MANAGER_WAGE_FACTOR if e.role == MANAGER else 1)
+
+
+func total_wages() -> int:
+	var total := 0
+	for e in sim.state.employees:
+		total += wage_of(e)
+	return total
 
 
 func count(role: String) -> int:
@@ -39,6 +59,8 @@ func count(role: String) -> int:
 func hire(role: String) -> Dictionary:
 	if not ROLE_NAMES.has(role):
 		return Simulation.fail("Vai trò không hợp lệ.")
+	if role == MANAGER and count(MANAGER) > 0:
+		return Simulation.fail("Xưởng đã có xưởng trưởng.")
 	var fee := sim.config.hire_fee
 	if not sim.economy.can_afford(fee):
 		return Simulation.fail("Không đủ tiền tuyển dụng (%s)." % Fmt.money(fee))
@@ -115,6 +137,9 @@ func auto_assign() -> void:
 
 func tick() -> void:
 	for e in sim.state.employees:
+		if e.role == MANAGER:
+			_manage()
+			continue
 		if e.role == TECHNICIAN:
 			if e.job.is_empty():
 				_pick_service(e)
@@ -133,6 +158,20 @@ func tick() -> void:
 			_pick_up(e, job)
 		else:
 			_deposit(e, job)
+
+
+## The factory manager calls a paid repair for a broken machine when no
+## technician is free to take it.
+func _manage() -> void:
+	if sim.state.tick % 10 != 0:
+		return
+	for e in sim.state.employees:
+		if e.role == TECHNICIAN and e.job.is_empty():
+			return
+	for m in sim.state.machines:
+		if m.broken and int(m.repairer_id) == 0 and sim.economy.can_afford(sim.production.repair_cost(m)):
+			sim.production.repair(m.id)
+			return
 
 
 func _pick_service(e: Dictionary) -> void:

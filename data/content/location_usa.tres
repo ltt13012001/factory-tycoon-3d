@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="LocationDef" format=3]
+
+[ext_resource type="Script" path="res://data/defs/location_def.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+region = "abroad"
+id = "usa"
+display_name = "Chi nhánh Hoa Kỳ"
+country = "Hoa Kỳ"
+description = "Thị trường lớn nhất thế giới."
+order = 6
+min_tier = 2
+survey_cost = 1000000
+survey_hours = 30
+land_cost = 20000000
+build_cost = 20000000
+build_hours = 72
+upkeep_per_day = 160000
+line_cost = 900000
+line_profit_per_day = 205000
+max_lines = 15
+head_wage_per_day = 90000

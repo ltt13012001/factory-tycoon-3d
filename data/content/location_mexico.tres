@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="LocationDef" format=3]
+
+[ext_resource type="Script" path="res://data/defs/location_def.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+region = "abroad"
+id = "mexico"
+display_name = "Chi nhánh Mexico"
+country = "Mexico"
+description = "Cửa ngõ vào thị trường Bắc Mỹ."
+order = 4
+min_tier = 2
+survey_cost = 550000
+survey_hours = 24
+land_cost = 11000000
+build_cost = 11000000
+build_hours = 60
+upkeep_per_day = 90000
+line_cost = 500000
+line_profit_per_day = 130000
+max_lines = 15
+head_wage_per_day = 60000

@@ -35,7 +35,8 @@ func generate_offer(template_id: String = "small_customer") -> Dictionary:
 	var rp := cfg.price_reputation_spread_percent / 100.0
 	var price := roundi(sim.content.products[t.product_id].base_price
 		* (1.0 - rs / 2.0 + rs * u)
-		* (1.0 - rp / 2.0 + rp * s.reputation / 100.0))
+		* (1.0 - rp / 2.0 + rp * s.reputation / 100.0)
+		* sim.expansion.order_price_percent() / 100.0)
 	var customer := "Khách hàng"
 	if t.customer_names.size() > 0:
 		customer = t.customer_names[sim.rng.randi_range(0, t.customer_names.size() - 1)]

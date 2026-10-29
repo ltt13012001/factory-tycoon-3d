@@ -28,7 +28,8 @@ func act() -> void:
 		if (m.broken or int(m.condition) < 25) and int(m.repairer_id) == 0 \
 				and sim.economy.can_afford(sim.production.repair_cost(m)) and s.cash > sim.production.repair_cost(m):
 			sim.repair_machine(m.id)
-	if s.machines.size() < 2 and s.cash >= 120000 + 10000 + 25000:
+	# Grows once the tutorial reaches its last step, like a new player would.
+	if s.machines.size() < 2 and s.tutorial_step >= Tutorial.STEPS.size() - 1 and s.cash >= 120000 + 10000 + 25000:
 		var r := sim.buy_machine(1)
 		if r.ok:
 			sim.hire(EmployeeManager.OPERATOR)
