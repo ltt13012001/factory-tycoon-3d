@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="LocationDef" format=3]
+
+[ext_resource type="Script" path="res://data/defs/location_def.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+region = "abroad"
+id = "thailand"
+display_name = "Chi nhánh Thái Lan"
+country = "Thái Lan"
+description = "Thị trường gần, ngành nhựa phát triển."
+order = 1
+min_tier = 2
+survey_cost = 300000
+survey_hours = 16
+land_cost = 6000000
+build_cost = 6000000
+build_hours = 48
+upkeep_per_day = 60000
+line_cost = 400000
+line_profit_per_day = 40000
+max_lines = 15
+head_wage_per_day = 50000

@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="LocationDef" format=3]
+
+[ext_resource type="Script" path="res://data/defs/location_def.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+region = "abroad"
+id = "india"
+display_name = "Chi nhánh Ấn Độ"
+country = "Ấn Độ"
+description = "Thị trường khổng lồ, nhân công rẻ."
+order = 3
+min_tier = 2
+survey_cost = 450000
+survey_hours = 20
+land_cost = 9000000
+build_cost = 9000000
+build_hours = 60
+upkeep_per_day = 80000
+line_cost = 450000
+line_profit_per_day = 46000
+max_lines = 15
+head_wage_per_day = 55000

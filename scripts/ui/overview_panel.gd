@@ -23,9 +23,12 @@ func build(b: VBoxContainer, sim: Simulation) -> void:
 	row(c, "Doanh thu", Fmt.money(st.revenue), UiTheme.GOOD)
 	row(c, "Giá vốn nguyên liệu", Fmt.money(st.material_cost))
 	row(c, "Tiền điện (trả cuối ngày)", Fmt.money(sim.state.power_accrued))
-	var fixed := sim.state.employees.size() * cfg.wage_per_day + cfg.rent_per_day
+	var fixed := sim.employees.total_wages() + cfg.rent_per_day
 	row(c, "Lương + thuê đất (cuối ngày)", Fmt.money(fixed))
-	var est: int = st.revenue - st.material_cost - sim.state.power_accrued - fixed - st.penalties
+	var others := sim.expansion.daily_net()
+	if not sim.state.sites.is_empty() or not sim.state.executives.is_empty():
+		row(c, "Xưởng khác, chi nhánh, lãnh đạo", Fmt.money(others), UiTheme.GOOD if others >= 0 else UiTheme.BAD)
+	var est: int = st.revenue - st.material_cost - sim.state.power_accrued - fixed - st.penalties + others
 	row(c, "Lợi nhuận dự kiến", Fmt.money(est), UiTheme.GOOD if est >= 0 else UiTheme.BAD)
 
 	var sc := card(b)

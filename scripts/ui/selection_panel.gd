@@ -27,6 +27,8 @@ static func status_color(status: String) -> Color:
 
 
 static func employee_activity(sim: Simulation, e: Dictionary) -> String:
+	if e.role == EmployeeManager.MANAGER:
+		return "Điều hành xưởng (máy nhanh hơn %d%%)" % ExpansionManager.MANAGER_SPEED_PERCENT
 	if e.role == EmployeeManager.OPERATOR:
 		if e.machine_id == 0:
 			return "Rảnh, chờ máy"
@@ -145,5 +147,5 @@ func _build_worker(sim: Simulation, e: Dictionary) -> void:
 	_header(e.name)
 	_row("Vai trò", EmployeeManager.ROLE_NAMES[e.role])
 	_row("Đang làm", employee_activity(sim, e))
-	_row("Lương", "%s / ngày" % Fmt.money(sim.config.wage_per_day))
+	_row("Lương", "%s / ngày" % Fmt.money(sim.employees.wage_of(e)))
 	_box.add_child(UiTheme.button("Cho nghỉ việc", func(): GameManager.fire(e.id)))

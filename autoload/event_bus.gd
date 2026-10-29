@@ -31,6 +31,10 @@ signal machine_broken(data: Dictionary)
 signal machine_repaired(data: Dictionary)
 signal construction_started(data: Dictionary)
 signal construction_finished(data: Dictionary)
+signal expansion_changed(data: Dictionary)
+signal tier_changed(data: Dictionary)
+signal site_surveyed(data: Dictionary)
+signal site_opened(data: Dictionary)
 
 # Presentation events
 signal toast(text: String, good: bool)
@@ -41,6 +45,8 @@ signal inspect_requested(machine_id: int)
 signal report_requested(report: Dictionary)
 signal ui_scale_changed(scale: float)
 signal camera_rotate_requested(steps: int)
+## Moves the camera to a point of the world (zoom = camera size, 0 keeps it).
+signal camera_focus_requested(target: Vector3, zoom: float)
 
 
 func forward(name: StringName, data: Dictionary) -> void:

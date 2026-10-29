@@ -5,6 +5,7 @@ extends RefCounted
 const STAT_KEYS := [
 	"produced", "defects", "revenue", "material_cost", "power", "wages",
 	"rent", "penalties", "interest", "repairs", "orders_delivered", "orders_late",
+	"branch_income", "branch_costs", "exec_wages",
 ]
 
 var sim: Simulation
@@ -53,7 +54,7 @@ func ledger_balanced() -> bool:
 func end_of_day(day_number: int) -> Dictionary:
 	var s := sim.state
 	var cfg := sim.config
-	var wages := s.employees.size() * cfg.wage_per_day
+	var wages := sim.employees.total_wages()
 	if wages > 0:
 		book("wages", -wages, "%d nhân viên" % s.employees.size())
 		add_stat("wages", wages)
@@ -64,7 +65,7 @@ func end_of_day(day_number: int) -> Dictionary:
 		add_stat("power", s.power_accrued)
 		s.power_accrued = 0
 	if s.cash < 0:
-		var interest := ceili(-s.cash * cfg.overdraft_interest_percent / 100.0)
+		var interest := ceili(-s.cash * cfg.overdraft_interest_percent / 100.0 * sim.expansion.interest_percent() / 100.0)
 		book("interest", -interest, "Lãi thấu chi")
 		add_stat("interest", interest)
 
@@ -76,7 +77,8 @@ func end_of_day(day_number: int) -> Dictionary:
 		else:
 			expense -= int(e.amount)
 	var st := s.day_stats
-	var profit: int = st.revenue - st.material_cost - st.power - st.wages - st.rent - st.penalties - st.interest - int(st.get("repairs", 0))
+	var profit: int = st.revenue - st.material_cost - st.power - st.wages - st.rent - st.penalties - st.interest - int(st.get("repairs", 0)) \
+		+ int(st.get("branch_income", 0)) - int(st.get("branch_costs", 0)) - int(st.get("exec_wages", 0))
 	var report := {
 		"day": day_number,
 		"start_cash": s.day_start_cash,

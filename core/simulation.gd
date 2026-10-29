@@ -18,6 +18,7 @@ var orders: OrderManager
 var employees: EmployeeManager
 var tutorial: Tutorial
 var buildings: BuildingManager
+var expansion: ExpansionManager
 
 var _tick_remainder := 0.0
 
@@ -32,6 +33,7 @@ func _init(p_content: ContentDB = null) -> void:
 	employees = EmployeeManager.new(self)
 	tutorial = Tutorial.new(self)
 	buildings = BuildingManager.new(self)
+	expansion = ExpansionManager.new(self)
 
 
 ## Breaks the reference cycles between the simulation, its managers and
@@ -46,6 +48,7 @@ func dispose() -> void:
 	employees = null
 	tutorial = null
 	buildings = null
+	expansion = null
 
 
 static func ok(message: String = "") -> Dictionary:
@@ -109,11 +112,13 @@ func advance_ticks(n: int) -> void:
 func step() -> void:
 	state.tick += 1
 	buildings.tick()
+	expansion.tick()
 	inventory.tick()
 	employees.tick()
 	production.tick()
 	orders.tick()
 	if state.tick % config.ticks_per_day == 0:
+		expansion.end_of_day()
 		var report := economy.end_of_day(state.tick / config.ticks_per_day)
 		emit_event(&"day_ended", report)
 		if report.critical:
@@ -170,6 +175,42 @@ func set_auto_buy(enabled: bool) -> Dictionary:
 
 func set_auto_ship(enabled: bool) -> Dictionary:
 	return orders.set_auto_ship(enabled)
+
+
+func upgrade_line_speed() -> Dictionary:
+	return expansion.upgrade_line_speed()
+
+
+func advance_tier() -> Dictionary:
+	return expansion.advance_tier()
+
+
+func expand(location_id: String) -> Dictionary:
+	return expansion.next_step(location_id)
+
+
+func buy_line(location_id: String) -> Dictionary:
+	return expansion.buy_line(location_id)
+
+
+func automate_site(location_id: String) -> Dictionary:
+	return expansion.upgrade_automation(location_id)
+
+
+func hire_site_head(location_id: String) -> Dictionary:
+	return expansion.hire_head(location_id)
+
+
+func fire_site_head(location_id: String) -> Dictionary:
+	return expansion.fire_head(location_id)
+
+
+func hire_executive(id: String) -> Dictionary:
+	return expansion.hire_exec(id)
+
+
+func fire_executive(id: String) -> Dictionary:
+	return expansion.fire_exec(id)
 
 
 func hire(role: String) -> Dictionary:

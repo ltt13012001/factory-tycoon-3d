@@ -54,7 +54,10 @@ func test_upgrade_makes_faster() -> void:
 	sim.state.cash = 1000000
 	check(sim.upgrade_machine(m.id).ok, "upgrade to 3")
 	check_eq(sim.production.cycle_ticks(m), 17, "30% faster")
-	check(not sim.upgrade_machine(m.id).ok, "max level 3")
+	check(sim.upgrade_machine(m.id).ok, "upgrade to 4")
+	check(sim.upgrade_machine(m.id).ok, "upgrade to 5")
+	check_eq(sim.production.cycle_ticks(m), 10, "60% faster at level 5")
+	check(not sim.upgrade_machine(m.id).ok, "max level 5")
 
 
 func test_wear_breakdown_and_repair() -> void:

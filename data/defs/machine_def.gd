@@ -21,7 +21,7 @@ extends Resource
 @export var min_day: int = 1
 
 @export_group("Upgrades")
-@export var max_level: int = 3
+@export var max_level: int = 5
 ## Each level above 1 makes the cycle this many percent shorter.
 @export var upgrade_speed_percent: int = 15
 ## Upgrade to level L costs price * percent / 100 * (L - 1).

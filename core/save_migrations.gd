@@ -4,7 +4,7 @@
 class_name SaveMigrations
 extends RefCounted
 
-const CURRENT_VERSION := 2
+const CURRENT_VERSION := 3
 
 
 static func migrate(data: Dictionary) -> Dictionary:
@@ -18,6 +18,8 @@ static func migrate(data: Dictionary) -> Dictionary:
 				data = _from_0(data)
 			1:
 				data = _from_1(data)
+			2:
+				data = _from_2(data)
 		version += 1
 		data.save_version = version
 	return data
@@ -41,4 +43,10 @@ static func _from_1(data: Dictionary) -> Dictionary:
 			e.job.merge({"product_id": "plastic_box" if e.job.kind == "haul" else ""})
 	data.order_spawn = {"small_customer": int(data.get("order_spawn_acc", 0))}
 	data.merge({"buildings": {}, "construction": {}, "settings": {"auto_buy": false, "auto_ship": false}})
+	return data
+
+
+## 0.3 -> 0.4: line speed, more factories and branches, company stages.
+static func _from_2(data: Dictionary) -> Dictionary:
+	data.merge({"line_speed_level": 0, "company_tier": 0, "sites": [], "executives": {}})
 	return data

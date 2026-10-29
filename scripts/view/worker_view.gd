@@ -35,6 +35,8 @@ func _ready() -> void:
 			color = Palette.OWNER
 		"technician":
 			color = Palette.TECHNICIAN
+		"manager":
+			color = Palette.MANAGER
 	_visual = Node3D.new()
 	add_child(_visual)
 	var body := MeshInstance3D.new()
@@ -54,6 +56,10 @@ func _ready() -> void:
 	_carry.visible = false
 	if role == "technician":
 		Palette.box(_visual, Vector3(0.45, 0.25, 0.2), Vector3(0.38, 0.45, 0), Color("d32f2f"))
+	if role == "manager":
+		# Tie and clipboard
+		Palette.box(_visual, Vector3(0.1, 0.38, 0.05), Vector3(0, 0.95, 0.29), Color("1565c0"))
+		Palette.box(_visual, Vector3(0.3, 0.4, 0.04), Vector3(0.32, 0.85, 0.2), Color("8d6e63"))
 	if role != "owner":
 		Palette.pick_body(self, Vector3(0.8, 1.8, 0.8), Vector3(0, 0.9, 0), "worker", employee_id)
 
@@ -73,6 +79,8 @@ func _process(delta: float) -> void:
 				_update_operator(sim, e, delta)
 			"technician":
 				_update_technician(sim, e, delta)
+			"manager":
+				_update_manager(sim, delta)
 			_:
 				_update_warehouse(sim, e, delta)
 	var moved := position - before
@@ -122,6 +130,20 @@ func _update_technician(sim: Simulation, e: Dictionary, delta: float) -> void:
 	_working = not m.is_empty() and position.distance_to(target) < 0.3
 	if _working:
 		rotation.y = lerp_angle(rotation.y, atan2(1.6, -1.2), minf(1.0, delta * 8.0))
+
+
+## The factory manager walks from machine to machine, pausing at each.
+func _update_manager(sim: Simulation, delta: float) -> void:
+	var ms := sim.state.machines
+	if ms.is_empty():
+		_walk(FactoryLayout.OPERATOR_IDLE + Vector3(1.0, 0, 0), delta)
+		return
+	var visit := int(_time / 7.0) % ms.size()
+	var m: Dictionary = ms[visit]
+	var target := FactoryLayout.slot_position(int(m.slot)) + Vector3(0.6, 0, 2.2)
+	_walk(target, delta)
+	if not _moving:
+		rotation.y = lerp_angle(rotation.y, PI, minf(1.0, delta * 6.0))
 
 
 func _update_warehouse(sim: Simulation, e: Dictionary, delta: float) -> void:

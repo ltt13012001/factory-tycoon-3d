@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="LocationDef" format=3]
+
+[ext_resource type="Script" path="res://data/defs/location_def.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+region = "local"
+id = "lot_3"
+display_name = "Xưởng 3"
+country = "Việt Nam"
+description = "Lô đất thứ hai phía đông, rộng hơn."
+order = 3
+min_tier = 0
+survey_cost = 0
+survey_hours = 0
+land_cost = 500000
+build_cost = 600000
+build_hours = 16
+upkeep_per_day = 8000
+line_cost = 150000
+line_profit_per_day = 18000
+max_lines = 9
+head_wage_per_day = 12000

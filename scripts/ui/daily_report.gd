@@ -6,6 +6,8 @@ const CATEGORY_NAMES := {
 	"machine": "Mua máy", "machine_sale": "Bán máy", "hire": "Tuyển dụng",
 	"wages": "Lương", "rent": "Thuê đất", "power": "Tiền điện", "interest": "Lãi thấu chi",
 	"construction": "Xây dựng", "upgrade": "Nâng cấp máy", "repair": "Sửa máy",
+	"expansion": "Mở rộng", "branch_income": "Lãi xưởng, chi nhánh", "branch_cost": "Chi phí xưởng, chi nhánh",
+	"executives": "Lương ban lãnh đạo",
 }
 
 ## Taller reports scroll instead of running off small screens.
@@ -53,6 +55,12 @@ func show_report(r: Dictionary) -> void:
 		_row("Sửa máy", "-" + Fmt.money(st.repairs))
 	if st.interest > 0:
 		_row("Lãi thấu chi", "-" + Fmt.money(st.interest), UiTheme.BAD)
+	if int(st.get("branch_income", 0)) > 0:
+		_row("Lãi các xưởng, chi nhánh khác", "+" + Fmt.money(st.branch_income), UiTheme.GOOD)
+	if int(st.get("branch_costs", 0)) > 0:
+		_row("Chi phí xưởng, chi nhánh khác", "-" + Fmt.money(st.branch_costs))
+	if int(st.get("exec_wages", 0)) > 0:
+		_row("Lương ban lãnh đạo", "-" + Fmt.money(st.exec_wages))
 	_row("Lợi nhuận", Fmt.money(r.profit), UiTheme.GOOD if r.profit >= 0 else UiTheme.BAD, true)
 	_section("Dòng tiền (tiền mặt thực thu, thực chi)")
 	_row("Tiền đầu ngày", Fmt.money(r.start_cash))
