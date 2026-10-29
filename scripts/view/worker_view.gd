@@ -519,6 +519,7 @@ func _set_face(kind: String) -> void:
 ## Shows a thought now and then (always while it is urgent: a strike, a
 ## broken machine, a full store).
 func _update_bubble(sim: Simulation, e: Dictionary, delta: float) -> void:
+	_bubble.position.y = 2.75 + (rest_index % 2) * 0.6  # neighbours' bubbles at two heights
 	var t := Thoughts.pick(sim, e) if not e.is_empty() and visible else {"text": "", "kind": "calm", "urgent": false}
 	_kind = t.kind
 	if t.text == "":
@@ -544,10 +545,10 @@ func _update_bubble(sim: Simulation, e: Dictionary, delta: float) -> void:
 		_show_bubble(t)
 
 
-## During a strike only every third person shouts at a time, in turns, so
+## During a strike only every fourth person shouts at a time, in turns, so
 ## the bubbles do not pile up.
 func _quiet_striker() -> bool:
-	return (rest_index + Time.get_ticks_msec() / 3000) % 3 != 0
+	return (rest_index + Time.get_ticks_msec() / 3000) % 4 != 0
 
 
 func _show_bubble(t: Dictionary) -> void:
