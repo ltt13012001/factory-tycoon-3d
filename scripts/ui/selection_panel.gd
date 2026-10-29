@@ -9,6 +9,9 @@ const STATUS_NAMES := {
 	"output_full": "Pallet / kho thành phẩm đầy",
 	"broken": "Hỏng, cần sửa",
 	"repairing": "Đang sửa",
+	"off_shift": "Hết ca, chờ sáng mai",
+	"strike": "Đình công",
+	"operator_away": "Công nhân đang quay lại",
 }
 
 var _kind := ""
@@ -26,7 +29,35 @@ static func status_color(status: String) -> Color:
 	return UiTheme.WARN
 
 
+static func mood_text(mood: int) -> String:
+	if mood >= 75:
+		return "Rất vui"
+	if mood >= 55:
+		return "Vui vẻ"
+	if mood >= EmployeeManager.UNHAPPY_BELOW:
+		return "Bình thường"
+	if mood >= EmployeeManager.STRIKE_BELOW:
+		return "Bất mãn"
+	return "Rất bất mãn"
+
+
+static func mood_color(mood: int) -> Color:
+	if mood >= 55:
+		return UiTheme.GOOD
+	if mood >= EmployeeManager.UNHAPPY_BELOW:
+		return UiTheme.WARN
+	return UiTheme.BAD
+
+
 static func employee_activity(sim: Simulation, e: Dictionary) -> String:
+	if e.get("off", false):
+		return "Đã về nhà, mai đi làm"
+	if sim.employees.on_strike() and e.role != EmployeeManager.MANAGER:
+		return "Đang đình công"
+	if e.get("rest", false):
+		return "Nghỉ ngơi ở khu nghỉ"
+	if int(e.get("away", 0)) > 0:
+		return "Đang đi vào xưởng"
 	if e.role == EmployeeManager.MANAGER:
 		return "Điều hành xưởng (máy nhanh hơn %d%%)" % ExpansionManager.MANAGER_SPEED_PERCENT
 	if e.role == EmployeeManager.OPERATOR:
@@ -72,8 +103,13 @@ func _process(_delta: float) -> void:
 	var shown := data.duplicate(true)
 	shown.erase("ticks_left")
 	shown.erase("repair_ticks_left")
+	shown.erase("idle")
+	if shown.has("away"):
+		shown.away = int(shown.away) > 0
+		shown.thought = Thoughts.of(sim, data)
 	if shown.has("job") and shown.job is Dictionary:
 		shown.job.erase("ticks_left")
+		shown.job.erase("wait")
 	var sig := str(shown) + str(sim.state.cash / 1000)
 	if sig == _signature or Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
 		return
@@ -122,7 +158,7 @@ func _build_machine(sim: Simulation, m: Dictionary) -> void:
 		_row("Người vận hành", "Tự động")
 	_row("Trên pallet", "%d / %d %s" % [m.buffer, d.output_buffer_capacity, p.unit_name])
 	_row("Đã làm", "%d đạt, %d lỗi" % [m.produced, m.defects])
-	_row("Chu kỳ", "%.1f giây" % (sim.production.cycle_ticks(m) * sim.config.tick_seconds))
+	_row("Chu kỳ", "%.1f giây" % sim.production.cycle_seconds(m))
 	var actions := GridContainer.new()
 	actions.columns = 2
 	actions.add_theme_constant_override("h_separation", 6)
@@ -147,5 +183,11 @@ func _build_worker(sim: Simulation, e: Dictionary) -> void:
 	_header(e.name)
 	_row("Vai trò", EmployeeManager.ROLE_NAMES[e.role])
 	_row("Đang làm", employee_activity(sim, e))
+	var mood := int(e.get("mood", 70))
+	_row("Tâm trạng", "%s (%d)" % [mood_text(mood), mood], mood_color(mood))
+	_box.add_child(UiTheme.bar(mood, 100, mood_color(mood)))
+	var thought := Thoughts.of(sim, e)
+	if thought != "":
+		_row("Đang nghĩ", "“%s”" % thought, UiTheme.ACCENT.lightened(0.3))
 	_row("Lương", "%s / ngày" % Fmt.money(sim.employees.wage_of(e)))
 	_box.add_child(UiTheme.button("Cho nghỉ việc", func(): GameManager.fire(e.id)))

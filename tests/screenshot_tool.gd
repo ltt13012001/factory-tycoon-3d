@@ -73,7 +73,51 @@ func _run() -> void:
 	hud.toggle_panel("expansion")
 	await get_tree().create_timer(0.8).timeout
 	await _shot("10_expansion_panel")
+	hud.toggle_panel("expansion")
+	await _staff_shots(hud, rig)
 	get_tree().quit()
+
+
+## Workers up close: resting with no orders, the staff panel, a strike and
+## the auto-buy sliders.
+func _staff_shots(hud: Node, rig: Node3D) -> void:
+	var sim := GameManager.sim
+	rig.rotation_degrees.y = 0.0
+	rig._yaw_target = 0.0
+	# No orders and a full store: everyone ends up in the rest area.
+	for o in sim.state.orders.duplicate():
+		if o.status == OrderManager.OFFERED or o.status == OrderManager.ACCEPTED:
+			sim.state.orders.erase(o)
+	sim.state.finished = {"plastic_box": sim.buildings.finished_capacity()}
+	sim.state.buildings.erase("break_room")
+	sim.state.tick = (sim.day() - 1) * sim.config.ticks_per_day + 3 * sim.config.ticks_per_hour
+	for e in sim.state.employees:
+		e.mood = 50 + int(e.id) * 7 % 40
+	TimeManager.set_speed(4)
+	EventBus.camera_focus_requested.emit(Vector3(-16, 0, 6), 16.0)
+	await get_tree().create_timer(9.0).timeout
+	TimeManager.set_speed(1)
+	await get_tree().create_timer(2.0).timeout
+	await _shot("11_rest_area")
+	EventBus.camera_focus_requested.emit(Vector3(-9, 0, -6), 14.0)
+	sim.state.finished = {}
+	await get_tree().create_timer(6.0).timeout
+	await _shot("12_workers_closeup")
+	hud.toggle_panel("staff")
+	await get_tree().create_timer(0.8).timeout
+	await _shot("13_staff_panel")
+	hud.toggle_panel("staff")
+	sim.set_pay(70)
+	sim.set_shift(14)
+	for e in sim.state.employees:
+		e.mood = 20
+	sim.state.strike = {"since_tick": sim.state.tick}
+	EventBus.camera_focus_requested.emit(Vector3(-8, 0, 2), 16.0)
+	await get_tree().create_timer(7.0).timeout
+	await _shot("14_strike")
+	hud.toggle_panel("purchase")
+	await get_tree().create_timer(0.8).timeout
+	await _shot("15_purchase_panel")
 
 
 ## A growing company: factory 2 running, factory 3 being built, a branch.

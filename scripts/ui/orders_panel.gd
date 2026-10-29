@@ -7,7 +7,7 @@ func _init() -> void:
 
 
 func signature(sim: Simulation) -> String:
-	var parts := [sim.state.finished, int(sim.state.tick / sim.config.ticks_per_hour), sim.production.hourly_capacity(), sim.state.settings]
+	var parts := [sim.state.finished, int(sim.state.tick / sim.config.ticks_per_hour), sim.production.hourly_capacity(), sim.state.settings, sim.expansion.has_director()]
 	for o in sim.state.orders:
 		parts.append("%d:%s:%d" % [o.id, o.status, o.ship_ticks_left])
 	return str(parts)
@@ -21,6 +21,10 @@ func build(b: VBoxContainer, sim: Simulation) -> void:
 	var alloc := sim.orders.allocation()
 
 	b.add_child(UiTheme.toggle("Tự động giao khi đủ hàng", sim.state.settings.get("auto_ship", false), func(on): GameManager.set_auto_ship(on)))
+	if sim.expansion.has_director():
+		b.add_child(UiTheme.toggle("Giám đốc tự nhận đơn kịp hạn", sim.state.settings.get("auto_accept", false), func(on): GameManager.set_auto_accept(on)))
+	else:
+		b.add_child(wrap_label("Tuyển một giám đốc (bảng Mở rộng, từ Công ty TNHH) để giám đốc tự nhận các đơn làm kịp hạn."))
 	b.add_child(UiTheme.label("Đơn mới (%d)" % offered.size(), 16, UiTheme.WARN, true))
 	if offered.is_empty():
 		b.add_child(wrap_label("Chưa có đơn mới. Uy tín càng cao càng nhiều đơn. Mua máy làm sản phẩm mới để có thêm khách."))

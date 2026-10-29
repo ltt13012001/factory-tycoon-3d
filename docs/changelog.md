@@ -1,5 +1,36 @@
 # Changelog
 
+## 0.5.0 – Nhân viên sống động
+
+- Sửa lỗi nhân viên đứng yên co giật khi không có đơn hàng: nhân viên kho chờ
+  ở cửa kho đầy bị trượt qua lại mỗi tick. Giờ họ chỉ lấy hàng khi kho còn chỗ,
+  đứng yên khi phải chờ, và sau nửa giờ thì để hàng lại rồi đi nghỉ.
+- Nhân viên có hình người rõ ràng: chân, tay, thân áo theo màu vai trò, đầu,
+  mặt (mắt, lông mày, miệng), mũ bảo hộ; biết đi, bê hàng, ngồi, bấm máy, gõ
+  sửa máy và giơ biển khi đình công.
+- Bong bóng suy nghĩ hiện trên đầu theo tình huống và tâm trạng ("Kho đầy
+  rồi!", "Máy hỏng rồi!", "Tăng ca mệt quá...", "Lương thấp quá..."), mặt đổi
+  theo tâm trạng. Bấm vào nhân viên để xem tâm trạng và suy nghĩ.
+- Khu nghỉ ngơi ngoài trời cạnh văn phòng (ghế dài, bàn, bình nước). Nhân viên
+  không có việc nửa giờ thì ra đây ngồi nghỉ, có việc thì quay lại (mất ít phút
+  đi bộ). Có Phòng nghỉ nhân viên thì ngồi trong phòng trước.
+- Ca làm việc: ca chuẩn 8 tiếng (7:00–15:00), tăng ca 10, 12 hoặc 14 tiếng ở
+  bảng Nhân sự, giờ tăng ca trả 150% lương. Hết ca nhân viên ra cổng về nhà,
+  sáng hôm sau đi vào; máy cần người vận hành dừng, máy tự động vẫn chạy. Lúc
+  không ai làm, thời gian trôi nhanh gấp 3. Máy làm trong 8 tiếng bằng cả ngày
+  24 tiếng trước đây, nên ca chuẩn vẫn ra số hàng như cũ.
+- Mức lương 70–150% (thanh kéo) và tâm trạng nhân viên. Lương thấp, tăng ca dài
+  làm nhân viên bất mãn; dưới 30 điểm họ có thể đình công: cả xưởng dừng, nhân
+  viên đứng ở lối đi trong xưởng giơ biển "Tăng lương!". Tăng lương hoặc bớt
+  tăng ca để họ quay lại. Phòng nghỉ nhân viên thêm 8 điểm tâm trạng.
+- Mua hàng: tự động mua có thanh kéo số lượng mỗi lần mua (50–1.000) và mức
+  hạt nhựa còn lại thì mua (0 tới sức chứa kho).
+- Giám đốc (Giám đốc sản xuất, kinh doanh, nhân sự, tài chính, quốc tế hoặc
+  CEO) tự nhận các đơn làm kịp hạn; bật/tắt ở bảng Đơn hàng.
+- Pallet cạnh máy chứa gấp đôi, nhân viên kho chở gấp đôi mỗi chuyến cho kịp
+  máy chạy nhanh trong ca. Ước tính "cần khoảng X giờ" của đơn hàng tính theo
+  giờ làm. Bản lưu cũ tự nâng cấp lên phiên bản 5.
+
 ## 0.4.0 – Từ xưởng thành tập đoàn đa quốc gia
 
 - Camera: kéo chuột trái hoặc một ngón để di chuyển, vuốt nhanh để camera lướt

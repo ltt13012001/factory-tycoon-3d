@@ -18,6 +18,15 @@ const DOCK_MAX := Vector2(21, 13)
 const OFFICE_MIN := Vector2(-18, 6)
 const OFFICE_MAX := Vector2(-9, 13)
 
+## Outdoor rest area west of the office (always there), the gate where
+## staff leave after the shift, and the hall aisle where strikers sit in.
+const REST_MIN := Vector2(-23.6, 4.6)
+const REST_MAX := Vector2(-18.6, 13.4)
+const REST_GATE := Vector3(-18.6, 0, 3.9)
+const STAFF_GATE := Vector3(1, 0, 15.6)
+const PICKET_ORIGIN := Vector3(-15.5, 0, 4.3)
+const SEAT_HEIGHT := 0.48
+
 ## Doorways the workers walk through.
 const DOOR_HALL_WAREHOUSE := Vector3(6, 0, -4)
 const DOOR_WAREHOUSE_YARD := Vector3(15, 0, 4)
@@ -29,7 +38,8 @@ const LINKS := {
 	"hall": {"warehouse": DOOR_HALL_WAREHOUSE, "yard": DOOR_HALL_YARD, "side": DOOR_HALL_WEST},
 	"warehouse": {"hall": DOOR_HALL_WAREHOUSE, "yard": DOOR_WAREHOUSE_YARD},
 	"yard": {"hall": DOOR_HALL_YARD, "warehouse": DOOR_WAREHOUSE_YARD},
-	"side": {"hall": DOOR_HALL_WEST},
+	"side": {"hall": DOOR_HALL_WEST, "rest": REST_GATE},
+	"rest": {"side": REST_GATE},
 }
 
 const RAW_DROP := Vector3(11, 0, -7)
@@ -78,10 +88,10 @@ static func pallet_spot(slot: int) -> Vector3:
 
 
 static func zone(p: Vector3) -> String:
+	if p.x < HALL_MIN.x - 0.2:
+		return "rest" if p.z > REST_GATE.z - 0.2 else "side"
 	if p.z > HALL_MAX.y + 0.5:
 		return "yard"
-	if p.x < HALL_MIN.x - 0.2:
-		return "side"
 	return "hall" if p.x < HALL_MAX.x else "warehouse"
 
 
@@ -140,3 +150,28 @@ static func point_along(start: Vector3, pts: PackedVector3Array, t: float) -> Ve
 		want -= seg
 		prev = p
 	return prev
+
+
+## Seat i for a resting worker: [position, facing yaw]. The break room's
+## chairs and sofa come first once it is built, then the benches outside,
+## then standing spots by the water cooler.
+static func rest_seat(i: int, break_room: bool) -> Array:
+	if break_room:
+		if i < 4:
+			var ang := i * PI / 2.0
+			var c := Vector3(-21.6 + cos(ang) * 1.15, 0, 1.0 + sin(ang) * 1.15)
+			return [c, atan2(-cos(ang), -sin(ang)), true]
+		if i < 6:
+			return [Vector3(-22.75, 0, -2.15 + (i - 4) * 1.1), PI / 2.0, true]
+		i -= 6
+	if i < 8:
+		var row := i / 4
+		var x := -22.6 + (i % 4) * 1.0
+		return [Vector3(x, 0, 7.4 if row == 0 else 10.4), 0.0 if row == 0 else PI, true]
+	i -= 8
+	return [Vector3(-22.8 + (i % 5) * 0.9, 0, 12.6 - (i / 5) * 0.8), PI, false]
+
+
+## Where striker i stands on the front aisle of the hall.
+static func picket_spot(i: int) -> Vector3:
+	return PICKET_ORIGIN + Vector3((i % 16) * 1.2, 0, -(i / 16) * 0.8)

@@ -16,6 +16,7 @@ const MUTED := Color("9aa7b8")
 const TEXT_SCALE := 1.2
 
 static var _fonts := {}
+static var _grabber: Texture2D
 
 
 ## True on phones and tablets, including the web build opened on a touch
@@ -146,3 +147,61 @@ static func button(text: String, callback: Callable, disabled: bool = false) -> 
 	b.focus_mode = Control.FOCUS_NONE
 	b.pressed.connect(callback)
 	return b
+
+
+## A horizontal slider with a large, finger-friendly handle. callback gets
+## the new value (int) whenever it changes.
+static func slider(min_value: int, max_value: int, step: int, value: int, callback: Callable) -> HSlider:
+	var sl := HSlider.new()
+	sl.min_value = min_value
+	sl.max_value = max_value
+	sl.step = step
+	sl.value = value
+	sl.focus_mode = Control.FOCUS_NONE
+	sl.custom_minimum_size = Vector2(240, 40)
+	sl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var track := panel_style(Color(1, 1, 1, 0.18), 4, 0)
+	track.content_margin_top = 4
+	track.content_margin_bottom = 4
+	var fill := panel_style(ACCENT, 4, 0)
+	fill.content_margin_top = 4
+	fill.content_margin_bottom = 4
+	sl.add_theme_stylebox_override("slider", track)
+	sl.add_theme_stylebox_override("grabber_area", fill)
+	sl.add_theme_stylebox_override("grabber_area_highlight", fill)
+	var g := _grabber_texture()
+	for k in ["grabber", "grabber_highlight", "grabber_disabled"]:
+		sl.add_theme_icon_override(k, g)
+	sl.value_changed.connect(func(v): callback.call(int(v)))
+	return sl
+
+
+## A round white handle, drawn once.
+static func _grabber_texture() -> Texture2D:
+	if _grabber:
+		return _grabber
+	const R := 14
+	var img := Image.create(R * 2, R * 2, false, Image.FORMAT_RGBA8)
+	for y in R * 2:
+		for x in R * 2:
+			var d := Vector2(x + 0.5 - R, y + 0.5 - R).length()
+			var a := clampf(R - d, 0.0, 1.0)
+			var c := Color.WHITE if d < R - 3 else ACCENT.lightened(0.2)
+			img.set_pixel(x, y, Color(c.r, c.g, c.b, a))
+	_grabber = ImageTexture.create_from_image(img)
+	return _grabber
+
+
+## A row of buttons where the one matching `current` is highlighted.
+static func choice(options: Array, labels: Array, current, callback: Callable) -> HBoxContainer:
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 6)
+	for i in options.size():
+		var opt = options[i]
+		var b := button(labels[i], func(): callback.call(opt))
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		if opt == current:
+			b.add_theme_stylebox_override("normal", panel_style(ACCENT, 8, 12))
+			b.add_theme_color_override("font_color", Color.WHITE)
+		h.add_child(b)
+	return h

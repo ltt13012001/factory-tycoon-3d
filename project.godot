@@ -6,7 +6,7 @@ config_version=5
 
 config/name="Factory Tycoon 3D"
 config/description="Quản Lý Nhà Máy – 3D Idle Tycoon (Prototype 0.3)"
-config/version="0.3.0"
+config/version="0.5.0"
 run/main_scene="res://scenes/main.tscn"
 config/features=PackedStringArray("4.7", "Forward Plus")
 config/icon="res://assets/icon.png"

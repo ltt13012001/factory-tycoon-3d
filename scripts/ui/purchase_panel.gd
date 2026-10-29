@@ -24,10 +24,9 @@ func build(b: VBoxContainer, sim: Simulation) -> void:
 	row(c, "Đang trên đường", "%d" % sim.inventory.pending_material())
 	var per_day := 0
 	for m in sim.state.machines:
-		per_day += int(cfg.ticks_per_day / sim.production.cycle_ticks(m)) * sim.production.product_of(m).material_per_unit
+		per_day += int(sim.production.cycles_per_day(sim.production.def_of(m), sim.production.cycle_ticks(m))) * sim.production.product_of(m).material_per_unit
 	c.add_child(wrap_label("Các máy hiện tại dùng tối đa khoảng %d hạt nhựa mỗi ngày." % per_day))
-	b.add_child(UiTheme.toggle("Tự động mua %d khi còn dưới %d" % [cfg.auto_buy_lot, cfg.auto_buy_threshold],
-		sim.state.settings.get("auto_buy", false), func(on): GameManager.set_auto_buy(on)))
+	_auto_buy_card(b, sim)
 
 	b.add_child(UiTheme.label("Đặt mua", 16, UiTheme.WARN, true))
 	var space := sim.inventory.raw_free_space()
@@ -49,3 +48,25 @@ func build(b: VBoxContainer, sim: Simulation) -> void:
 		for p in sim.state.purchases:
 			var mins := maxi(0, int(p.arrive_tick) - sim.state.tick) * 1440 / cfg.ticks_per_day
 			row(b, "%d %s" % [p.qty, mat.display_name], "đến sau %d giờ %02d phút" % [mins / 60, mins % 60])
+
+
+## Auto-buy switch with sliders for how much to buy and when.
+func _auto_buy_card(b: VBoxContainer, sim: Simulation) -> void:
+	var inv := sim.inventory
+	var c := card(b)
+	c.add_child(UiTheme.toggle("Tự động mua hạt nhựa", sim.state.settings.get("auto_buy", false), func(on): GameManager.set_auto_buy(on)))
+	var lot_row := row(c, "Số lượng mỗi lần mua", "")
+	var lot_label: Label = lot_row.get_child(1)
+	var lot_text := func(q: int) -> String:
+		return "%d · %s" % [q, Fmt.money(inv.lot_cost(q))]
+	lot_label.text = lot_text.call(inv.auto_buy_lot())
+	c.add_child(UiTheme.slider(InventoryManager.AUTO_LOT_MIN, InventoryManager.AUTO_LOT_MAX, InventoryManager.AUTO_STEP, inv.auto_buy_lot(), func(q):
+		lot_label.text = lot_text.call(q)
+		GameManager.sim.set_auto_buy_amounts(q, GameManager.sim.inventory.auto_buy_threshold())))
+	var th_row := row(c, "Mua khi kho còn dưới", "")
+	var th_label: Label = th_row.get_child(1)
+	th_label.text = "%d" % inv.auto_buy_threshold()
+	c.add_child(UiTheme.slider(0, sim.buildings.raw_capacity(), InventoryManager.AUTO_STEP, inv.auto_buy_threshold(), func(q):
+		th_label.text = "%d" % q
+		GameManager.sim.set_auto_buy_amounts(GameManager.sim.inventory.auto_buy_lot(), q)))
+	c.add_child(wrap_label("Kiểm tra mỗi giờ: khi hạt nhựa trong kho, ở bãi và đang chở tới ít hơn mức trên thì đặt thêm một lô (hoặc phần còn vừa kho)."))

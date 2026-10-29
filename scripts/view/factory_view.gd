@@ -37,6 +37,7 @@ func _ready() -> void:
 	_build_hall()
 	_build_warehouse()
 	_build_dock_and_office()
+	_build_rest_area()
 	_solid.build(self)
 	_flat.build(self, false)
 	_build_slot_pads()
@@ -309,6 +310,48 @@ func _update_back_wall() -> void:
 	if _back_wall.visible != from_south:
 		_back_wall.visible = from_south
 		_back_wall_low.visible = not from_south
+
+
+## Shaded rest area west of the office: two benches at a picnic table, a
+## water cooler, plants. Idle staff sit here when there is no work.
+func _build_rest_area() -> void:
+	var a := FactoryLayout.REST_MIN
+	var e := FactoryLayout.REST_MAX
+	var paint := Palette.surface("paint")
+	var steel := Palette.surface("steel")
+	_floor(a, e, Color("b9a58a"), 0.05, "paving")
+	_outline(a + Vector2(0.15, 0.15), e - Vector2(0.15, 0.15), Color("f2c12e"), 0.08, 0.055)
+	# Benches (seat 0.45 m) facing a long table
+	for z in [7.15, 10.65]:
+		_solid.box(Vector3(4.2, 0.07, 0.42), Vector3(-21.1, 0.44, z), Color("a1714a"))
+		for x in [-22.9, -21.1, -19.3]:
+			_solid.box(Vector3(0.08, 0.42, 0.36), Vector3(x, 0.21, z), Color("5d6a72"), steel)
+	_solid.box(Vector3(4.2, 0.07, 1.4), Vector3(-21.1, 0.76, 8.9), Color("c08a5a"))
+	for x in [-22.9, -19.3]:
+		_solid.box(Vector3(0.1, 0.74, 1.1), Vector3(x, 0.37, 8.9), Color("5d6a72"), steel)
+	# Cups, a thermos and a fruit plate on the table
+	for k in 4:
+		_solid.cylinder(0.05, 0.11, Vector3(-22.4 + k * 0.9, 0.85, 8.55 + (k % 2) * 0.7), Color("eceff1"), paint, 0.06, Vector3.ZERO, 8)
+	_solid.cylinder(0.09, 0.32, Vector3(-21.0, 0.95, 8.9), Color("c62828"), paint, -1.0, Vector3.ZERO, 10)
+	_solid.cylinder(0.25, 0.03, Vector3(-20.2, 0.81, 8.9), Color("fafafa"), paint, -1.0, Vector3.ZERO, 14)
+	for k in 3:
+		_solid.sphere(0.07, Vector3(-20.28 + k * 0.08, 0.86, 8.86 + (k % 2) * 0.08), Color("ff9800").lerp(Color("8bc34a"), k / 2.0), paint)
+	# Open pergola on four posts (open slats, so the people below stay visible)
+	for x in [a.x + 0.4, e.x - 0.4]:
+		for z in [6.1, 11.7]:
+			_solid.cylinder(0.07, 2.7, Vector3(x, 1.35, z), Color("8d969d"), steel, -1.0, Vector3.ZERO, 8)
+		_solid.box(Vector3(0.12, 0.14, 5.9), Vector3(x, 2.7, 8.9), Color("2e8b57"), paint)
+	for k in 5:
+		_solid.box(Vector3(e.x - a.x - 0.4, 0.08, 0.08), Vector3((a.x + e.x) / 2.0, 2.8, 6.1 + k * 1.4), Color("2e8b57"), paint)
+	# Water cooler and a bin
+	_solid.box(Vector3(0.42, 1.0, 0.42), Vector3(-19.1, 0.5, 12.6), Color("eceff1"), paint)
+	_solid.cylinder(0.17, 0.45, Vector3(-19.1, 1.23, 12.6), Color("64b5f6"), Palette.surface("glass"), -1.0, Vector3.ZERO, 12)
+	_solid.cylinder(0.2, 0.55, Vector3(-19.1, 0.28, 5.2), Color("43a047"), paint, 0.17, Vector3.ZERO, 10)
+	# Potted plants on the corners
+	for p in [Vector3(-23.2, 0, 5.1), Vector3(-23.2, 0, 13.0)]:
+		_solid.cylinder(0.28, 0.45, p + Vector3(0, 0.22, 0), Color("8d6e63"), paint, 0.22, Vector3.ZERO, 10)
+		_solid.sphere(0.42, p + Vector3(0, 0.75, 0), Color("4caf50"), null, Vector3(1, 1.2, 1), 8, 5)
+	Palette.label3d(self, "Khu nghỉ ngơi", Vector3(-21.1, 3.5, 8.9), 30, Color("c8f7c5"))
 
 
 func _build_hall() -> void:
@@ -602,6 +645,7 @@ func _sync_machines(sim: Simulation) -> void:
 func _sync_workers(sim: Simulation) -> void:
 	var seen := {}
 	var idle := {"operator": 0, "warehouse": 0, "technician": 0}
+	var rest := 0
 	for e in sim.state.employees:
 		seen[e.id] = true
 		if not _workers.has(e.id):
@@ -615,6 +659,9 @@ func _sync_workers(sim: Simulation) -> void:
 			_workers[e.id] = w
 		_workers[e.id].idle_index = idle.get(e.role, 0)
 		idle[e.role] = idle.get(e.role, 0) + 1
+		if e.role != EmployeeManager.MANAGER:
+			_workers[e.id].rest_index = rest
+			rest += 1
 	for id in _workers.keys():
 		if not seen.has(id):
 			_workers[id].queue_free()
