@@ -127,10 +127,28 @@ func hours_needed(order_id: int) -> int:
 				missing += int(a.qty) - int(alloc.get(a.id, 0))
 	if missing == 0:
 		return 0
-	var rate := sim.production.hourly_capacity(o.product_id)
-	if rate <= 0.0:
+	return clock_hours_for(o.product_id, missing)
+
+
+## Clock hours from now until `units` more are made, following the shift
+## calendar (machines with operators stop after the shift), or -1 when no
+## machine makes the product.
+func clock_hours_for(product_id: String, units: int) -> int:
+	var rates := sim.production.hourly_rates(product_id)
+	if rates[0] <= 0.0 and rates[1] <= 0.0:
 		return -1
-	return ceili(missing / rate)
+	var cfg := sim.config
+	var shift_end := sim.employees.shift_hours()
+	var hour := posmod(sim.state.tick, cfg.ticks_per_day) / cfg.ticks_per_hour
+	var made := 0.0
+	for h in 24 * 60:
+		if hour % 24 < shift_end:
+			made += rates[0]
+		made += rates[1]
+		hour += 1
+		if made >= units:
+			return h + 1
+	return -1
 
 
 func ship(order_id: int) -> Dictionary:
@@ -144,6 +162,27 @@ func ship(order_id: int) -> Dictionary:
 	o.ship_ticks_left = sim.config.customer_truck_ticks
 	sim.emit_event(&"order_shipping", o.duplicate())
 	return Simulation.ok("Xe tải của %s đang đến lấy hàng." % o.customer)
+
+
+## A director accepts new orders the factory can finish in time.
+func set_auto_accept(enabled: bool) -> Dictionary:
+	if enabled and not sim.expansion.has_director():
+		return Simulation.fail("Cần tuyển một giám đốc để tự động nhận đơn.")
+	sim.state.settings.auto_accept = enabled
+	return Simulation.ok("Giám đốc sẽ tự nhận đơn kịp hạn." if enabled else "Đã tắt tự động nhận đơn.")
+
+
+## Hours of slack the director keeps when accepting an order.
+const AUTO_ACCEPT_MARGIN_HOURS := 6
+
+
+func _auto_accept() -> void:
+	var offers := with_status(OFFERED)
+	offers.sort_custom(func(a, b): return int(a.qty) * int(a.unit_price) > int(b.qty) * int(b.unit_price))
+	for o in offers:
+		var h := hours_needed(o.id)
+		if h >= 0 and h <= int(o.deadline_days) * 24 - AUTO_ACCEPT_MARGIN_HOURS:
+			accept(o.id)
 
 
 func set_auto_ship(enabled: bool) -> Dictionary:
@@ -170,6 +209,8 @@ func tick() -> void:
 			if with_status(OFFERED).size() < cfg.max_open_offers:
 				generate_offer(id)
 		s.order_spawn[id] = acc
+	if s.settings.get("auto_accept", false) and s.tick % 15 == 0 and sim.expansion.has_director():
+		_auto_accept()
 	if s.settings.get("auto_ship", false):
 		for o in with_status(ACCEPTED):
 			if is_ready(o.id):

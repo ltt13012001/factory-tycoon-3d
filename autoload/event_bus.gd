@@ -35,6 +35,9 @@ signal expansion_changed(data: Dictionary)
 signal tier_changed(data: Dictionary)
 signal site_surveyed(data: Dictionary)
 signal site_opened(data: Dictionary)
+signal strike_started(data: Dictionary)
+signal strike_ended(data: Dictionary)
+signal staff_unhappy(data: Dictionary)
 
 # Presentation events
 signal toast(text: String, good: bool)

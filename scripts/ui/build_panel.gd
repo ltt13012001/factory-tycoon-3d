@@ -45,7 +45,7 @@ func _machine_card(b: VBoxContainer, sim: Simulation, d: MachineDef, full: bool)
 	head.add_child(UiTheme.label(Fmt.money(d.price), 16, UiTheme.WARN, true))
 	c.add_child(head)
 	c.add_child(wrap_label(d.description, 13, UiTheme.MUTED))
-	var per_day := float(cfg.ticks_per_day) / d.cycle_ticks * (100 - d.defect_percent) / 100.0
+	var per_day := GameManager.sim.production.cycles_per_day(d, d.cycle_ticks) * (100 - d.defect_percent) / 100.0
 	row(c, "Sản phẩm", "%s · %d hạt nhựa / %s" % [p.display_name, p.material_per_unit, p.unit_name])
 	row(c, "Sản lượng", "khoảng %.0f %s / ngày" % [per_day, p.unit_name])
 	row(c, "Lỗi · điện", "%d%% · %s / chu kỳ" % [d.defect_percent, Fmt.money(d.power_cost_per_cycle)])

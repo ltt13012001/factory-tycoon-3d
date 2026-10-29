@@ -98,7 +98,9 @@ func test_capacity_estimate() -> void:
 	var sim := new_sim()
 	var o := _first_offer(sim)
 	var h := sim.orders.hours_needed(o.id)
-	# 4.75 good boxes per game hour with one machine
-	check_eq(h, ceili(o.qty / 4.75), "hours with current capacity")
+	# 4.75 good boxes per game hour of the old 24-hour day, made 3 times as
+	# fast during the 8-hour shift, which starts now.
+	check(o.qty <= 8 * 4.75 * 3, "fits in one shift")
+	check_eq(h, ceili(o.qty / (4.75 * 3)), "hours with current capacity")
 	sim.fire(sim.state.employees[0].id)
 	check_eq(sim.orders.hours_needed(o.id), -1, "no running machine")

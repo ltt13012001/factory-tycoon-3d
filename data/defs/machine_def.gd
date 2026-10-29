@@ -14,7 +14,7 @@ extends Resource
 ## 0 means the machine runs by itself (automated).
 @export var operators_required: int = 1
 ## Units the pallet next to the machine can hold before the machine stops.
-@export var output_buffer_capacity: int = 20
+@export var output_buffer_capacity: int = 40
 
 @export_group("Unlock")
 @export var min_reputation: int = 0

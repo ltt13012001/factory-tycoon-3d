@@ -18,6 +18,7 @@ var _clock: Label
 var _raw: Label
 var _finished: Label
 var _alert: Button
+var _strike_alert: Button
 var _build_status: Label
 var _menu: MenuButton
 var _ui_scale := 1.0
@@ -79,6 +80,9 @@ func _ready() -> void:
 	EventBus.construction_finished.connect(func(d): show_toast("Đã xây xong %s!" % GameManager.sim.content.constructions[d.id].display_name, true))
 	EventBus.site_opened.connect(func(d): show_toast("%s đã xây xong! Nhớ tuyển người quản lý và mua dây chuyền." % d.name, true))
 	EventBus.site_surveyed.connect(func(d): show_toast("Khảo sát %s xong: sức mua %d%%." % [GameManager.sim.content.locations[d.id].display_name, d.market], true))
+	EventBus.strike_started.connect(func(_d): show_toast("Công nhân đình công vì lương thấp! Vào Nhân sự để tăng lương hoặc bớt tăng ca.", false))
+	EventBus.strike_ended.connect(func(_d): show_toast("Công nhân đã quay lại làm việc.", true))
+	EventBus.staff_unhappy.connect(func(_d): show_toast("Công nhân đang bất mãn với lương và giờ làm. Coi chừng đình công!", false))
 	EventBus.site_selected.connect(func(_id):
 		if _current != "expansion":
 			toggle_panel("expansion"))
@@ -109,6 +113,7 @@ func _process(_delta: float) -> void:
 			broken += 1
 	_alert.visible = broken > 0
 	_alert.text = "⚠ %d máy hỏng!" % broken
+	_strike_alert.visible = sim.employees.on_strike()
 	var c: Dictionary = s.construction
 	_build_status.visible = not c.is_empty()
 	if not c.is_empty():
@@ -292,6 +297,15 @@ func _build_nav() -> void:
 	_alert.tooltip_text = "Bấm để chọn máy hỏng"
 	_alert.visible = false
 	nav.add_child(_alert)
+	_strike_alert = UiTheme.button("⚠ Đình công!", func():
+		if _current != "staff":
+			toggle_panel("staff"))
+	_strike_alert.custom_minimum_size = Vector2(170, 46)
+	_strike_alert.add_theme_color_override("font_color", Color.WHITE)
+	for st in ["normal", "hover", "pressed"]:
+		_strike_alert.add_theme_stylebox_override(st, UiTheme.panel_style(UiTheme.BAD.darkened(0.25 if st == "normal" else 0.1), 8, 8))
+	_strike_alert.visible = false
+	nav.add_child(_strike_alert)
 	_build_status = UiTheme.label("", 15, UiTheme.WARN)
 	_build_status.custom_minimum_size.x = 170
 	_build_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART

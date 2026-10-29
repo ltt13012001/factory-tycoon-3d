@@ -11,6 +11,9 @@ const STATUS_TEXT := {
 	"output_full": "Pallet đầy",
 	"broken": "HỎNG! Bấm để sửa",
 	"repairing": "Đang sửa…",
+	"off_shift": "",
+	"strike": "Đình công",
+	"operator_away": "Chờ công nhân",
 }
 const STEEL := Color("b9c0c6")
 const HEATER := Color("6b4a2e")
@@ -83,7 +86,7 @@ func _ready() -> void:
 				var cell := i % 9
 				u = Palette.cylinder(pallet, 0.13, 0.42, Vector3(-0.38 + (cell % 3) * 0.38, 0.36 + layer * 0.44, -0.38 + (cell / 3) * 0.38), p.color)
 			"storage_shelf":
-				u = Palette.box(pallet, Vector3(1.05, 0.12, 0.9), Vector3(0, 0.22 + i * 0.16, 0), p.color)
+				u = Palette.box(pallet, Vector3(1.05, 0.08, 0.9), Vector3(0, 0.2 + i * 0.105, 0), p.color)
 			_:
 				var layer := i / 9
 				var cell := i % 9
@@ -403,8 +406,10 @@ func _process(delta: float) -> void:
 	_animate(running)
 	var color := Palette.STATUS_RUN
 	match m.status:
-		"no_operator", "output_full", "repairing":
+		"no_operator", "output_full", "repairing", "off_shift", "operator_away":
 			color = Palette.STATUS_WARN
+		"strike":
+			color = Palette.STATUS_STOP
 		"no_material", "broken":
 			color = Palette.STATUS_STOP
 	var blink: bool = m.status == "broken" and int(_time * 3.0 + Time.get_ticks_msec() / 300.0) % 2 == 0
@@ -412,7 +417,8 @@ func _process(delta: float) -> void:
 	var cycle := sim.production.cycle_ticks(m)
 	var progress := 0.0
 	if m.in_cycle:
-		progress = clampf((cycle - int(m.ticks_left) + (sim.tick_fraction() if running else 0.0)) / cycle, 0.0, 1.0)
+		var rate := sim.production.work_rate(sim.production.def_of(m))
+		progress = clampf((cycle - int(m.ticks_left) + (sim.tick_fraction() * rate if running else 0.0)) / cycle, 0.0, 1.0)
 	if m.status == "repairing":
 		var total := sim.config.repair_walk_ticks + sim.production.def_of(m).repair_ticks
 		progress = 1.0 - float(m.repair_ticks_left) / total
