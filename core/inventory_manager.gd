@@ -41,10 +41,34 @@ func lot_cost(qty: int) -> int:
 	return qty * sim.content.material().unit_price + sim.config.shipping_per_lot
 
 
+## Auto-buy amounts, chosen with sliders in the purchase panel.
+const AUTO_LOT_MIN := 50
+const AUTO_LOT_MAX := 1000
+const AUTO_STEP := 50
+
+
+func auto_buy_lot() -> int:
+	return int(sim.state.settings.get("auto_buy_lot", sim.config.auto_buy_lot))
+
+
+func auto_buy_threshold() -> int:
+	return int(sim.state.settings.get("auto_buy_threshold", sim.config.auto_buy_threshold))
+
+
+func set_auto_buy_amounts(lot: int, threshold: int) -> Dictionary:
+	sim.state.settings.auto_buy_lot = clampi(snappedi(lot, AUTO_STEP), AUTO_LOT_MIN, AUTO_LOT_MAX)
+	sim.state.settings.auto_buy_threshold = clampi(snappedi(threshold, AUTO_STEP), 0, sim.buildings.raw_capacity())
+	return Simulation.ok("")
+
+
 func buy_material(qty: int) -> Dictionary:
-	var cfg := sim.config
-	if not cfg.lot_sizes.has(qty):
+	if not sim.config.lot_sizes.has(qty):
 		return Simulation.fail("Lô hàng không hợp lệ.")
+	return _order_material(qty)
+
+
+func _order_material(qty: int) -> Dictionary:
+	var cfg := sim.config
 	if qty > raw_free_space():
 		return Simulation.fail("Kho nguyên liệu không đủ chỗ (còn %d)." % maxi(0, raw_free_space()))
 	var cost := lot_cost(qty)
@@ -80,11 +104,12 @@ func tick() -> void:
 		sim.emit_event(&"material_arrived", p.duplicate())
 	# Auto-buy checks once per game hour so it never floods orders.
 	if s.settings.get("auto_buy", false) and s.tick % sim.config.ticks_per_hour == 0:
-		var lot := sim.config.auto_buy_lot
+		# Buys the chosen amount, or what still fits in the store.
+		var lot := mini(auto_buy_lot(), raw_free_space())
 		var cost := lot_cost(lot)
-		if material_on_hand() + pending_material() < sim.config.auto_buy_threshold \
-				and lot <= raw_free_space() and s.cash - cost >= 0:
-			buy_material(lot)
+		if material_on_hand() + pending_material() < auto_buy_threshold() \
+				and lot >= AUTO_LOT_MIN and s.cash - cost >= 0:
+			_order_material(lot)
 
 
 ## Removes units from the raw store and returns their book value, so the

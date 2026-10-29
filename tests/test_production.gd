@@ -6,11 +6,20 @@ func test_full_day_output() -> void:
 	sim.state.raw = 600
 	sim.state.raw_value = 600 * 200
 	var m: Dictionary = sim.state.machines[0]
-	sim.advance_ticks(days(sim, 1) - 1)
-	check_eq(m.produced + m.defects, 119, "119 cycles finished before the last tick")
+	# An 8-hour shift does the old 24-hour day's work: a 12-tick cycle
+	# counts down 3 per tick, so it takes 1 s.
+	var shift := EmployeeManager.STANDARD_SHIFT * sim.config.ticks_per_hour
+	sim.advance_ticks(shift - 1)
+	check_eq(m.produced + m.defects, 119, "119 cycles finished before the last shift tick")
 	sim.advance_ticks(1)
+	check_eq(m.produced + m.defects, 120, "120 cycles in the shift")
+	check_eq(sim.employees.on_shift(), true, "last shift tick still on shift")
+	sim.advance_ticks(1)
+	check_eq(sim.employees.on_shift(), false, "shift over")
+	sim.advance_ticks(days(sim, 1) - shift - 1)
 	var st: Dictionary = sim.state.reports[-1].stats
-	check_eq(st.produced + st.defects, 120, "3 s cycle -> 120 cycles per day")
+	check_eq(st.produced + st.defects, 120, "nothing more after the shift")
+	check_eq(m.status, ProductionManager.OFF_SHIFT, "machine waits for the next shift")
 	check(st.defects >= 0 and st.defects <= 16, "about 5%% defects (got %d)" % st.defects)
 	check_eq(st.power, 120 * 8, "power $0,08 per cycle")
 	check_eq(sim.state.raw, 600 - 120, "one unit per cycle")
@@ -40,16 +49,16 @@ func test_stops_without_material() -> void:
 func test_stops_when_output_full() -> void:
 	var sim := new_sim()
 	sim.fire(sim.state.employees[1].id)  # nobody empties the pallet
-	sim.advance_ticks(24 * 40)
+	sim.advance_ticks(24 * 15)
 	var m: Dictionary = sim.state.machines[0]
-	check_eq(m.buffer, 20, "pallet holds 20")
+	check_eq(m.buffer, 40, "pallet holds 40")
 	check_eq(m.status, ProductionManager.OUTPUT_FULL, "status output full")
 
 
 func test_stops_when_finished_store_full() -> void:
 	var sim := new_sim()
 	sim.state.finished = {"plastic_box": sim.config.finished_capacity}
-	sim.advance_ticks(24 * 40)
+	sim.advance_ticks(24 * 15)
 	var m: Dictionary = sim.state.machines[0]
 	check_eq(sim.state.finished_total(), 300, "store stays at capacity")
 	check_eq(m.status, ProductionManager.OUTPUT_FULL, "machine stops when store is full")

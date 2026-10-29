@@ -177,6 +177,22 @@ func set_auto_ship(enabled: bool) -> Dictionary:
 	return orders.set_auto_ship(enabled)
 
 
+func set_auto_accept(enabled: bool) -> Dictionary:
+	return orders.set_auto_accept(enabled)
+
+
+func set_auto_buy_amounts(lot: int, threshold: int) -> Dictionary:
+	return inventory.set_auto_buy_amounts(lot, threshold)
+
+
+func set_shift(hours: int) -> Dictionary:
+	return employees.set_shift(hours)
+
+
+func set_pay(percent: int) -> Dictionary:
+	return employees.set_pay(percent)
+
+
 func upgrade_line_speed() -> Dictionary:
 	return expansion.upgrade_line_speed()
 

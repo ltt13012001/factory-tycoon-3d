@@ -58,6 +58,8 @@ const EXECUTIVES := {
 		"speed": 15, "profit": 15, "text": "Toàn tập đoàn: máy nhanh hơn 15%, mọi xưởng và chi nhánh lãi thêm 15%."},
 }
 const EXECUTIVE_ORDER := ["production_director", "chief_accountant", "sales_director", "hr_director", "cfo", "intl_director", "ceo"]
+## Executives who can accept customer orders on their own.
+const DIRECTORS := ["production_director", "sales_director", "hr_director", "cfo", "intl_director", "ceo"]
 ## Hiring fee = this many days of wages.
 const HIRE_FEE_DAYS := 3
 
@@ -188,6 +190,13 @@ func has_exec(id: String) -> bool:
 	return sim.state.executives.has(id)
 
 
+func has_director() -> bool:
+	for id in DIRECTORS:
+		if has_exec(id):
+			return true
+	return false
+
+
 func _exec_sum(field: String) -> int:
 	var total := 0
 	for id in sim.state.executives:
@@ -211,9 +220,14 @@ func hire_exec(id: String) -> Dictionary:
 	if not sim.economy.can_afford(fee):
 		return Simulation.fail("Không đủ tiền tuyển (%s)." % Fmt.money(fee))
 	var person := sim.employees.next_name()
+	var first_director := DIRECTORS.has(id) and not has_director()
 	sim.economy.book("hire", -fee, "Bổ nhiệm %s" % e.name)
 	sim.state.executives[id] = person
 	sim.emit_event(&"expansion_changed", {})
+	if first_director:
+		# The first director takes over accepting orders (can be turned off).
+		sim.state.settings.auto_accept = true
+		return Simulation.ok("%s được bổ nhiệm làm %s và sẽ tự nhận đơn hàng." % [person, e.name])
 	return Simulation.ok("%s được bổ nhiệm làm %s." % [person, e.name])
 
 

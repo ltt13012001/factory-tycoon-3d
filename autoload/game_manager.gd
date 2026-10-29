@@ -43,6 +43,10 @@ func repair_machine(id: int) -> Dictionary: return command(sim.repair_machine(id
 func build(id: String) -> Dictionary: return command(sim.build(id))
 func set_auto_buy(on: bool) -> Dictionary: return command(sim.set_auto_buy(on))
 func set_auto_ship(on: bool) -> Dictionary: return command(sim.set_auto_ship(on))
+func set_auto_accept(on: bool) -> Dictionary: return command(sim.set_auto_accept(on))
+func set_auto_buy_amounts(lot: int, threshold: int) -> Dictionary: return command(sim.set_auto_buy_amounts(lot, threshold))
+func set_shift(hours: int) -> Dictionary: return command(sim.set_shift(hours))
+func set_pay(percent: int) -> Dictionary: return command(sim.set_pay(percent))
 
 
 func start_placing(def_id: String) -> void:

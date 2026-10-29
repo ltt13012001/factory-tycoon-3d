@@ -83,7 +83,7 @@ func _ready() -> void:
 				var cell := i % 9
 				u = Palette.cylinder(pallet, 0.13, 0.42, Vector3(-0.38 + (cell % 3) * 0.38, 0.36 + layer * 0.44, -0.38 + (cell / 3) * 0.38), p.color)
 			"storage_shelf":
-				u = Palette.box(pallet, Vector3(1.05, 0.12, 0.9), Vector3(0, 0.22 + i * 0.16, 0), p.color)
+				u = Palette.box(pallet, Vector3(1.05, 0.08, 0.9), Vector3(0, 0.2 + i * 0.105, 0), p.color)
 			_:
 				var layer := i / 9
 				var cell := i % 9

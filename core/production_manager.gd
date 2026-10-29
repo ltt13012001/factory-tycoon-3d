@@ -10,7 +10,15 @@ const NO_MATERIAL := "no_material"
 const OUTPUT_FULL := "output_full"
 const BROKEN := "broken"
 const REPAIRING := "repairing"
+## The operator is assigned but not at the machine.
+const OFF_SHIFT := "off_shift"
+const STRIKE := "strike"
+const OPERATOR_AWAY := "operator_away"
 const OWNER := -1
+## Machines with an operator work only during the shift. They do a whole
+## old 24-hour day's work in a standard 8-hour shift, so cycle ticks count
+## down this many times faster (see EmployeeManager.STANDARD_SHIFT).
+const WORK_RATE := 3
 
 var sim: Simulation
 
@@ -57,6 +65,23 @@ func machine_in_slot(slot: int) -> Dictionary:
 
 func needs_operator(m: Dictionary) -> bool:
 	return def_of(m).operators_required > 0
+
+
+## How fast a cycle counts down per tick while the machine runs.
+func work_rate(d: MachineDef) -> int:
+	return WORK_RATE if d.operators_required > 0 else 1
+
+
+## Average finished cycles per game day, counting the shift length.
+func cycles_per_day(d: MachineDef, cycle: int) -> float:
+	if d.operators_required == 0:
+		return float(sim.config.ticks_per_day) / cycle
+	return float(sim.employees.shift_hours() * sim.config.ticks_per_hour * WORK_RATE) / cycle
+
+
+## Real seconds per cycle while running.
+func cycle_seconds(m: Dictionary) -> float:
+	return float(cycle_ticks(m)) / work_rate(def_of(m)) * sim.config.tick_seconds
 
 
 func cycle_ticks(m: Dictionary) -> int:
@@ -178,7 +203,8 @@ func tick() -> void:
 		var before: String = m.status
 		if int(m.repairer_id) != 0:
 			m.status = REPAIRING
-			m.repair_ticks_left -= 1
+			if _repairer_at_work(int(m.repairer_id)):
+				m.repair_ticks_left -= 1
 			if m.repair_ticks_left <= 0:
 				_finish_repair(m)
 		elif m.broken:
@@ -189,13 +215,26 @@ func tick() -> void:
 			sim.emit_event(&"machine_state_changed", {"id": m.id, "status": m.status})
 
 
+## Owner repairs never pause; a technician's repair waits while they are
+## off shift or on strike.
+func _repairer_at_work(id: int) -> bool:
+	if id == OWNER:
+		return true
+	var e := sim.state.find_by_id(sim.state.employees, id)
+	return e.is_empty() or (sim.employees.on_shift() and not e.get("off", false) and not sim.employees.on_strike())
+
+
 func _run(m: Dictionary, d: MachineDef) -> void:
 	var s := sim.state
-	var has_operator: bool = m.operator_id != 0 or not needs_operator(m)
+	var op := {}
+	if m.operator_id != 0:
+		op = s.find_by_id(s.employees, int(m.operator_id))
+	var has_operator: bool = not needs_operator(m) or (not op.is_empty() and sim.employees.is_present(op))
+	var absent := "" if has_operator else sim.employees.absence_status(op)
 	var per_unit: int = sim.content.products[d.output_product_id].material_per_unit
 	if not m.in_cycle:
-		if not has_operator:
-			m.status = NO_OPERATOR
+		if not has_operator and absent != OPERATOR_AWAY:
+			m.status = absent
 			return
 		if m.buffer >= d.output_buffer_capacity:
 			m.status = OUTPUT_FULL
@@ -203,15 +242,23 @@ func _run(m: Dictionary, d: MachineDef) -> void:
 		if s.raw < per_unit:
 			m.status = NO_MATERIAL
 			return
+		if not has_operator:
+			# The operator is resting or on the way back: call them over.
+			sim.employees.call_back(op)
+			m.status = absent
+			return
 		var cost := sim.inventory.consume_raw(per_unit)
 		sim.economy.add_stat("material_cost", cost)
 		m.in_cycle = true
-		m.ticks_left = cycle_ticks(m)
+		# Leftover work from the last cycle (ticks_left <= 0) carries over.
+		m.ticks_left = cycle_ticks(m) + mini(0, int(m.ticks_left))
 	if not has_operator:
-		m.status = NO_OPERATOR
+		if absent == OPERATOR_AWAY:
+			sim.employees.call_back(op)  # a cycle is waiting to be finished
+		m.status = absent
 		return
 	m.status = RUNNING
-	m.ticks_left -= 1
+	m.ticks_left -= work_rate(d)
 	if m.ticks_left <= 0:
 		_finish_cycle(m, d)
 
@@ -253,7 +300,9 @@ func _finish_repair(m: Dictionary) -> void:
 	sim.emit_event(&"machine_repaired", {"id": m.id})
 
 
-## Good units per game hour across working machines, optionally for one product.
+## Good units per game hour across working machines, optionally for one
+## product, averaged over the whole day (machines with an operator only run
+## during the shift).
 func hourly_capacity(product_id: String = "") -> float:
 	var total := 0.0
 	for m in sim.state.machines:
@@ -261,8 +310,25 @@ func hourly_capacity(product_id: String = "") -> float:
 		if product_id != "" and d.output_product_id != product_id:
 			continue
 		if (m.operator_id != 0 or not needs_operator(m)) and not m.broken:
-			total += float(sim.config.ticks_per_hour) / cycle_ticks(m) * (100 - d.defect_percent) / 100.0
+			total += cycles_per_day(d, cycle_ticks(m)) / 24.0 * (100 - d.defect_percent) / 100.0
 	return total
+
+
+## Good units per hour while running: [machines that need an operator
+## (shift hours only), automatic machines (around the clock)].
+func hourly_rates(product_id: String) -> Array:
+	var shift := 0.0
+	var always := 0.0
+	for m in sim.state.machines:
+		var d := def_of(m)
+		if d.output_product_id != product_id or m.broken or (m.operator_id == 0 and needs_operator(m)):
+			continue
+		var rate := float(sim.config.ticks_per_hour) * work_rate(d) / cycle_ticks(m) * (100 - d.defect_percent) / 100.0
+		if needs_operator(m):
+			shift += rate
+		else:
+			always += rate
+	return [shift, always]
 
 
 func produces(product_id: String) -> bool:

@@ -11,6 +11,7 @@ const FIELDS := [
 	"ledger", "reports", "tutorial_step", "next_id", "name_index",
 	"total_revenue", "machines_bought", "buildings", "construction", "settings",
 	"order_spawn", "line_speed_level", "company_tier", "sites", "executives",
+	"strike",
 ]
 
 var tick: int = 0
@@ -29,7 +30,8 @@ var scrap_total: int = 0
 ## {id, def_id, slot, in_cycle, ticks_left, buffer, status, operator_id, produced,
 ##  defects, level, condition, wear_count, repair_ticks_left, repairer_id}
 var machines: Array = []
-## {id, name, role, machine_id, job}; job = {} or {kind, phase, ticks_left, machine_id, qty, product_id}
+## {id, name, role, machine_id, job, mood, rest, away, idle, off};
+## job = {} or {kind, phase, ticks_left, leg, machine_id, qty, product_id, wait}
 var employees: Array = []
 ## {id, product_id, customer, qty, unit_price, deadline_days, offered_tick, expire_tick,
 ##  accepted_tick, deadline_tick, status, ship_ticks_left, paid_tick, penalty}
@@ -55,7 +57,9 @@ var machines_bought: int = 0
 var buildings: Dictionary = {}
 ## {} or {id, ticks_left, total_ticks}
 var construction: Dictionary = {}
-var settings: Dictionary = {"auto_buy": false, "auto_ship": false}
+## Player settings: auto_buy, auto_buy_lot, auto_buy_threshold, auto_ship,
+## auto_accept, shift_hours, pay_percent.
+var settings: Dictionary = {"auto_buy": false, "auto_ship": false, "auto_accept": false, "shift_hours": 8, "pay_percent": 100}
 ## Production line improvements bought for the first factory.
 var line_speed_level: int = 0
 ## Company stage, see ExpansionManager.TIER_NAMES.
@@ -65,6 +69,8 @@ var company_tier: int = 0
 var sites: Array = []
 ## Executive position id -> name of the person holding it.
 var executives: Dictionary = {}
+## {} or {since_tick} while the staff are on strike.
+var strike: Dictionary = {}
 
 
 func finished_total() -> int:
