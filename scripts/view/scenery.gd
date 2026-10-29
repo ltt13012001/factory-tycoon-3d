@@ -99,6 +99,8 @@ func _process(delta: float) -> void:
 func _free_spot(p: Vector3, margin := 0.0) -> bool:
 	if p.x > -27 - margin and p.x < 27 + margin and p.z > -19 - margin and p.z < 16 + margin:
 		return false  # factory lot
+	if p.x > 39 - margin and p.x < 117 + margin and p.z > -14 - margin and p.z < 15 + margin:
+		return false  # plots for more factories
 	if absf(p.z - FactoryLayout.ROAD_Z) < 6.5 + margin:
 		return false  # road and pavements
 	if p.z > 22 and p.z < 46 and p.x > -38 and p.x < 58:
@@ -485,7 +487,7 @@ func _tractor(p: Vector3) -> void:
 
 
 func _build_hills_and_turbines() -> void:
-	var hills := [[Vector3(-70, 0, -62), 26.0], [Vector3(-25, 0, -76), 32.0], [Vector3(30, 0, -70), 28.0], [Vector3(76, 0, -52), 22.0], [Vector3(-92, 0, 10), 20.0], [Vector3(92, 0, 22), 18.0], [Vector3(-60, 0, 70), 22.0], [Vector3(40, 0, 78), 26.0]]
+	var hills := [[Vector3(-70, 0, -62), 26.0], [Vector3(-25, 0, -76), 32.0], [Vector3(30, 0, -70), 28.0], [Vector3(76, 0, -52), 22.0], [Vector3(-92, 0, 10), 20.0], [Vector3(112, 0, 52), 18.0], [Vector3(-60, 0, 70), 22.0], [Vector3(40, 0, 78), 26.0]]
 	var shades := [Color("5f9148"), Color("6a9c50"), Color("57873f"), Color("729f55")]
 	for i in hills.size():
 		var h: Array = hills[i]

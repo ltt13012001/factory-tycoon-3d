@@ -47,6 +47,11 @@ signal ui_scale_changed(scale: float)
 signal camera_rotate_requested(steps: int)
 ## Moves the camera to a point of the world (zoom = camera size, 0 keeps it).
 signal camera_focus_requested(target: Vector3, zoom: float)
+## On-screen pad: direction held (zero when released), and zoom steps.
+signal camera_pad_changed(direction: Vector2)
+signal camera_zoom_requested(factor: float)
+## A plot or factory next door was tapped (location id).
+signal site_selected(location_id: String)
 
 
 func forward(name: StringName, data: Dictionary) -> void:

@@ -72,6 +72,7 @@ func _ready() -> void:
 	add_child(preload("res://scripts/view/factory_view.gd").new())
 	var scenery: Node3D = preload("res://scripts/view/scenery.gd").new()
 	add_child(scenery)
+	add_child(preload("res://scripts/view/sites_view.gd").new())
 
 	var cycle: Node = preload("res://scripts/view/day_night.gd").new()
 	cycle.name = "DayNight"

@@ -8,9 +8,11 @@ const PANELS := [
 	["purchase", "Mua hàng", preload("res://scripts/ui/purchase_panel.gd")],
 	["build", "Xây dựng", preload("res://scripts/ui/build_panel.gd")],
 	["staff", "Nhân sự", preload("res://scripts/ui/staff_panel.gd")],
+	["expansion", "Mở rộng", preload("res://scripts/ui/expansion_panel.gd")],
 ]
 
 var _cash: Label
+var _tier: Label
 var _rep: Label
 var _clock: Label
 var _raw: Label
@@ -35,6 +37,9 @@ var _report: PanelContainer
 var _selection: SelectionPanel
 var _help: Label
 var _compact := false
+## Room in the top bar for the company stage.
+var _wide := true
+var _pad: Control
 
 const SETTINGS_PATH := "user://settings.cfg"
 
@@ -72,6 +77,11 @@ func _ready() -> void:
 	EventBus.machine_repaired.connect(func(_d): show_toast("Máy đã sửa xong.", true))
 	EventBus.machine_upgraded.connect(func(_d): show_toast("Đã nâng cấp máy.", true))
 	EventBus.construction_finished.connect(func(d): show_toast("Đã xây xong %s!" % GameManager.sim.content.constructions[d.id].display_name, true))
+	EventBus.site_opened.connect(func(d): show_toast("%s đã xây xong! Nhớ tuyển người quản lý và mua dây chuyền." % d.name, true))
+	EventBus.site_surveyed.connect(func(d): show_toast("Khảo sát %s xong: sức mua %d%%." % [GameManager.sim.content.locations[d.id].display_name, d.market], true))
+	EventBus.site_selected.connect(func(_id):
+		if _current != "expansion":
+			toggle_panel("expansion"))
 	_update_speed_buttons()
 
 
@@ -83,6 +93,8 @@ func _process(_delta: float) -> void:
 	_cash.text = Fmt.money(s.cash)
 	_cash.add_theme_color_override("font_color", UiTheme.GOOD if s.cash >= 0 else UiTheme.BAD)
 	_rep.text = "Uy tín %d" % s.reputation
+	_tier.text = sim.expansion.tier_name()
+	_tier.visible = _wide
 	_clock.text = TimeManager.clock_text()
 	var incoming := sim.inventory.pending_material() + s.dock
 	if _compact:
@@ -129,11 +141,12 @@ func _build_top_bar() -> void:
 	bar.add_child(h)
 	_top_bar = h
 	_cash = UiTheme.label("", 18, UiTheme.GOOD, true)
+	_tier = UiTheme.label("", 16, UiTheme.WARN, true)
 	_rep = UiTheme.label("", 16)
 	_clock = UiTheme.label("", 16)
 	_raw = UiTheme.label("", 16)
 	_finished = UiTheme.label("", 16)
-	for l in [_cash, _rep, _clock, _raw, _finished]:
+	for l in [_cash, _tier, _rep, _clock, _raw, _finished]:
 		h.add_child(l)
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -225,13 +238,17 @@ func _relayout() -> void:
 		_panels[k].offset_right = 192 + panel_w
 	# Narrow screens (most phones): smaller top bar text and shorter labels.
 	_compact = w < 1000
+	_wide = w >= 1320
 	_top_bar.add_theme_constant_override("separation", 10 if _compact else 18)
 	_cash.add_theme_font_size_override("font_size", roundi((15 if _compact else 18) * UiTheme.TEXT_SCALE))
-	for l in [_rep, _clock, _raw, _finished]:
+	for l in [_tier, _rep, _clock, _raw, _finished]:
 		l.add_theme_font_size_override("font_size", roundi((13 if _compact else 16) * UiTheme.TEXT_SCALE))
 	for b in _speed_buttons:
 		b.custom_minimum_size.x = 38 if _compact else 46
 	_report.max_height = size.y - 24
+	if _pad:
+		# Short screens: the pad would cover the navigation buttons.
+		_pad.visible = size.y - 230 > 72 + _nav.get_combined_minimum_size().y
 
 
 func _update_speed_buttons() -> void:
@@ -388,14 +405,14 @@ func _build_corner_panels() -> void:
 
 
 func _build_help() -> void:
-	var text := "Q / E xoay · Lăn chuột phóng to · Chuột phải kéo hoặc WASD di chuyển · Bấm vào máy để xem và sửa · Space tạm dừng"
+	var text := "Q / E xoay · Lăn chuột phóng to · Kéo chuột hoặc WASD di chuyển · Bấm vào máy để xem và sửa · Space tạm dừng"
 	var l := UiTheme.label(text, 13, Color(1, 1, 1, 0.85))
 	l.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
 	l.offset_left = 14
 	l.offset_top = -30
 	if UiTheme.is_mobile():
 		# Next to the rotate buttons, wrapping onto two lines if needed.
-		l.text = "Kéo để di chuyển · Chụm hai ngón để phóng to · Xoay hai ngón để xoay · Chạm vào máy để xem"
+		l.text = "Kéo để di chuyển (vuốt nhanh để lướt) · Chụm hai ngón để phóng to · Xoay hai ngón để xoay tự do · Chạm vào máy để xem"
 		l.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
 		l.offset_left = 224
 		l.offset_right = -16
@@ -410,7 +427,8 @@ func _build_help() -> void:
 	_help = l
 
 
-## Phones have no Q / E keys: big rotate buttons in the bottom-left corner.
+## Phones and tablets have no keyboard: rotate buttons in the bottom-left
+## corner and, above them, a pad that pans (hold), zooms and jumps home.
 func _build_touch_buttons() -> void:
 	var h := HBoxContainer.new()
 	h.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
@@ -424,6 +442,49 @@ func _build_touch_buttons() -> void:
 		b.custom_minimum_size = Vector2(96, 52)
 		h.add_child(b)
 	add_child(h)
+	_pad = camera_pad()
+	add_child(_pad)
+
+
+## 3 x 3 pad: arrows pan while held, + / − zoom, the middle returns to the factory.
+static func camera_pad() -> GridContainer:
+	var g := GridContainer.new()
+	g.columns = 3
+	g.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
+	g.offset_left = 12
+	g.offset_top = -72 - 3 * 50
+	g.offset_bottom = -72
+	g.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	g.add_theme_constant_override("h_separation", 4)
+	g.add_theme_constant_override("v_separation", 4)
+	g.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var cells := [["+", Vector2.ZERO], ["^", Vector2(0, -1)], ["−", Vector2.ZERO],
+		["<", Vector2(-1, 0)], ["Về", Vector2.ZERO], [">", Vector2(1, 0)],
+		["", Vector2.ZERO], ["v", Vector2(0, 1)], ["", Vector2.ZERO]]
+	for c in cells:
+		var text: String = c[0]
+		var dir: Vector2 = c[1]
+		if text == "":
+			var gap := Control.new()
+			gap.custom_minimum_size = Vector2(56, 46)
+			gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			g.add_child(gap)
+			continue
+		var b := UiTheme.button(text, func(): pass)
+		b.custom_minimum_size = Vector2(56, 46)
+		b.modulate.a = 0.85
+		if dir != Vector2.ZERO:
+			b.button_down.connect(func(): EventBus.camera_pad_changed.emit(dir))
+			b.button_up.connect(func(): EventBus.camera_pad_changed.emit(Vector2.ZERO))
+		elif text == "+":
+			b.pressed.connect(func(): EventBus.camera_zoom_requested.emit(0.8))
+		elif text == "−":
+			b.pressed.connect(func(): EventBus.camera_zoom_requested.emit(1.25))
+		else:
+			b.tooltip_text = "Về nhà máy chính"
+			b.pressed.connect(func(): EventBus.camera_focus_requested.emit(Vector3(-2, 0, 0), 30.0))
+		g.add_child(b)
+	return g
 
 
 ## Android back button / gesture: closes whatever is open, one thing at a time.

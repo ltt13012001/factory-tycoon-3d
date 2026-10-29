@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.4.0 – Từ xưởng thành tập đoàn đa quốc gia
+
+- Camera: kéo chuột trái hoặc một ngón để di chuyển, vuốt nhanh để camera lướt
+  tiếp, xoay hai ngón để xoay tự do (nút Xoay quay 45°), phạm vi di chuyển rộng
+  tới các lô đất mới. Trên iPad và điện thoại có bàn điều hướng: mũi tên (giữ
+  để di chuyển), + / − phóng to, "Về" quay lại nhà máy chính.
+- Tốc độ sản xuất: "Cải tiến dây chuyền" 5 cấp (+10% mỗi cấp cho mọi máy),
+  máy nâng cấp được tới cấp 5.
+- Xưởng trưởng: tuyển ở bảng Nhân sự hoặc Mở rộng, máy nhanh hơn 15%, tự gọi
+  sửa máy hỏng khi không có kỹ thuật viên rảnh. Đi tuần quanh các máy.
+- Bảng "Mở rộng": đặt đủ máy thì mua lô đất bên cạnh, xây Xưởng 2, 3, 4 (thấy
+  trong 3D, từ đất bán đến công trường và nhà xưởng có dây chuyền). Mỗi xưởng
+  cần xưởng trưởng, mua dây chuyền và tự động hoá để tăng lãi.
+- Các cấp doanh nghiệp: Xưởng sản xuất → Công ty TNHH → Tổng công ty → Tập
+  đoàn → Tập đoàn đa quốc gia. Công ty mở được chi nhánh trong nước (Bình Dương,
+  Bắc Ninh, Hải Phòng, Đà Nẵng), Tổng công ty mở chi nhánh nước ngoài (Thái Lan,
+  Indonesia, Ấn Độ, Mexico, Đức, Hoa Kỳ). Mỗi nơi phải khảo sát thị trường
+  trước, chi nhánh cần giám đốc chi nhánh.
+- Ban lãnh đạo theo từng cấp: Giám đốc sản xuất, Kế toán trưởng, Giám đốc kinh
+  doanh, Giám đốc nhân sự, Giám đốc tài chính, Giám đốc khu vực quốc tế, Tổng
+  giám đốc điều hành; mỗi người có lương và hiệu quả riêng.
+- Lãi và chi phí của các xưởng, chi nhánh và lương lãnh đạo được ghi vào báo
+  cáo cuối ngày. Bản lưu cũ tự nâng cấp lên phiên bản 3.
+
 ## Chưa phát hành: đồ hoạ chân thực hơn
 
 Theo góp ý: đồ hoạ nên thực tế hơn, cảnh quan và máy móc nhà xưởng chi tiết hơn.
