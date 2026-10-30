@@ -110,6 +110,19 @@ func _build_ground() -> void:
 	# Driveways from the road to the dock and to the car park
 	_flat.box(Vector3(6, 0.05, 2.4), Vector3(16, 0.025, 15.0), Palette.ROAD, paving)
 	_flat.box(Vector3(4, 0.05, 2.4), Vector3(1, 0.025, 15.0), Palette.ROAD, paving)
+	# Green pedestrian walkways with white edges, the way staff walk in
+	for w in FactoryLayout.WALKWAYS:
+		var wa: Vector2 = w[0]
+		var wb: Vector2 = w[1]
+		var c := (wa + wb) / 2.0
+		var sz := wb - wa
+		_flat.box(Vector3(sz.x, 0.012, sz.y), Vector3(c.x, 0.047, c.y), Color("4f9a63"), paving)
+		var long_x := sz.x > sz.y
+		for side in [-1.0, 1.0]:
+			if long_x:
+				_flat.box(Vector3(sz.x, 0.014, 0.07), Vector3(c.x, 0.048, c.y + side * (sz.y / 2.0 - 0.05)), Color("f2f2ee"))
+			else:
+				_flat.box(Vector3(0.07, 0.014, sz.y), Vector3(c.x + side * (sz.x / 2.0 - 0.05), 0.048, c.y), Color("f2f2ee"))
 	# Fence with gaps at the driveways
 	var a := FactoryLayout.LOT_MIN
 	var b := FactoryLayout.LOT_MAX
@@ -654,7 +667,7 @@ func _sync_workers(sim: Simulation) -> void:
 			w.role = e.role
 			w.position = FactoryLayout.WAREHOUSE_IDLE if e.role == "warehouse" else FactoryLayout.OPERATOR_IDLE
 			if sim.state.tick > 0:
-				w.position = FactoryLayout.DOOR_HALL_YARD + Vector3(0, 0, 3)  # new hires walk in from the yard
+				w.position = FactoryLayout.STAFF_GATE  # new hires walk in from the street
 			add_child(w)
 			_workers[e.id] = w
 		_workers[e.id].idle_index = idle.get(e.role, 0)
@@ -725,6 +738,7 @@ func _spawn_truck(color: Color) -> Node3D:
 	var truck: Node3D = TruckScene.instantiate()
 	truck.color = color
 	truck.position = Vector3(1000, 0, 0)
+	truck.add_to_group("road_trucks")  # passing motorbikes steer round it
 	add_child(truck)
 	return truck
 

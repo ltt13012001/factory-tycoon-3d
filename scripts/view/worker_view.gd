@@ -4,11 +4,19 @@
 ## operators stand at their machine, warehouse workers walk each haul leg in
 ## step with the job's remaining ticks, technicians and the owner walk to
 ## the machine they are repairing. Staff with nothing to do sit in the rest
-## area, go home through the gate after the shift and gather in the yard
-## with signs during a strike. A speech bubble shows what they think.
+## area, leave through the gate and along the pavement after the shift (and
+## come back the same way) and gather in the hall with signs during a
+## strike. Every walk follows WalkGrid routes around walls and machines,
+## speeding up and slowing down smoothly. A speech bubble shows what they
+## think.
 extends Node3D
 
-const WALK_SPEED := 3.5
+const WALK_SPEED := 3.2
+## Walking speeds up and slows down this fast (m/s²), and never goes beyond
+## this many times WALK_SPEED however fast the game runs.
+const ACCEL := 7.0
+const DECEL := 5.0
+const MAX_HURRY := 2.0
 const BODY_SCALE := 1.15
 ## Chibi proportions: short legs (hip height) and a head nearly as big as
 ## the body, centred this far above the neck.
@@ -56,6 +64,8 @@ var _walk_route := PackedVector3Array()
 var _time := 0.0
 var _stride := 0.0
 var _moving := false
+var _speed := 0.0  # walking speed along _walk_route
+var _pace := 0.0  # smoothed ground speed, drives the gait
 ## Pose for this frame: stand, sit, operate, repair, strike.
 var _pose := "stand"
 var _carrying := false
@@ -310,14 +320,19 @@ func _process(delta: float) -> void:
 				_:
 					_update_warehouse(sim, e, delta)
 	var moved := position - before
-	_moving = moved.length() > 0.001
+	var dist := moved.length()
+	if dist > 3.0:
+		dist = 0.0  # a jump (back from home, a loaded game), not a step
+	_moving = dist > 0.0005
+	_pace = lerpf(_pace, dist / maxf(delta, 0.001), minf(1.0, delta * 6.0))
 	if _moving:
-		_stride += moved.length() / BODY_SCALE * 7.0
+		# Longer steps when hurrying, so the feet do not blur.
+		_stride += dist / BODY_SCALE * 6.0 / clampf(_pace / WALK_SPEED, 1.0, 1.8)
 		var look := Vector3(moved.x, 0, moved.z)
 		if look.length() > 0.0001:
-			rotation.y = lerp_angle(rotation.y, atan2(look.x, look.z), minf(1.0, delta * 12.0))
+			rotation.y = lerp_angle(rotation.y, atan2(look.x, look.z), minf(1.0, delta * 9.0))
 	elif _face_yaw != INF:
-		rotation.y = lerp_angle(rotation.y, _face_yaw, minf(1.0, delta * 8.0))
+		rotation.y = lerp_angle(rotation.y, _face_yaw, minf(1.0, delta * 6.0))
 	_animate(delta)
 	if role != "owner":
 		_update_bubble(sim, e, delta)
@@ -332,14 +347,16 @@ func _update_common(sim: Simulation, e: Dictionary, delta: float) -> bool:
 		_carry.visible = false
 		if not visible:
 			return true
-		_walk(FactoryLayout.STAFF_GATE, delta)
-		if position.distance_to(FactoryLayout.STAFF_GATE) < 0.1:
-			visible = false  # gone home
+		var home := _home()
+		_walk(home, delta)
+		if position.distance_to(home) < 0.1:
+			visible = false  # gone home (or onto the bus)
 		return true
 	if not visible:
-		# Back in the morning: walk in from the gate.
-		position = FactoryLayout.STAFF_GATE
+		# Back in the morning: walk in along the pavement and through the gate.
+		position = _home()
 		_walk_target = Vector3.INF
+		_speed = 0.0
 		visible = true
 	if sim.employees.on_strike() and role != "manager":
 		_phase_key = ""
@@ -361,6 +378,15 @@ func _update_common(sim: Simulation, e: Dictionary, delta: float) -> bool:
 			_face_yaw = seat[1]
 		return true
 	return false
+
+
+## The bus stop or the end of the pavement this worker heads for, spread a
+## little so people do not stand on one spot.
+func _home() -> Vector3:
+	var homes := FactoryLayout.HOMES
+	var spread := fmod(employee_id * 0.37, 1.0) - 0.5
+	var h: Vector3 = homes[employee_id % homes.size()]
+	return h + (Vector3(spread * 2.4, 0, 0) if employee_id % homes.size() == 0 else Vector3(0, 0, spread * 0.6))
 
 
 ## Where idle operators and technicians wait for a moment before they go
@@ -436,6 +462,8 @@ func _update_warehouse(sim: Simulation, e: Dictionary, delta: float) -> void:
 		var leg := float(maxi(1, int(job.get("leg", sim.buildings.haul_leg_ticks()))))
 		var frac := sim.tick_fraction() if TimeManager.speed > 0 and not sim.employees.on_strike() else 0.0
 		t = (leg - int(job.ticks_left) + frac) / leg
+		# Ease into and out of each trip instead of starting at full speed.
+		t = lerpf(t, smoothstep(0.0, 1.0, t), 0.3)
 	position = FactoryLayout.point_along(_phase_start, _phase_route, t)
 	_carrying = job.phase == "to_dest" and int(job.qty) > 0
 	_carry.visible = _carrying
@@ -497,12 +525,18 @@ func _animate(delta: float) -> void:
 	var sway := 0.0
 	var tilt := sin(_time * 1.3 + employee_id) * 0.06
 	var head_yaw := sin(_time * 0.7 + employee_id) * 0.25
-	if _moving:
+	# Gait blends in with speed (no snap between standing and walking) and
+	# turns into a jog when hurrying: longer steps, bent arms, leaning in.
+	var gait := clampf(_pace / 1.4, 0.0, 1.0) if _moving else 0.0
+	if gait > 0.0:
+		var run := clampf((_pace - WALK_SPEED * 1.25) / (WALK_SPEED * 0.6), 0.0, 1.0)
 		var s := sin(_stride)
-		legs = [s * 0.6, maxf(0.0, -s) * 0.7, -s * 0.6, maxf(0.0, s) * 0.7]
-		arms = [-s * 0.5, s * 0.5]
-		lift = absf(cos(_stride)) * 0.05
-		sway = sin(_stride) * 0.09  # a little waddle
+		var amp := gait * (1.0 + run * 0.35)
+		legs = [s * 0.6 * amp, maxf(0.0, -s) * (0.7 + run * 0.5) * gait, -s * 0.6 * amp, maxf(0.0, s) * (0.7 + run * 0.5) * gait]
+		arms = [-s * 0.5 * amp - run * 0.35, s * 0.5 * amp - run * 0.35]
+		lift = absf(cos(_stride)) * (0.04 + run * 0.04) * gait
+		sway = sin(_stride) * 0.08 * gait * (1.0 - run * 0.6)  # a little waddle
+		lean = run * 0.16
 		head_yaw = 0.0
 	match _pose:
 		"sit":
@@ -619,19 +653,30 @@ func _show_bubble(t: Dictionary) -> void:
 	m.albedo_color = BUBBLE_COLORS.get(t.kind, Color.WHITE)
 
 
-## Walks toward target at a fixed speed, routing through doorways.
+## Walks toward target along a WalkGrid route, speeding up from a stop and
+## slowing down on arrival.
 func _walk(target: Vector3, delta: float) -> void:
 	if target.distance_to(_walk_target) > 0.05:
 		_walk_target = target
 		_walk_route = FactoryLayout.route(position, target)
-	var step := WALK_SPEED * delta * maxf(1.0, TimeManager.speed * TimeManager.night_factor())
+	if _walk_route.is_empty():
+		_speed = 0.0
+		return
+	var hurry := clampf(TimeManager.speed * TimeManager.night_factor(), 1.0, MAX_HURRY)
+	var top := WALK_SPEED * hurry
+	var left := FactoryLayout.path_length(position, _walk_route)
+	var want := minf(top, sqrt(2.0 * DECEL * hurry * left) + 0.4)
+	_speed = move_toward(_speed, want, ACCEL * hurry * delta)
+	var step := _speed * delta
 	while step > 0.0 and _walk_route.size() > 0:
 		var next := _walk_route[0]
-		var dist := position.distance_to(next)
-		if dist <= step:
+		var d := position.distance_to(next)
+		if d <= step:
 			position = next
-			step -= dist
+			step -= d
 			_walk_route.remove_at(0)
 		else:
-			position += (next - position) / dist * step
+			position += (next - position) / d * step
 			step = 0.0
+	if _walk_route.is_empty():
+		_speed = 0.0

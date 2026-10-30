@@ -124,6 +124,35 @@ func _staff_shots(hud: Node, rig: Node3D) -> void:
 	hud.toggle_panel("purchase")
 	await get_tree().create_timer(0.8).timeout
 	await _shot("15_purchase_panel")
+	hud.toggle_panel("purchase")
+	await _street_shots(rig)
+
+
+## After the shift: staff walk out along the walkway, through the gate and
+## along the pavement; then the street across the road from the front.
+func _street_shots(rig: Node3D) -> void:
+	var sim := GameManager.sim
+	sim.state.strike = {}
+	sim.set_pay(120)
+	sim.set_shift(8)
+	for e in sim.state.employees:
+		e.mood = 80
+	sim.state.tick = (sim.day() - 1) * sim.config.ticks_per_day + (14 - sim.config.day_start_hour) * sim.config.ticks_per_hour + 55
+	TimeManager.set_speed(1)
+	EventBus.camera_focus_requested.emit(Vector3(-4, 0, 12), 20.0)
+	await get_tree().create_timer(5.5).timeout
+	await _shot("17_going_home")
+	TimeManager.set_speed(0)
+	rig.rotation_degrees.y = 200.0
+	rig._yaw_target = 200.0
+	EventBus.camera_focus_requested.emit(Vector3(14, 0, 24), 26.0)
+	await get_tree().create_timer(2.0).timeout
+	await _shot("18_street")
+	rig.rotation_degrees.y = 20.0
+	rig._yaw_target = 20.0
+	EventBus.camera_focus_requested.emit(Vector3(4, 0, -30), 40.0)
+	await get_tree().create_timer(2.0).timeout
+	await _shot("19_paddies")
 
 
 ## A growing company: factory 2 running, factory 3 being built, a branch.

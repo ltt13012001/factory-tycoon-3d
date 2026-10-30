@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.7.0 – Nhân viên đi đúng đường, khu phố kiểu Việt Nam
+
+- Nhân viên không còn đi xuyên tường, máy, kho hàng hay hàng rào: đường đi
+  được tìm trên bản đồ lối đi của cả khu (tường có cửa, máy, chồng hàng, bàn
+  ghế, xe đỗ, bồn hoa, cây và cột đèn đều là vật cản), rồi kéo thẳng thành
+  từng đoạn và bo cong ở góc rẽ.
+- Lối đi bộ sơn xanh trong sân: từ cổng nhân viên, qua giữa bãi đỗ xe, tới
+  cửa xưởng và dọc lối nhỏ giữa xưởng và văn phòng ra khu nghỉ. Nhân viên đi
+  theo lối này thay vì băng ngang sân hay qua bãi xe tải.
+- Tan ca nhân viên đi ra cổng, theo vỉa hè: người qua vạch sang đường tới
+  trạm xe buýt, người đi dọc vỉa hè về hai phía. Sáng hôm sau đi vào lại
+  đúng đường đó. Nhân viên mới cũng đi vào từ cổng.
+- Chuyển động mượt hơn: tăng tốc từ từ khi bắt đầu đi, chậm lại khi tới nơi,
+  quay người êm, dáng đi hoà dần thay vì giật giữa đứng và đi; khi phải vội
+  (nhân viên kho, tua nhanh) thì sải chân dài hơn, chạy bộ, người hơi chúi
+  về trước. Tốc độ đi khi tua nhanh có giới hạn nên không còn "bay" qua map.
+- Khu phố đối diện là dãy nhà ống một trệt một lầu: tạp hoá, quán cà phê
+  có bàn ghế nhựa, tiệm sửa xe, nhà có cửa xếp; mái hiên, bảng hiệu, ban
+  công có lan can và chậu cây, bồn nước inox, máy nước nóng năng lượng mặt
+  trời, mái thái, mái tôn, phơi đồ trên sân thượng, xe máy dựng trước nhà.
+- Đường phố: cây vỉa hè trong bồn (cây xanh, bằng lăng tím, phượng đỏ), cột
+  điện bê tông với dây điện, dây cáp chằng chịt. Xe máy chở người đội mũ bảo
+  hiểm chạy hai chiều, đi đúng làn bên phải; xe máy đi ngược chiều lách qua
+  xe tải đang đỗ trước cổng thay vì đi xuyên qua. Xe cùng làn chạy cùng tốc
+  độ nên không xe nào đi xuyên xe nào.
+- Ruộng lúa có nước, bờ ruộng, ruộng lúa chín vàng; nhà ngói thay kho thóc
+  kiểu Mỹ, đụn rơm, bụi tre dọc bờ ruộng, dừa và chuối quanh hồ.
+- Mây tự ẩn khi phóng to camera gần để không che màn hình.
+
 ## 0.6.0 – Nhân viên chibi, chạy được trên nhiều máy hơn
 
 - Nhân viên và chủ xưởng theo kiểu chibi: đầu to tròn, mắt to long lanh có
