@@ -43,6 +43,8 @@ var _wide := true
 var _pad: Control
 
 const SETTINGS_PATH := "user://settings.cfg"
+## Menu ids: Auto, then one per graphics level.
+const GRAPHICS_ITEM := 10
 
 
 func _ready() -> void:
@@ -175,6 +177,11 @@ func _build_top_bar() -> void:
 	pm.add_theme_font_size_override("font_size", 18)
 	pm.add_item("Chữ to hơn (A+)", 0)
 	pm.add_item("Chữ nhỏ hơn (A−)", 1)
+	pm.add_separator("Đồ họa (máy yếu chọn Thấp)")
+	pm.add_radio_check_item("Tự động", GRAPHICS_ITEM)
+	for i in Graphics.NAMES.size():
+		pm.add_radio_check_item(Graphics.NAMES[i], GRAPHICS_ITEM + 1 + i)
+	pm.about_to_popup.connect(_update_graphics_items)
 	pm.add_separator()
 	pm.add_item("Lưu game", 2)
 	pm.add_item("Chơi lại từ đầu", 3)
@@ -202,6 +209,20 @@ func _on_menu(id: int) -> void:
 			show_toast("Đã lưu game." if SaveManager.save_game() else "Không lưu được!", true)
 		3:
 			_confirm.popup_centered()
+		_:
+			if id >= GRAPHICS_ITEM:
+				var g: Graphics = get_tree().current_scene.get_node("Graphics")
+				g.set_tier(id - GRAPHICS_ITEM - 1)
+				show_toast("Đồ họa: %s%s" % ["Tự động – " if Graphics.auto else "", Graphics.NAMES[Graphics.tier]], true)
+
+
+## Ticks the graphics level in the menu; on Auto it also names the level in use.
+func _update_graphics_items() -> void:
+	var pm := _menu.get_popup()
+	for i in 4:
+		var idx := pm.get_item_index(GRAPHICS_ITEM + i)
+		pm.set_item_checked(idx, (i == 0) == Graphics.auto and (i == 0 or i - 1 == Graphics.tier))
+	pm.set_item_text(pm.get_item_index(GRAPHICS_ITEM), "Tự động (%s)" % Graphics.NAMES[Graphics.tier] if Graphics.auto else "Tự động")
 
 
 ## Scales the whole interface (and the 3D labels stay as they are).

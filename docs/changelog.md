@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.6.0 – Nhân viên chibi, chạy được trên nhiều máy hơn
+
+- Nhân viên và chủ xưởng theo kiểu chibi: đầu to tròn, mắt to long lanh có
+  đốm sáng, má hồng, thân tròn, tay chân ngắn; biết chớp mắt, nghiêng đầu,
+  đi lạch bạch, mắt lim dim khi mệt. Mỗi bộ phận gộp thành một khối nên vẽ
+  nhẹ hơn trước (khoảng một nửa số lần vẽ mỗi người).
+- Đồ họa 3 mức Thấp / Vừa / Cao và Tự động (Menu → Đồ họa). Tự động chọn theo
+  máy: trình duyệt dùng chip đồ họa yếu, vẽ bằng phần mềm (máy tắt tăng tốc
+  phần cứng) hoặc máy 2 GB RAM chạy mức Thấp. Đang chơi mà khung hình dưới
+  22 hình/giây thì tự hạ một mức. Mức Thấp: tắt bóng đổ, bloom, khử răng cưa,
+  vẽ cảnh 3D ở 60% độ phân giải, khóa 30 hình/giây trên điện thoại và web.
+- Trang web của game: trình duyệt cũ (iOS dưới 16.4, Android WebView cũ trong
+  Zalo, Messenger) giải nén game bằng JavaScript thay vì báo lỗi; màn hình
+  quá nét chỉ vẽ tối đa gấp 2 (đỡ tốn bộ nhớ đồ họa); nếu lần trước game bị
+  tắt giữa chừng khi tải (máy thiếu bộ nhớ) thì lần sau tự vào chế độ nhẹ.
+  Báo lỗi bằng tiếng Việt kèm cách sửa (thiếu WebGL 2, thiếu bộ nhớ, mạng
+  yếu, đang mở trong Zalo/Messenger) và nút "Tải lại" / "Chơi chế độ nhẹ".
+
 ## 0.5.0 – Nhân viên sống động
 
 - Sửa lỗi nhân viên đứng yên co giật khi không có đơn hàng: nhân viên kho chờ

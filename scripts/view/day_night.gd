@@ -30,7 +30,7 @@ func _process(delta: float) -> void:
 	_wait -= delta
 	if _wait > 0.0:
 		return
-	_wait = _interval
+	_wait = _interval if Graphics.tier != Graphics.LOW else 1.0
 	var frac := sim.tick_fraction() if TimeManager.speed > 0 else 0.0
 	var h := fmod(sim.hour_of_day() + frac / sim.config.ticks_per_hour, 24.0)
 	apply_hour(h)
@@ -71,6 +71,7 @@ func apply_hour(h: float) -> void:
 		scenery.lamp_material.emission_energy_multiplier = glow * 3.0
 		scenery.window_material.emission_energy_multiplier = glow * 1.6
 		scenery.window_material.albedo_color = Color("8fb6d6").lerp(Color("3a4656"), glow)
+		var lights_on := Graphics.night_lights_on()
 		for l in scenery.night_lights:
-			l.visible = glow > 0.02
+			l.visible = lights_on and glow > 0.02
 			l.light_energy = glow * 1.4

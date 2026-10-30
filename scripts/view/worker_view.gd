@@ -1,5 +1,6 @@
-## A worker (or the owner) as a small person: legs, arms, body in the role's
-## colour, a face and a hard hat. Position follows the simulation:
+## A worker (or the owner) as a cute chibi figure: a big round head with
+## large eyes and rosy cheeks, a small round body in the role's colour,
+## stubby arms and legs, and a hard hat. Position follows the simulation:
 ## operators stand at their machine, warehouse workers walk each haul leg in
 ## step with the job's remaining ticks, technicians and the owner walk to
 ## the machine they are repairing. Staff with nothing to do sit in the rest
@@ -9,6 +10,11 @@ extends Node3D
 
 const WALK_SPEED := 3.5
 const BODY_SCALE := 1.15
+## Chibi proportions: short legs (hip height) and a head nearly as big as
+## the body, centred this far above the neck.
+const HIP := 0.42
+const HEAD_CENTER := Vector3(0, 0.3, 0)
+const HEAD_RADIUS := 0.33
 const PANTS := Color("34495e")
 const SHOES := Color("2b2b2b")
 const SKINS := [Color("f1c9a5"), Color("e0ac83"), Color("c68c60"), Color("f5d6b8")]
@@ -30,6 +36,8 @@ var _torso: Node3D
 var _head: Node3D
 var _legs: Array[Node3D] = []  # [left thigh, left shin, right thigh, right shin]
 var _arms: Array[Node3D] = []  # [left, right]
+var _eyes: Node3D
+var _blink := 0.0
 var _mouth: MeshInstance3D
 var _brows: Array[MeshInstance3D] = []
 var _carry: MeshInstance3D
@@ -73,97 +81,127 @@ func _ready() -> void:
 	var seed := employee_id if role != "owner" else 3
 	var skin: Color = SKINS[seed % SKINS.size()]
 	var hair: Color = HAIRS[(seed / 2) % HAIRS.size()]
+	var pants := PANTS if role != "manager" else Color("37474f")
+	var helmet := role != "owner" and role != "manager"
+	var helmet_color := Palette.HELMET if role != "technician" else Color("eceff1")
+	var bun := helmet and seed % 2 == 1
 	_visual = Node3D.new()
 	_visual.scale = Vector3.ONE * BODY_SCALE
 	add_child(_visual)
 
-	# Legs: thigh and shin pivots so the worker can walk and sit.
+	# Short stubby legs: thigh and shin pivots so the worker can walk and sit.
 	_hips = Node3D.new()
-	_hips.position = Vector3(0, 0.9, 0)
+	_hips.position = Vector3(0, HIP, 0)
 	_visual.add_child(_hips)
-	var pants := PANTS if role != "manager" else Color("37474f")
 	for side in [-1, 1]:
 		var thigh := Node3D.new()
-		thigh.position = Vector3(0.11 * side, 0, 0)
+		thigh.position = Vector3(0.1 * side, 0, 0)
 		_hips.add_child(thigh)
-		_capsule(thigh, 0.085, 0.5, Vector3(0, -0.22, 0), pants)
+		_part(thigh, "thigh_%s" % pants.to_html(), func(b: MeshBatch):
+			b.sphere(0.1, Vector3(0, -0.1, 0), pants, null, Vector3(1, 1.3, 1)))
 		var shin := Node3D.new()
-		shin.position = Vector3(0, -0.44, 0)
+		shin.position = Vector3(0, -0.2, 0)
 		thigh.add_child(shin)
-		_capsule(shin, 0.075, 0.5, Vector3(0, -0.21, 0), pants)
-		Palette.box(shin, Vector3(0.14, 0.09, 0.26), Vector3(0, -0.43, 0.05), SHOES)
+		_part(shin, "shin_%s" % pants.to_html(), func(b: MeshBatch):
+			b.sphere(0.095, Vector3(0, -0.07, 0), pants, null, Vector3(1, 1.1, 1))
+			b.sphere(0.11, Vector3(0, -0.16, 0.03), SHOES, null, Vector3(1.05, 0.6, 1.35)))
 		_legs.append(thigh)
 		_legs.append(shin)
 
-	# Body, arms and head hang off the torso pivot at the hips.
+	# A round little body; arms and the big head hang off the torso pivot.
 	_torso = Node3D.new()
-	_torso.position = Vector3(0, 0.9, 0)
+	_torso.position = Vector3(0, HIP, 0)
 	_visual.add_child(_torso)
-	var body := _capsule(_torso, 0.21, 0.66, Vector3(0, 0.3, 0), shirt)
-	body.scale = Vector3(1, 1, 0.72)
-	Palette.box(_torso, Vector3(0.4, 0.07, 0.3), Vector3(0, 0.03, 0), Color("3e2723"))  # belt
-	match role:
-		"warehouse":
-			# Hi-vis stripes
-			for y in [0.2, 0.38]:
-				Palette.box(_torso, Vector3(0.43, 0.05, 0.31), Vector3(0, y, 0), Color("e0f2f1"))
-		"technician":
-			Palette.box(_torso, Vector3(0.45, 0.12, 0.33), Vector3(0, 0.06, 0), Color("6d4c41"))  # tool belt
-			Palette.box(_torso, Vector3(0.08, 0.16, 0.06), Vector3(0.2, 0.0, 0.14), Color("b0bec5"))
-		"manager", "owner":
-			Palette.box(_torso, Vector3(0.09, 0.36, 0.04), Vector3(0, 0.36, 0.15), Color("c62828") if role == "owner" else Color("1565c0"))
-		_:
-			Palette.box(_torso, Vector3(0.16, 0.14, 0.03), Vector3(0.09, 0.42, 0.15), shirt.darkened(0.25))  # pocket
+	_part(_torso, "body_%s_%s_%s" % [role, shirt.to_html(), pants.to_html()], _body_shapes.bind(shirt, pants))
 	for side in [-1, 1]:
 		var arm := Node3D.new()
-		arm.position = Vector3(0.28 * side, 0.55, 0)
+		arm.position = Vector3(0.25 * side, 0.4, 0)
 		_torso.add_child(arm)
-		_capsule(arm, 0.068, 0.56, Vector3(0, -0.25, 0), shirt)
-		Palette.sphere(arm, 0.075, Vector3(0, -0.56, 0), skin)
+		_part(arm, "arm_%s_%s" % [shirt.to_html(), skin.to_html()], func(b: MeshBatch):
+			b.sphere(0.07, Vector3(0, -0.1, 0), shirt, null, Vector3(1, 1.6, 1))
+			b.sphere(0.075, Vector3(0, -0.22, 0), skin))
 		_arms.append(arm)
 	if role == "manager":
-		Palette.box(_arms[1], Vector3(0.04, 0.34, 0.26), Vector3(0, -0.52, 0.12), Color("8d6e63"))  # clipboard
+		Palette.box(_arms[1], Vector3(0.04, 0.26, 0.2), Vector3(0, -0.22, 0.1), Color("8d6e63"))  # clipboard
 
+	# Big round head with large shiny eyes and rosy cheeks.
 	_head = Node3D.new()
-	_head.position = Vector3(0, 0.78, 0)
+	_head.position = Vector3(0, 0.5, 0)
 	_torso.add_child(_head)
-	Palette.cylinder(_head, 0.07, 0.12, Vector3(0, -0.07, 0), skin)
-	Palette.sphere(_head, 0.17, Vector3(0, 0.1, 0), skin)
+	var c := HEAD_CENTER
+	_part(_head, "head_%s_%s_%s_%s_%s" % [skin.to_html(), hair.to_html(), helmet, helmet_color.to_html(), bun], _head_shapes.bind(skin, hair, helmet, helmet_color, bun))
+	_eyes = Node3D.new()
+	_eyes.position = c + Vector3(0, -0.03, 0)
+	_head.add_child(_eyes)
+	_part(_eyes, "eyes", func(b: MeshBatch):
+		for sx in [-1, 1]:
+			b.sphere(0.068, Vector3(0.12 * sx, 0, 0.29), Color("1b1b1b"), null, Vector3(0.85, 1.25, 0.45))
+			b.sphere(0.024, Vector3(0.12 * sx + 0.02, 0.028, 0.318), Color.WHITE)
+			b.sphere(0.011, Vector3(0.12 * sx - 0.02, -0.025, 0.318), Color.WHITE))
 	for side in [-1, 1]:
-		Palette.sphere(_head, 0.026, Vector3(0.065 * side, 0.13, 0.152), Color("1b1b1b"))
-		var brow := Palette.box(_head, Vector3(0.07, 0.018, 0.02), Vector3(0.065 * side, 0.185, 0.155), hair)
+		var brow := Palette.box(_head, Vector3(0.06, 0.014, 0.02), c + Vector3(0.12 * side, 0.08, 0.29), hair)
 		_brows.append(brow)
-	_mouth = Palette.box(_head, Vector3(0.08, 0.02, 0.02), Vector3(0, 0.04, 0.158), Color("7b2d26"))
-	Palette.sphere(_head, 0.035, Vector3(0, 0.09, 0.17), skin.darkened(0.08))  # nose
-	if role == "owner" or role == "manager":
-		var cap := Palette.sphere(_head, 0.18, Vector3(0, 0.17, -0.015), hair)
-		cap.scale = Vector3(1, 0.62, 1)
-	else:
-		var helmet := Palette.sphere(_head, 0.195, Vector3(0, 0.17, 0), Palette.HELMET if role != "technician" else Color("eceff1"))
-		helmet.scale = Vector3(1, 0.68, 1)
-		Palette.cylinder(_head, 0.23, 0.025, Vector3(0, 0.15, 0.03), Palette.HELMET if role != "technician" else Color("eceff1"))
-		if seed % 2 == 1:
-			Palette.sphere(_head, 0.08, Vector3(0, 0.08, -0.18), hair)  # hair bun
+	_mouth = Palette.box(_head, Vector3(0.06, 0.018, 0.02), c + Vector3(0, -0.14, 0.294), Color("7b2d26"))
 
-	_carry = Palette.box(_torso, Vector3(0.5, 0.4, 0.4), Vector3(0, 0.3, 0.42), Palette.BOX)
+	_carry = Palette.box(_torso, Vector3(0.4, 0.34, 0.34), Vector3(0, 0.24, 0.4), Palette.BOX)
 	_carry.visible = false
 	if role != "owner":
 		_build_sign()
 		Palette.pick_body(self, Vector3(0.8, 2.0, 0.8), Vector3(0, 1.0, 0), "worker", employee_id)
 	_build_bubble()
 	_bubble_next = 2.0 + fmod(employee_id * 2.3, 9.0)
+	_blink = fmod(employee_id * 1.7, 4.0)
 
 
-func _capsule(parent: Node, radius: float, height: float, pos: Vector3, color: Color) -> MeshInstance3D:
+## Round body with shorts, belt and the role's details.
+func _body_shapes(b: MeshBatch, shirt: Color, pants: Color) -> void:
+	b.sphere(0.24, Vector3(0, 0.22, 0), shirt, null, Vector3(1, 1.15, 0.88), 14, 8)
+	b.sphere(0.22, Vector3(0, 0.03, 0), pants, null, Vector3(1, 0.6, 0.85), 14, 6)
+	b.cylinder(0.218, 0.05, Vector3(0, 0.08, 0), Color("3e2723"), null, -1.0, Vector3.ZERO, 14, Vector3(1, 1, 0.88))
+	match role:
+		"warehouse":
+			# Hi-vis stripes
+			b.cylinder(0.247, 0.035, Vector3(0, 0.2, 0), Color("e0f2f1"), null, -1.0, Vector3.ZERO, 14, Vector3(1, 1, 0.89))
+			b.cylinder(0.232, 0.035, Vector3(0, 0.31, 0), Color("e0f2f1"), null, -1.0, Vector3.ZERO, 14, Vector3(1, 1, 0.89))
+		"technician":
+			b.cylinder(0.236, 0.08, Vector3(0, 0.08, 0), Color("6d4c41"), null, -1.0, Vector3.ZERO, 14, Vector3(1, 1, 0.9))  # tool belt
+			b.box(Vector3(0.07, 0.13, 0.05), Vector3(0.19, 0.05, 0.13), Color("b0bec5"))
+		"manager", "owner":
+			b.box(Vector3(0.07, 0.2, 0.03), Vector3(0, 0.32, 0.195), Color("c62828") if role == "owner" else Color("1565c0"))  # tie
+		_:
+			b.box(Vector3(0.11, 0.09, 0.03), Vector3(0.09, 0.3, 0.18), shirt.darkened(0.25))  # pocket
+
+
+## Head, cheeks, ears, and hair under a hard hat or a fringe with a curl.
+func _head_shapes(b: MeshBatch, skin: Color, hair: Color, helmet: bool, helmet_color: Color, bun: bool) -> void:
+	var c := HEAD_CENTER
+	b.sphere(HEAD_RADIUS, c, skin, null, Vector3.ONE, 18, 10)
+	for sx in [-1, 1]:
+		b.sphere(0.05, c + Vector3(0.2 * sx, -0.11, 0.233), Color("ff9aa2"), null, Vector3(1.2, 0.6, 0.35))  # cheek
+		b.sphere(0.05, c + Vector3(0.325 * sx, -0.02, 0), skin, null, Vector3(0.5, 1, 0.8))  # ear
+	if helmet:
+		b.sphere(0.335, c + Vector3(0, 0.06, -0.05), hair, null, Vector3(1, 0.7, 1), 16, 8)
+		b.sphere(0.35, c + Vector3(0, 0.2, 0), helmet_color, null, Vector3(1, 0.55, 1), 16, 8)
+		b.cylinder(0.37, 0.03, c + Vector3(0, 0.13, 0.03), helmet_color, null, -1.0, Vector3.ZERO, 18)
+		if bun:
+			b.sphere(0.1, c + Vector3(0, 0.0, -0.33), hair)
+	else:
+		# Soft hair with a fringe over the forehead and a curl on top.
+		b.sphere(0.345, c + Vector3(0, 0.09, -0.04), hair, null, Vector3(1, 0.8, 1), 16, 8)
+		b.sphere(0.06, c + Vector3(0.04, 0.37, 0.02), hair, null, Vector3(0.7, 1.4, 0.7))
+
+
+static var _meshes := {}
+
+
+## A body part merged into one mesh; workers who look alike share it.
+func _part(parent: Node3D, key: String, add_shapes: Callable) -> MeshInstance3D:
+	if not _meshes.has(key):
+		var b := MeshBatch.new()
+		add_shapes.call(b)
+		_meshes[key] = b.build_mesh()
 	var mi := MeshInstance3D.new()
-	var cap := CapsuleMesh.new()
-	cap.radius = radius
-	cap.height = height
-	cap.radial_segments = 10
-	cap.rings = 4
-	mi.mesh = cap
-	mi.position = pos
-	mi.material_override = Palette.mat(color)
+	mi.mesh = _meshes[key]
 	parent.add_child(mi)
 	return mi
 
@@ -171,10 +209,10 @@ func _capsule(parent: Node, radius: float, height: float, pos: Vector3, color: C
 ## A protest sign held up during a strike.
 func _build_sign() -> void:
 	_sign = Node3D.new()
-	_sign.position = Vector3(0, -0.55, 0.05)
+	_sign.position = Vector3(0, -0.25, 0.05)
 	_arms[1].add_child(_sign)
-	Palette.cylinder(_sign, 0.025, 0.9, Vector3(0, -0.3, 0), Color("8d6e63"))
-	Palette.box(_sign, Vector3(0.95, 0.6, 0.03), Vector3(0, -0.9, 0), Color("fafafa"))
+	Palette.cylinder(_sign, 0.025, 1.0, Vector3(0, -0.4, 0), Color("8d6e63"))
+	Palette.box(_sign, Vector3(0.95, 0.6, 0.03), Vector3(0, -1.0, 0), Color("fafafa"))
 	var l := Label3D.new()
 	l.text = "TĂNG\nLƯƠNG!"
 	l.font = UiTheme.font(600)
@@ -182,7 +220,7 @@ func _build_sign() -> void:
 	l.pixel_size = 0.0062
 	l.modulate = Color("c62828")
 	l.outline_size = 0
-	l.position = Vector3(0, -0.9, 0.02)
+	l.position = Vector3(0, -1.0, 0.02)
 	l.rotation = Vector3(PI, 0, 0)  # upright once the arm is raised
 	_sign.add_child(l)
 	_sign.visible = false
@@ -192,7 +230,7 @@ func _build_sign() -> void:
 ## camera, with the text on top.
 func _build_bubble() -> void:
 	_bubble = Node3D.new()
-	_bubble.position = Vector3(0, 2.75, 0)
+	_bubble.position = Vector3(0, 2.45, 0)
 	add_child(_bubble)
 	_bubble_bg = MeshInstance3D.new()
 	_bubble_bg.mesh = QuadMesh.new()
@@ -274,7 +312,7 @@ func _process(delta: float) -> void:
 	var moved := position - before
 	_moving = moved.length() > 0.001
 	if _moving:
-		_stride += moved.length() / BODY_SCALE * 4.2
+		_stride += moved.length() / BODY_SCALE * 7.0
 		var look := Vector3(moved.x, 0, moved.z)
 		if look.length() > 0.0001:
 			rotation.y = lerp_angle(rotation.y, atan2(look.x, look.z), minf(1.0, delta * 12.0))
@@ -456,18 +494,21 @@ func _animate(delta: float) -> void:
 	var arm_z := [0.06, -0.06]
 	var lean := 0.0
 	var lift := 0.0
+	var sway := 0.0
+	var tilt := sin(_time * 1.3 + employee_id) * 0.06
 	var head_yaw := sin(_time * 0.7 + employee_id) * 0.25
 	if _moving:
 		var s := sin(_stride)
 		legs = [s * 0.6, maxf(0.0, -s) * 0.7, -s * 0.6, maxf(0.0, s) * 0.7]
 		arms = [-s * 0.5, s * 0.5]
-		lift = absf(cos(_stride)) * 0.04
+		lift = absf(cos(_stride)) * 0.05
+		sway = sin(_stride) * 0.09  # a little waddle
 		head_yaw = 0.0
 	match _pose:
 		"sit":
 			legs = [-PI / 2.0, PI / 2.0, -PI / 2.0, PI / 2.0]
 			arms = [-0.7, -0.7 + (0.9 if fmod(_time + employee_id, 9.0) < 1.6 else 0.0) * -1.0]
-			lift = FactoryLayout.SEAT_HEIGHT / BODY_SCALE - 0.9 + 0.05
+			lift = FactoryLayout.SEAT_HEIGHT / BODY_SCALE - HIP + 0.05
 		"operate":
 			arms = [-1.05 + sin(_time * 5.0) * 0.18, -1.05 - sin(_time * 5.0) * 0.18]
 			lean = 0.08
@@ -489,10 +530,17 @@ func _animate(delta: float) -> void:
 		_arms[i].rotation.x = lerp_angle(_arms[i].rotation.x, arms[i], k)
 		_arms[i].rotation.z = lerp_angle(_arms[i].rotation.z, arm_z[i], k)
 	_torso.rotation.x = lerp_angle(_torso.rotation.x, lean, k)
+	_visual.rotation.z = lerp_angle(_visual.rotation.z, sway, k)
+	_head.rotation.z = lerp_angle(_head.rotation.z, tilt, minf(1.0, delta * 3.0))
+	# Blink every few seconds.
+	_blink -= delta
+	if _blink <= 0.0:
+		_blink = 2.5 + fmod(_time * 7.3 + employee_id, 3.0)
+	_eyes.scale.y = 0.12 if _blink < 0.13 else (0.55 if _kind == "tired" else 1.0)
 	_head.rotation.y = lerp_angle(_head.rotation.y, head_yaw, minf(1.0, delta * 3.0))
 	_visual.position.y = lerpf(_visual.position.y, lift * BODY_SCALE, k)
 	# Breathing
-	_torso.scale.y = 1.0 + sin(_time * 2.2 + employee_id) * 0.012
+	_torso.scale.y = 1.0 + sin(_time * 2.2 + employee_id) * 0.015
 	_set_face(_kind)
 
 
@@ -519,7 +567,8 @@ func _set_face(kind: String) -> void:
 ## Shows a thought now and then (always while it is urgent: a strike, a
 ## broken machine, a full store).
 func _update_bubble(sim: Simulation, e: Dictionary, delta: float) -> void:
-	_bubble.position.y = 2.75 + (rest_index % 2) * 0.6  # neighbours' bubbles at two heights
+	# Neighbours' bubbles at two heights, and above the protest signs.
+	_bubble.position.y = 2.45 + (rest_index % 2) * 0.6 + (0.9 if _pose == "strike" else 0.0)
 	var t := Thoughts.pick(sim, e) if not e.is_empty() and visible else {"text": "", "kind": "calm", "urgent": false}
 	_kind = t.kind
 	if t.text == "":
