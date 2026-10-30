@@ -69,3 +69,14 @@ func test_money_format() -> void:
 	check_eq(Fmt.money(1234567), "$12.345,67", "cents")
 	check_eq(Fmt.money(-50000), "-$500", "negative")
 	check_eq(Fmt.money(15), "$0,15", "small")
+
+
+func test_short_money() -> void:
+	check_eq(Fmt.money_short(123456), "$1.234", "below a million: whole dollars")
+	check_eq(Fmt.money_short(99999999), "$999.999", "just under a million")
+	check_eq(Fmt.money_short(123456789), "$1,23 tr", "millions")
+	check_eq(Fmt.money_short(100000000), "$1 tr", "no trailing zeros")
+	check_eq(Fmt.money_short(4560000000), "$45,6 tr", "tens of millions")
+	check_eq(Fmt.money_short(123456789012), "$1,23 tỷ", "billions")
+	check_eq(Fmt.money_short(-250000000000), "-$2,5 tỷ", "negative")
+	check_eq(Fmt.money_short(12345678901234567), "$123 nghìn tỷ", "huge")

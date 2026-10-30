@@ -52,6 +52,10 @@ func _ready() -> void:
 	_select_ring.material_override = Palette.mat(Palette.SELECT, 1.5)
 	_select_ring.visible = false
 	add_child(_select_ring)
+	var chatter: Node = preload("res://scripts/view/chatter.gd").new()
+	chatter.name = "Chatter"
+	chatter.workers = _workers
+	add_child(chatter)
 	_owner = WorkerScene.instantiate()
 	_owner.role = "owner"
 	_owner.position = FactoryLayout.OWNER_DESK

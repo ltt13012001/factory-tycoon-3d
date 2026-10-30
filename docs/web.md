@@ -33,7 +33,7 @@ cũ). Trang sẽ báo rõ lý do và cách sửa.
 | Độ phân giải cảnh 3D | 60% (web), 75% | 75% (web), 100% | 100% |
 | Bloom, chỉnh màu, khử răng cưa | tắt | bật | bật |
 | Đèn sân ban đêm | tắt | tắt trên web | bật |
-| Giới hạn khung hình (web, di động) | 30 | không | không |
+| Giới hạn khung hình (web, di động) | 30 | 60 | 60 |
 
 Giao diện luôn vẽ ở độ nét đầy đủ. Lựa chọn lưu trong `user://settings.cfg`.
 Chạy thử một mức: `godot --path . -- --quality=low` (low, medium, high).

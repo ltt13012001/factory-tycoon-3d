@@ -207,6 +207,13 @@ static func sphere(parent: Node, radius: float, pos: Vector3, color: Color, emis
 
 
 ## Adds a pickable collision box carrying selection metadata.
+## Sets a material override only when it changes: setting it every frame
+## would send the same change to the renderer each time.
+static func set_material(mi: GeometryInstance3D, m: Material) -> void:
+	if mi.material_override != m:
+		mi.material_override = m
+
+
 static func pick_body(parent: Node, size: Vector3, pos: Vector3, kind: String, id: int) -> StaticBody3D:
 	var body := StaticBody3D.new()
 	body.position = pos

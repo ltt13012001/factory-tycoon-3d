@@ -38,8 +38,10 @@ var _report: PanelContainer
 var _selection: SelectionPanel
 var _help: Label
 var _compact := false
-## Room in the top bar for the company stage.
-var _wide := true
+var _refresh_wait := 0.0
+
+const REFRESH_INTERVAL := 0.1
+const TOP_BAR_PADDING := 10
 var _pad: Control
 
 const SETTINGS_PATH := "user://settings.cfg"
@@ -91,16 +93,22 @@ func _ready() -> void:
 	_update_speed_buttons()
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	var sim := GameManager.sim
 	if sim == null:
 		return
+	# The simulation moves in 0.25 s ticks, so refreshing the texts ten times
+	# a second looks the same as every frame and lays out far less often.
+	_refresh_wait -= delta
+	if _refresh_wait > 0.0:
+		return
+	_refresh_wait = REFRESH_INTERVAL
 	var s := sim.state
-	_cash.text = Fmt.money(s.cash)
+	_cash.text = Fmt.money_short(s.cash)
+	_cash.tooltip_text = Fmt.money(s.cash)
 	_cash.add_theme_color_override("font_color", UiTheme.GOOD if s.cash >= 0 else UiTheme.BAD)
 	_rep.text = "Uy tín %d" % s.reputation
 	_tier.text = sim.expansion.tier_name()
-	_tier.visible = _wide
 	_clock.text = TimeManager.clock_text()
 	var incoming := sim.inventory.pending_material() + s.dock
 	if _compact:
@@ -134,6 +142,30 @@ func _process(_delta: float) -> void:
 	var text := sim.tutorial.current_text()
 	_tutorial.visible = text != ""
 	_tutorial_label.text = text
+	_fit_top_bar()
+
+
+## Hides the least important figures, one at a time, when the top bar would
+## run off the screen (a narrow phone, big text, a long company name), so
+## the speed buttons and the Menu always stay on screen.
+func _fit_top_bar() -> void:
+	var optional: Array[Label] = [_raw, _finished, _rep, _tier]  # most important first
+	for l in optional:
+		l.visible = true
+	var room := size.x - 2 * TOP_BAR_PADDING
+	var sep := _top_bar.get_theme_constant("separation")
+	var used := 0.0
+	for c in _top_bar.get_children():
+		var ctl := c as Control
+		if ctl.visible:
+			used += ctl.get_combined_minimum_size().x + sep
+	var i := optional.size() - 1
+	while used > room and i >= 0:
+		used -= optional[i].get_combined_minimum_size().x + sep
+		optional[i].visible = false
+		i -= 1
+	if used > room:
+		_clock.text = TimeManager.clock_text(true)
 
 
 # --- Layout ------------------------------------------------------------------
@@ -141,7 +173,7 @@ func _process(_delta: float) -> void:
 func _build_top_bar() -> void:
 	var bar := PanelContainer.new()
 	bar.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	bar.add_theme_stylebox_override("panel", UiTheme.panel_style(UiTheme.BG, 0, 10))
+	bar.add_theme_stylebox_override("panel", UiTheme.panel_style(UiTheme.BG, 0, TOP_BAR_PADDING))
 	add_child(bar)
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", 18)
@@ -155,6 +187,7 @@ func _build_top_bar() -> void:
 	_finished = UiTheme.label("", 16)
 	for l in [_cash, _tier, _rep, _clock, _raw, _finished]:
 		h.add_child(l)
+	_cash.mouse_filter = Control.MOUSE_FILTER_PASS  # exact amount in the tooltip
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -264,7 +297,6 @@ func _relayout() -> void:
 		_panels[k].offset_right = 192 + panel_w
 	# Narrow screens (most phones): smaller top bar text and shorter labels.
 	_compact = w < 1000
-	_wide = w >= 1320
 	_top_bar.add_theme_constant_override("separation", 10 if _compact else 18)
 	_cash.add_theme_font_size_override("font_size", roundi((15 if _compact else 18) * UiTheme.TEXT_SCALE))
 	for l in [_tier, _rep, _clock, _raw, _finished]:
@@ -272,6 +304,7 @@ func _relayout() -> void:
 	for b in _speed_buttons:
 		b.custom_minimum_size.x = 38 if _compact else 46
 	_report.max_height = size.y - 24
+	_refresh_wait = 0.0
 	if _pad:
 		# Short screens: the pad would cover the navigation buttons.
 		_pad.visible = size.y - 230 > 72 + _nav.get_combined_minimum_size().y
