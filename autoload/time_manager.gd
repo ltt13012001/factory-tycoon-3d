@@ -38,11 +38,14 @@ func night_factor() -> int:
 	return NIGHT_SPEEDUP
 
 
-func clock_text() -> String:
+## Day and time, plus the strike or off-shift note unless short.
+func clock_text(short := false) -> String:
 	var sim: Simulation = GameManager.sim
 	if sim == null:
 		return ""
 	var text := "Ngày %d · %s" % [sim.day(), Fmt.clock(sim.state.tick, sim.config)]
+	if short:
+		return text
 	if sim.employees.on_strike():
 		text += " · Đình công"
 	elif not sim.employees.on_shift():

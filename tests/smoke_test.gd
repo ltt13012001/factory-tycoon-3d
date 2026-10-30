@@ -41,4 +41,5 @@ func _process(delta: float) -> void:
 		hud.toggle_panel(ids[_step % ids.size()])
 	if _step % 10 == 0:
 		var s := GameManager.sim.state
-		print("smoke test: day %d %s cash %s machines %d employees %d" % [GameManager.sim.day(), Fmt.clock(s.tick, GameManager.sim.config), Fmt.money(s.cash), s.machines.size(), s.employees.size()])
+		var chatter := get_tree().root.find_child("Chatter", true, false)
+		print("smoke test: day %d %s cash %s machines %d employees %d chats %d" % [GameManager.sim.day(), Fmt.clock(s.tick, GameManager.sim.config), Fmt.money(s.cash), s.machines.size(), s.employees.size(), chatter.started if chatter else -1])

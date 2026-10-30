@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.8.0 – Đỡ nóng máy, thanh trên cùng gọn, nhân viên trò chuyện
+
+- Đỡ nóng máy và tốn pin mà đồ họa giữ nguyên:
+  - Điện thoại và trình duyệt vẽ tối đa 60 hình/giây. Màn hình 90 hay 120 Hz
+    trước đây vẽ gấp đôi số hình cho cùng một chuyển động.
+  - Khi đang tạm dừng và không chạm màn hình 8 giây, game vẽ 30 hình/giây
+    (lúc đó chỉ còn nhân viên thở và mây trôi). Chạm hay bấm phím là về đủ
+    hình ngay. Cửa sổ game trên máy tính bị che hoặc chuyển sang ứng dụng
+    khác thì vẽ 10 hình/giây.
+  - Bớt việc cho bộ xử lý mỗi khung hình: thanh trên cùng cập nhật 10 lần
+    mỗi giây thay vì mỗi khung hình, suy nghĩ của nhân viên chỉ tính lại khi
+    giờ trong game nhích, nhân viên ngoài màn hình không cử động tay chân,
+    máy và thùng hàng chỉ đổi màu khi trạng thái đổi, vật lý (chỉ dùng để
+    chọn vật) chạy 30 lần/giây thay vì 60.
+- Thanh trên cùng: tiền lớn hiện gọn ("$1,23 tr", "$4,5 tỷ", "$12 nghìn
+  tỷ"; giữ chuột trên số tiền để xem đủ). Khi màn hình hẹp hoặc chữ to,
+  thanh tự ẩn bớt mục phụ (tên giai đoạn công ty, uy tín, kho, hạt nhựa)
+  để nút tốc độ và nút Menu luôn nằm trong màn hình.
+- Nhân viên trò chuyện với nhau: hai người đứng hay ngồi gần nhau (nghỉ
+  cạnh nhau, đứng máy cạnh nhau, xưởng trưởng đi kiểm tra) quay sang nhau
+  và nói qua lại vài câu, mỗi người một bong bóng, gọi tên nhau ("Anh Tuấn
+  ơi, trưa nay ăn gì?"). Người nói vừa nói vừa khua tay, miệng mấp máy,
+  người nghe gật gù. Chuyện theo hoàn cảnh: lúc nghỉ thì ăn trưa, bóng đá,
+  con cái; lúc làm thì máy móc, đơn hàng; lúc mệt thì than mỏi; lúc lương
+  thấp thì than giá cả; xưởng trưởng thì khen và nhắc an toàn. Đang nói mà
+  phải đi làm, máy hỏng hay đình công thì dừng ngay. Tối đa 3 cặp cùng lúc
+  (2 ở đồ họa Thấp) cho đỡ rối.
+
 ## 0.7.0 – Nhân viên đi đúng đường, khu phố kiểu Việt Nam
 
 - Nhân viên không còn đi xuyên tường, máy, kho hàng hay hàng rào: đường đi

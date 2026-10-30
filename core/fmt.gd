@@ -12,6 +12,27 @@ static func money(cents: int) -> String:
 	return ("-$" if negative else "$") + text
 
 
+## Short money for tight spots such as the top bar: whole dollars below a
+## million, then "triệu" / "tỷ" with up to two decimals ("$1,23 tr",
+## "-$45,6 tỷ"), so the text stays short however rich the player gets.
+static func money_short(cents: int) -> String:
+	var dollars := absi(cents) / 100
+	var sign := "-$" if cents < 0 else "$"
+	for u in [[1000000000000, "nghìn tỷ"], [1000000000, "tỷ"], [1000000, "tr"]]:
+		var unit: int = u[0]
+		if dollars < unit:
+			continue
+		var whole := dollars / unit
+		var decimals := 2 if whole < 10 else (1 if whole < 100 else 0)
+		var text := group(whole)
+		if decimals > 0:
+			var frac := str((dollars % unit) * (10 ** decimals) / unit).pad_zeros(decimals).rstrip("0")
+			if frac != "":
+				text += "," + frac
+		return "%s%s %s" % [sign, text, u[1]]
+	return sign + group(dollars)
+
+
 static func group(n: int) -> String:
 	var digits := str(absi(n))
 	var out := ""

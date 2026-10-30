@@ -413,7 +413,7 @@ func _process(delta: float) -> void:
 		"no_material", "broken":
 			color = Palette.STATUS_STOP
 	var blink: bool = m.status == "broken" and int(_time * 3.0 + Time.get_ticks_msec() / 300.0) % 2 == 0
-	_light.material_override = Palette.mat(color, 0.2 if blink else 2.5)
+	Palette.set_material(_light, Palette.mat(color, 0.2 if blink else 2.5))
 	var cycle := sim.production.cycle_ticks(m)
 	var progress := 0.0
 	if m.in_cycle:
@@ -422,9 +422,9 @@ func _process(delta: float) -> void:
 	if m.status == "repairing":
 		var total := sim.config.repair_walk_ticks + sim.production.def_of(m).repair_ticks
 		progress = 1.0 - float(m.repair_ticks_left) / total
-		_bar_fill.material_override = Palette.mat(Palette.STATUS_WARN)
+		Palette.set_material(_bar_fill, Palette.mat(Palette.STATUS_WARN))
 	else:
-		_bar_fill.material_override = Palette.mat(Palette.STATUS_RUN)
+		Palette.set_material(_bar_fill, Palette.mat(Palette.STATUS_RUN))
 	_bar_root.visible = m.in_cycle or m.status == "repairing"
 	_bar_fill.scale = Vector3(maxf(progress, 0.01), 1, 1)
 	_bar_fill.position.x = -0.9 + 0.9 * progress
@@ -433,7 +433,8 @@ func _process(delta: float) -> void:
 		text = "Cần bảo trì (%d%%)" % m.condition
 		color = Palette.STATUS_WARN
 	_label.text = text
-	_label.modulate = color
+	if _label.modulate != color:
+		_label.modulate = color
 	for i in _pips.size():
 		_pips[i].visible = i < int(m.level) and int(m.level) > 1
 	var shown := mini(int(m.buffer), _units.size())

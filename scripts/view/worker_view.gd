@@ -8,7 +8,8 @@
 ## come back the same way) and gather in the hall with signs during a
 ## strike. Every walk follows WalkGrid routes around walls and machines,
 ## speeding up and slowing down smoothly. A speech bubble shows what they
-## think.
+## think, or their side of a chat with a neighbour (see Chatter): they turn
+## to each other, the speaker talks with a hand, the listener nods.
 extends Node3D
 
 const WALK_SPEED := 3.2
@@ -71,6 +72,20 @@ var _pose := "stand"
 var _carrying := false
 var _face_yaw := INF  # yaw to turn to once standing still
 var _kind := "calm"
+
+## Last thought, worked out again only when the simulation ticks.
+var _thought := {"text": "", "kind": "calm", "urgent": false}
+var _thought_tick := -1
+var _employee := {}
+## Off screen the limbs are not posed: nobody sees them.
+var _on_screen: VisibleOnScreenNotifier3D
+
+# Chat with a neighbour, run by Chatter: who they talk to, and the line
+# being said while _say_timer runs.
+var chat_partner: Node3D
+var _say_text := ""
+var _say_timer := 0.0
+var _chat_look := 0.0
 
 # Owner only
 var _owner_target_machine := 0
@@ -159,6 +174,9 @@ func _ready() -> void:
 		_build_sign()
 		Palette.pick_body(self, Vector3(0.8, 2.0, 0.8), Vector3(0, 1.0, 0), "worker", employee_id)
 	_build_bubble()
+	_on_screen = VisibleOnScreenNotifier3D.new()
+	_on_screen.aabb = AABB(Vector3(-0.8, 0, -0.8), Vector3(1.6, 4.4, 1.6))  # body and bubble
+	add_child(_on_screen)
 	_bubble_next = 2.0 + fmod(employee_id * 2.3, 9.0)
 	_blink = fmod(employee_id * 1.7, 4.0)
 
@@ -307,6 +325,7 @@ func _process(delta: float) -> void:
 		_update_owner(sim, delta)
 	else:
 		e = sim.state.find_by_id(sim.state.employees, employee_id)
+		_employee = e
 		if e.is_empty():
 			return
 		if not _update_common(sim, e, delta):
@@ -319,6 +338,7 @@ func _process(delta: float) -> void:
 					_update_manager(sim, delta)
 				_:
 					_update_warehouse(sim, e, delta)
+	_look_at_partner()
 	var moved := position - before
 	var dist := moved.length()
 	if dist > 3.0:
@@ -333,9 +353,70 @@ func _process(delta: float) -> void:
 			rotation.y = lerp_angle(rotation.y, atan2(look.x, look.z), minf(1.0, delta * 9.0))
 	elif _face_yaw != INF:
 		rotation.y = lerp_angle(rotation.y, _face_yaw, minf(1.0, delta * 6.0))
-	_animate(delta)
+	if _on_screen.is_on_screen():
+		_animate(delta)
 	if role != "owner":
 		_update_bubble(sim, e, delta)
+
+
+## Standing still in a chat: turn to the partner. Seated or at a machine,
+## only the head turns.
+func _look_at_partner() -> void:
+	if chat_partner == null or not is_instance_valid(chat_partner) or _moving:
+		_chat_look = 0.0
+		return
+	var to := chat_partner.position - position
+	var yaw := atan2(to.x, to.z)
+	if _pose == "stand":
+		_face_yaw = yaw
+		_chat_look = 0.0
+	else:
+		_chat_look = clampf(wrapf(yaw - rotation.y, -PI, PI), -1.0, 1.0)
+
+
+# --- Chat (driven by Chatter) ----------------------------------------------------
+
+## Free to start a chat: standing or sitting still, in view of the world,
+## with nothing urgent on their mind.
+func can_chat() -> bool:
+	return role != "owner" and visible and chat_partner == null and not _moving \
+			and _pose != "strike" and not _thought.urgent and not _carrying
+
+
+## Still able to go on with the chat they are in.
+func can_keep_chatting() -> bool:
+	return visible and not _moving and not _thought.urgent and _pose != "strike"
+
+
+## What this person would chat about: rest, rest_sad, tired, work or boss.
+func chat_mood() -> String:
+	if role == "manager":
+		return "boss"
+	if _thought.kind == "sad" or _thought.kind == "angry":
+		return "sad"
+	if _thought.kind == "tired":
+		return "tired"
+	return "rest" if _employee.get("rest", false) else "work"
+
+
+func display_name() -> String:
+	return str(_employee.get("name", ""))
+
+
+## Says one line of the chat for a few seconds.
+func say(text: String, seconds: float) -> void:
+	_say_text = text
+	_say_timer = seconds
+	var kind: String = _thought.kind if _thought.kind != "calm" else "happy"
+	_show_bubble({"text": text, "kind": kind})
+
+
+func end_chat() -> void:
+	chat_partner = null
+	_say_timer = 0.0
+	_bubble.visible = false
+	_bubble_timer = 0.0
+	_bubble_next = 5.0 + fmod(employee_id * 1.9, 6.0)  # no thought right after
 
 
 ## Off shift, strike and rest apply to every role. Returns true when one
@@ -470,7 +551,7 @@ func _update_warehouse(sim: Simulation, e: Dictionary, delta: float) -> void:
 	var color := Palette.PELLET_BAG
 	if job.kind != "unload" and sim.content.products.has(job.get("product_id", "")):
 		color = sim.content.products[job.product_id].color
-	_carry.material_override = Palette.mat(color)
+	Palette.set_material(_carry, Palette.mat(color))
 
 
 func _job_destination(sim: Simulation, job: Dictionary) -> Vector3:
@@ -558,6 +639,16 @@ func _animate(delta: float) -> void:
 	if _carrying:
 		arms = [-1.25, -1.25]
 		arm_z = [0.25, -0.25]
+	var nod := 0.0
+	if chat_partner != null and gait == 0.0:
+		head_yaw = _chat_look
+		if _say_timer > 0.0:
+			if _pose == "stand" or _pose == "sit":
+				# Talking with one hand.
+				arms[1] = -0.55 - absf(sin(_time * 3.2)) * 0.45
+				arm_z[1] = -0.3
+		else:
+			nod = maxf(0.0, sin(_time * 2.4 + employee_id)) * 0.16  # listening
 	for i in 4:
 		_legs[i].rotation.x = lerp_angle(_legs[i].rotation.x, legs[i], k)
 	for i in 2:
@@ -572,10 +663,13 @@ func _animate(delta: float) -> void:
 		_blink = 2.5 + fmod(_time * 7.3 + employee_id, 3.0)
 	_eyes.scale.y = 0.12 if _blink < 0.13 else (0.55 if _kind == "tired" else 1.0)
 	_head.rotation.y = lerp_angle(_head.rotation.y, head_yaw, minf(1.0, delta * 3.0))
+	_head.rotation.x = lerp_angle(_head.rotation.x, nod, minf(1.0, delta * 6.0))
 	_visual.position.y = lerpf(_visual.position.y, lift * BODY_SCALE, k)
 	# Breathing
 	_torso.scale.y = 1.0 + sin(_time * 2.2 + employee_id) * 0.015
 	_set_face(_kind)
+	if _say_timer > 0.0:
+		_mouth.scale.y *= 1.0 + absf(sin(_time * 11.0)) * 1.4  # lips move while talking
 
 
 func _set_face(kind: String) -> void:
@@ -603,8 +697,23 @@ func _set_face(kind: String) -> void:
 func _update_bubble(sim: Simulation, e: Dictionary, delta: float) -> void:
 	# Neighbours' bubbles at two heights, and above the protest signs.
 	_bubble.position.y = 2.45 + (rest_index % 2) * 0.6 + (0.9 if _pose == "strike" else 0.0)
-	var t := Thoughts.pick(sim, e) if not e.is_empty() and visible else {"text": "", "kind": "calm", "urgent": false}
+	# Thoughts only change when the simulation ticks.
+	if not e.is_empty() and visible:
+		if sim.state.tick != _thought_tick:
+			_thought_tick = sim.state.tick
+			_thought = Thoughts.pick(sim, e)
+	else:
+		_thought = {"text": "", "kind": "calm", "urgent": false}
+		_thought_tick = -1
+	var t := _thought
 	_kind = t.kind
+	if chat_partner != null and not t.urgent:
+		# In a chat the bubble shows only the line being said.
+		if _say_timer > 0.0:
+			_say_timer -= delta
+			if _say_timer <= 0.0:
+				_bubble.visible = false
+		return
 	if t.text == "":
 		_bubble.visible = false
 		return

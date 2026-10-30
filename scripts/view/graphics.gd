@@ -31,6 +31,22 @@ var _slow := 0
 const SLOW_FPS := 22.0
 const WINDOW := 4.0
 
+## Frame rate, to save battery and heat without looking any different.
+## Phones and browsers stop at 60 frames a second: a 90 or 120 Hz screen
+## would otherwise draw up to twice as many frames of the same motion.
+## While the game is paused and nobody touches the screen for a few
+## seconds, only the breathing and the clouds move, so 30 frames are
+## plenty; the first touch or key brings the full rate back at once. A
+## desktop window in the background draws 10 frames a second.
+const HANDHELD_FPS := 60
+const LOW_FPS := 30
+const IDLE_FPS := 30
+const BACKGROUND_FPS := 10
+const IDLE_AFTER := 8.0
+
+var _untouched := 0.0
+var _focused := true
+
 
 func _ready() -> void:
 	var vp := get_viewport()
@@ -141,7 +157,37 @@ func apply() -> void:
 	environment.glow_enabled = tier != LOW
 	environment.adjustment_enabled = tier != LOW
 	environment.ssao_enabled = _ssao and tier == HIGH
-	Engine.max_fps = 30 if tier == LOW and handheld else 0
+	Engine.max_fps = fps_cap()
+
+
+## Frame limit for the level, the pause and the window focus (0 = the
+## screen's own rate).
+func fps_cap() -> int:
+	var web := OS.has_feature("web")
+	var handheld := web or OS.has_feature("mobile")
+	if not _focused and not web:
+		return BACKGROUND_FPS
+	var cap := 0
+	if handheld:
+		cap = LOW_FPS if tier == LOW else HANDHELD_FPS
+	if TimeManager.speed == 0 and _untouched >= IDLE_AFTER:
+		cap = IDLE_FPS if cap == 0 else mini(cap, IDLE_FPS)
+	return cap
+
+
+func _input(_event: InputEvent) -> void:
+	_untouched = 0.0
+	if Engine.max_fps != fps_cap():
+		Engine.max_fps = fps_cap()
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_APPLICATION_FOCUS_OUT or what == NOTIFICATION_APPLICATION_FOCUS_IN:
+		_focused = what == NOTIFICATION_APPLICATION_FOCUS_IN
+		_frames = 0
+		_seconds = 0.0
+		_warmup = maxf(_warmup, 2.0)
+		Engine.max_fps = fps_cap()
 
 
 ## Yard lights at night only where extra lights are affordable: every light
@@ -151,7 +197,11 @@ static func night_lights_on() -> bool:
 
 
 func _process(delta: float) -> void:
-	if not auto or tier == LOW:
+	_untouched += delta
+	var cap := fps_cap()
+	if Engine.max_fps != cap:
+		Engine.max_fps = cap
+	if not auto or tier == LOW or not _focused:
 		return
 	if delta > 0.5:
 		return  # the tab was hidden or the game paused for loading
