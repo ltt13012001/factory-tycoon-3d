@@ -48,8 +48,8 @@ func _init(p_sim: Simulation) -> void:
 	sim = p_sim
 
 
-func make_employee(role: String) -> Dictionary:
-	return {"id": sim.state.take_id(), "name": next_name(), "role": role, "machine_id": 0, "job": {},
+func make_employee(role: String, site := "") -> Dictionary:
+	return {"id": sim.state.take_id(), "name": next_name(), "role": role, "site": site, "machine_id": 0, "job": {},
 		"mood": 70, "rest": false, "away": 0, "idle": 0, "off": false}
 
 
@@ -169,27 +169,41 @@ func total_wages() -> int:
 	return total
 
 
-func count(role: String) -> int:
+## Staff with this role in every factory, or in one factory when site is given.
+func count(role: String, site = null) -> int:
 	var c := 0
 	for e in sim.state.employees:
-		if e.role == role:
+		if e.role == role and (site == null or ProductionManager.site_of(e) == site):
 			c += 1
 	return c
 
 
-func hire(role: String) -> Dictionary:
+func staff_at(site: String) -> Array:
+	return sim.state.employees.filter(func(e): return ProductionManager.site_of(e) == site)
+
+
+## Hires into the first factory (site "") or a finished factory next door.
+## The factories next door get their manager from ExpansionManager.hire_head.
+func hire(role: String, site := "") -> Dictionary:
 	if not ROLE_NAMES.has(role):
 		return Simulation.fail("Vai trò không hợp lệ.")
-	if role == MANAGER and count(MANAGER) > 0:
+	if site != "":
+		if not sim.expansion.is_factory(site) or not sim.expansion.is_ready(site):
+			return Simulation.fail("Nhà xưởng chưa xây xong.")
+		if role == MANAGER:
+			return sim.expansion.hire_head(site)
+	if role == MANAGER and count(MANAGER, "") > 0:
 		return Simulation.fail("Xưởng đã có xưởng trưởng.")
 	var fee := sim.config.hire_fee
 	if not sim.economy.can_afford(fee):
 		return Simulation.fail("Không đủ tiền tuyển dụng (%s)." % Fmt.money(fee))
-	var e := make_employee(role)
+	var e := make_employee(role, site)
 	sim.economy.book("hire", -fee, "Tuyển " + e.name)
 	sim.state.employees.append(e)
 	auto_assign()
 	sim.emit_event(&"employee_hired", e.duplicate(true))
+	if site != "":
+		return Simulation.ok("Đã tuyển %s (%s) cho %s." % [e.name, ROLE_NAMES[role], sim.expansion.loc(site).display_name])
 	return Simulation.ok("Đã tuyển %s (%s)." % [e.name, ROLE_NAMES[role]])
 
 
@@ -232,13 +246,14 @@ func _drop_carried(e: Dictionary) -> void:
 	e.job = {}
 
 
-## Gives every machine that needs an operator the first free operator.
+## Gives every machine that needs an operator the first free operator of
+## the same factory.
 func auto_assign() -> void:
 	var s := sim.state
 	for e in s.employees:
 		if e.role == OPERATOR and e.machine_id != 0:
 			var m := s.find_by_id(s.machines, e.machine_id)
-			if m.is_empty() or not sim.production.needs_operator(m):
+			if m.is_empty() or not sim.production.needs_operator(m) or ProductionManager.site_of(m) != ProductionManager.site_of(e):
 				e.machine_id = 0
 	var machines := s.machines.duplicate()
 	machines.sort_custom(func(a, b): return a.slot < b.slot)
@@ -246,11 +261,11 @@ func auto_assign() -> void:
 		if not sim.production.needs_operator(m):
 			m.operator_id = 0
 			continue
-		if m.operator_id != 0 and not s.find_by_id(s.employees, m.operator_id).is_empty():
+		if m.operator_id != 0 and int(s.find_by_id(s.employees, m.operator_id).get("machine_id", 0)) == m.id:
 			continue
 		m.operator_id = 0
 		for e in s.employees:
-			if e.role == OPERATOR and e.machine_id == 0:
+			if e.role == OPERATOR and e.machine_id == 0 and ProductionManager.site_of(e) == ProductionManager.site_of(m):
 				e.machine_id = m.id
 				m.operator_id = e.id
 				break
@@ -260,11 +275,15 @@ func tick() -> void:
 	var shift := on_shift()
 	if sim.state.tick % sim.config.ticks_per_hour == 0:
 		_hourly(shift)
+	if shift:
+		for site in sim.expansion.factory_ids():
+			if sim.expansion.site(site).head != "":
+				_manage(site)
 	for e in sim.state.employees:
 		_attendance(e, shift)
 		if e.role == MANAGER:
 			if shift:
-				_manage()
+				_manage("")
 			continue
 		if e.role == OPERATOR:
 			_operator_idle(e)
@@ -373,24 +392,26 @@ func _hourly(shift: bool) -> void:
 		sim.emit_event(&"strike_started", {"mood": avg})
 
 
-## The factory manager calls a paid repair for a broken machine when no
-## technician is free to take it.
-func _manage() -> void:
+## A factory manager (the first factory's, or the head of a factory next
+## door) calls a paid repair for a broken machine of their factory when no
+## technician there is free to take it.
+func _manage(site: String) -> void:
 	if sim.state.tick % 10 != 0:
 		return
 	for e in sim.state.employees:
-		if e.role == TECHNICIAN and e.job.is_empty():
+		if e.role == TECHNICIAN and e.job.is_empty() and ProductionManager.site_of(e) == site and not e.off and int(e.away) == 0:
 			return
 	for m in sim.state.machines:
-		if m.broken and int(m.repairer_id) == 0 and sim.economy.can_afford(sim.production.repair_cost(m)):
+		if ProductionManager.site_of(m) == site and m.broken and int(m.repairer_id) == 0 and sim.economy.can_afford(sim.production.repair_cost(m)):
 			sim.production.repair(m.id)
 			return
 
 
 func _pick_service(e: Dictionary) -> void:
 	var best := {}
+	var site := ProductionManager.site_of(e)
 	for m in sim.state.machines:
-		if int(m.repairer_id) != 0:
+		if int(m.repairer_id) != 0 or ProductionManager.site_of(m) != site:
 			continue
 		if not m.broken and int(m.condition) > SERVICE_BELOW:
 			continue
@@ -412,18 +433,22 @@ func _targeted_machines() -> Array:
 	return ids
 
 
-func _pick_job(_e: Dictionary) -> Dictionary:
+## The first factory's warehouse staff unload the trucks at the dock and
+## take goods from its machines to the store; the staff of a factory next
+## door take goods from their own machines to the company store.
+func _pick_job(e: Dictionary) -> Dictionary:
 	var s := sim.state
 	var cfg := sim.config
 	var leg := sim.buildings.haul_leg_ticks()
-	if s.dock - _dock_claims() > 0 and s.raw + sim.inventory.carried("unload") < sim.buildings.raw_capacity():
+	var site := ProductionManager.site_of(e)
+	if site == "" and s.dock - _dock_claims() > 0 and s.raw + sim.inventory.carried("unload") < sim.buildings.raw_capacity():
 		return {"kind": "unload", "phase": "to_source", "ticks_left": leg, "leg": leg, "machine_id": 0, "qty": 0, "product_id": ""}
 	if sim.inventory.finished_free_space() - sim.inventory.carried("haul") - _haul_claims() < cfg.haul_min_boxes:
 		return {}
 	var targeted := _targeted_machines()
 	var best := {}
 	for m in s.machines:
-		if targeted.has(m.id):
+		if targeted.has(m.id) or ProductionManager.site_of(m) != site:
 			continue
 		var full: bool = m.buffer >= sim.production.def_of(m).output_buffer_capacity
 		if m.buffer >= cfg.haul_min_boxes or (full and m.buffer > 0):

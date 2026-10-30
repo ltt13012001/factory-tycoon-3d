@@ -27,7 +27,7 @@ func build(b: VBoxContainer, sim: Simulation) -> void:
 	row(c, "Lương + thuê đất (cuối ngày)", Fmt.money(fixed))
 	var others := sim.expansion.daily_net()
 	if not sim.state.sites.is_empty() or not sim.state.executives.is_empty():
-		row(c, "Xưởng khác, chi nhánh, lãnh đạo", Fmt.money(others), UiTheme.GOOD if others >= 0 else UiTheme.BAD)
+		row(c, "Chi phí xưởng khác, chi nhánh, lãnh đạo", Fmt.money(others), UiTheme.GOOD if others >= 0 else UiTheme.BAD)
 	var est: int = st.revenue - st.material_cost - sim.state.power_accrued - fixed - st.penalties + others
 	row(c, "Lợi nhuận dự kiến", Fmt.money(est), UiTheme.GOOD if est >= 0 else UiTheme.BAD)
 
@@ -40,9 +40,17 @@ func build(b: VBoxContainer, sim: Simulation) -> void:
 
 	var mc := card(b)
 	mc.add_child(UiTheme.label("Máy móc", 16, UiTheme.TEXT, true))
+	var factories: Array = [""] + sim.expansion.factory_ids()
 	var ms := sim.state.machines.duplicate()
-	ms.sort_custom(func(x, y): return x.slot < y.slot)
+	ms.sort_custom(func(x, y):
+		var fx := factories.find(ProductionManager.site_of(x))
+		var fy := factories.find(ProductionManager.site_of(y))
+		return fx < fy or (fx == fy and x.slot < y.slot))
+	var shown_site = null
 	for m in ms:
+		if factories.size() > 1 and ProductionManager.site_of(m) != shown_site:
+			shown_site = ProductionManager.site_of(m)
+			mc.add_child(UiTheme.label(sim.expansion.factory_name(shown_site), 14, UiTheme.WARN, true))
 		var status: String = SelectionPanel.STATUS_NAMES.get(m.status, m.status)
 		var d: MachineDef = sim.content.machines[m.def_id]
 		row(mc, "Ô %d · %s (cấp %d, %d%%)" % [int(m.slot) + 1, d.display_name, m.level, m.condition], status, SelectionPanel.status_color(m.status))

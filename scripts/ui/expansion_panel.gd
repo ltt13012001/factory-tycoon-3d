@@ -11,7 +11,8 @@ func signature(sim: Simulation) -> String:
 	var parts := [sim.state.cash / 1000, sim.state.company_tier, sim.state.line_speed_level,
 		sim.state.executives, sim.employees.count(EmployeeManager.MANAGER), sim.state.machines.size(), sim.buildings.machine_slots()]
 	for s in sim.state.sites:
-		parts.append("%s%s%d%d%s%d" % [s.id, s.status, s.lines, s.automation, s.head, int(s.ticks_left) / 30])
+		parts.append("%s%s%d%d%s%d%d%d" % [s.id, s.status, s.lines, s.automation, s.head, int(s.ticks_left) / 30,
+			sim.production.machines_at(s.id).size(), sim.employees.staff_at(s.id).size()])
 	return str(parts)
 
 
@@ -30,7 +31,7 @@ func build(b: VBoxContainer, sim: Simulation) -> void:
 		b.add_child(UiTheme.label(ExpansionManager.REGION_NAMES[region], 18, UiTheme.WARN, true))
 		match region:
 			ExpansionManager.LOCAL:
-				b.add_child(wrap_label("Đặt đủ máy trong xưởng thì mua được lô đất bên cạnh để xây thêm nhà xưởng. Mỗi xưởng cần một xưởng trưởng mới chạy được."))
+				b.add_child(wrap_label("Đặt đủ máy trong xưởng thì mua được lô đất bên cạnh để xây thêm nhà xưởng. Xưởng mới chạy y như xưởng chính: tự đặt máy, tuyển công nhân vận hành, kho, kỹ thuật và xưởng trưởng riêng; hàng làm ra vào kho chung để giao đơn."))
 			ExpansionManager.DOMESTIC:
 				b.add_child(wrap_label("Mở khi đã là %s. Khảo sát trước để biết sức mua của thị trường, rồi mở chi nhánh." % ExpansionManager.TIER_NAMES[1]))
 			ExpansionManager.ABROAD:
@@ -49,7 +50,7 @@ func _company_card(b: VBoxContainer, sim: Simulation) -> void:
 	row(c, "Nhà xưởng đang chạy", "%d" % ex.factories_operating())
 	var net := ex.daily_net()
 	if not sim.state.sites.is_empty() or not sim.state.executives.is_empty():
-		row(c, "Lãi ròng ngoài xưởng chính", "%s / ngày" % Fmt.money(net), UiTheme.GOOD if net >= 0 else UiTheme.BAD)
+		row(c, "Chi nhánh, xưởng phụ, lãnh đạo (ròng)", "%s / ngày" % Fmt.money(net), UiTheme.GOOD if net >= 0 else UiTheme.BAD)
 	var req := ex.next_tier_requirement()
 	if req.text == "":
 		return
@@ -67,12 +68,14 @@ func _company_card(b: VBoxContainer, sim: Simulation) -> void:
 func _speed_card(b: VBoxContainer, sim: Simulation) -> void:
 	var ex := sim.expansion
 	var c := card(b)
-	c.add_child(UiTheme.label("Tốc độ sản xuất (xưởng chính)", 16, UiTheme.TEXT, true))
-	row(c, "Máy chạy nhanh hơn", "+%d%%" % ex.speed_bonus_percent(), UiTheme.GOOD)
+	c.add_child(UiTheme.label("Tốc độ sản xuất", 16, UiTheme.TEXT, true))
+	row(c, "Máy ở xưởng chính nhanh hơn", "+%d%%" % ex.speed_bonus_percent(), UiTheme.GOOD)
+	for id in ex.factory_ids():
+		row(c, "Máy ở %s nhanh hơn" % ex.factory_name(id), "+%d%%" % ex.speed_bonus_percent(id), UiTheme.GOOD)
 	row(c, "Cải tiến dây chuyền", "cấp %d / %d (+%d%% mỗi cấp)" % [ex.line_speed_level(), ExpansionManager.LINE_SPEED_COSTS.size(), ExpansionManager.LINE_SPEED_PERCENT])
 	var has_manager := sim.employees.count(EmployeeManager.MANAGER) > 0
-	row(c, "Xưởng trưởng", "có (+%d%%)" % ExpansionManager.MANAGER_SPEED_PERCENT if has_manager else "chưa có", UiTheme.GOOD if has_manager else UiTheme.WARN)
-	c.add_child(wrap_label("Nâng cấp từng máy (bấm vào máy) cũng làm máy nhanh hơn, tối đa cấp 5."))
+	row(c, "Xưởng trưởng xưởng chính", "có (+%d%%)" % ExpansionManager.MANAGER_SPEED_PERCENT if has_manager else "chưa có", UiTheme.GOOD if has_manager else UiTheme.WARN)
+	c.add_child(wrap_label("Cải tiến dây chuyền áp dụng cho mọi nhà xưởng. Nâng cấp từng máy (bấm vào máy) cũng làm máy nhanh hơn, tối đa cấp 5."))
 	var items := []
 	var cost := ex.line_speed_cost()
 	if cost >= 0:
@@ -145,10 +148,14 @@ func _site_card(b: VBoxContainer, sim: Simulation, l: LocationDef) -> void:
 		if status == "":
 			row(c, "Khảo sát", "%s · %d giờ" % [Fmt.money(l.survey_cost), ex.survey_hours(l)])
 		row(c, "Vốn mở chi nhánh", "%s · %d giờ" % [Fmt.money(l.land_cost + l.build_cost), l.build_hours])
-	var market := 100 if status != ExpansionManager.SURVEYED else int(s.market)
-	var known := status == ExpansionManager.SURVEYED or l.region == ExpansionManager.LOCAL
-	row(c, "Lãi mỗi dây chuyền", ("~%s / ngày" % Fmt.money(l.line_profit_per_day * market / 100)) if known else "? (cần khảo sát)")
-	row(c, "Dây chuyền tối đa · giá", "%d · %s" % [l.max_lines, Fmt.money(l.line_cost)])
+	if l.region == ExpansionManager.LOCAL:
+		row(c, "Chỗ đặt máy", "%d máy" % l.max_lines)
+		row(c, "Kho riêng", "+%d hạt nhựa · +%d thành phẩm" % [ExpansionManager.FACTORY_RAW_CAPACITY, ExpansionManager.FACTORY_FINISHED_CAPACITY])
+	else:
+		var market := 100 if status != ExpansionManager.SURVEYED else int(s.market)
+		var known := status == ExpansionManager.SURVEYED
+		row(c, "Lãi mỗi dây chuyền", ("~%s / ngày" % Fmt.money(l.line_profit_per_day * market / 100)) if known else "? (cần khảo sát)")
+		row(c, "Dây chuyền tối đa · giá", "%d · %s" % [l.max_lines, Fmt.money(l.line_cost)])
 	var label := ""
 	match status:
 		"":
@@ -165,8 +172,40 @@ func _site_card(b: VBoxContainer, sim: Simulation, l: LocationDef) -> void:
 	buttons(c, [btn])
 
 
+## A factory next door: its machines and staff, like the first factory.
+func _ready_factory(c: VBoxContainer, sim: Simulation, l: LocationDef, s: Dictionary) -> void:
+	var ex := sim.expansion
+	var machines := sim.production.machines_at(l.id)
+	var broken := machines.filter(func(m): return m.broken).size()
+	row(c, "Máy", "%d / %d%s" % [machines.size(), l.max_lines, (" · %d hỏng" % broken) if broken > 0 else ""], UiTheme.BAD if broken > 0 else UiTheme.TEXT)
+	var staff := []
+	for role in [EmployeeManager.OPERATOR, EmployeeManager.WAREHOUSE, EmployeeManager.TECHNICIAN]:
+		staff.append("%d %s" % [sim.employees.count(role, l.id), EmployeeManager.ROLE_NAMES[role].to_lower()])
+	row(c, "Nhân viên", ", ".join(staff))
+	row(c, "Tự động hoá", "cấp %d / %d (máy +%d%%)" % [s.automation, ExpansionManager.MAX_AUTOMATION, int(s.automation) * ExpansionManager.AUTOMATION_SPEED_PERCENT])
+	row(c, "Máy nhanh hơn", "+%d%%" % ex.speed_bonus_percent(l.id), UiTheme.GOOD)
+	_head_row(c, sim, l, s)
+	row(c, "Chi phí mỗi ngày", "-%s (thuê đất, điện nước%s)" % [Fmt.money(ex.daily_cost(s)), ", xưởng trưởng" if s.head != "" else ""], UiTheme.WARN)
+	var items := [
+		UiTheme.button("Đặt máy", func():
+			GameManager.build_site = l.id
+			EventBus.panel_requested.emit("build")),
+		UiTheme.button("Tuyển người", func():
+			StaffPanel.filter = l.id
+			EventBus.panel_requested.emit("staff")),
+	]
+	var auto := ex.automation_cost(s)
+	if auto >= 0:
+		items.append(UiTheme.button("Tự động hoá (%s)" % Fmt.money(auto), func(): GameManager.automate_site(l.id), not sim.economy.can_afford(auto)))
+	var h := buttons(c, items)
+	h.add_theme_constant_override("separation", 4)
+
+
 func _ready_site(c: VBoxContainer, sim: Simulation, l: LocationDef, s: Dictionary) -> void:
 	var ex := sim.expansion
+	if ex.is_factory(l.id):
+		_ready_factory(c, sim, l, s)
+		return
 	row(c, "Dây chuyền", "%d / %d" % [s.lines, l.max_lines])
 	row(c, "Tự động hoá", "cấp %d / %d" % [s.automation, ExpansionManager.MAX_AUTOMATION])
 	if l.region != ExpansionManager.LOCAL:
@@ -198,7 +237,10 @@ func _head_row(c: VBoxContainer, sim: Simulation, l: LocationDef, s: Dictionary)
 		h.add_child(UiTheme.button("Cho nghỉ", func(): GameManager.fire_site_head(l.id)))
 		c.add_child(h)
 		return
-	c.add_child(wrap_label("Chưa có %s: xưởng chưa thể sản xuất. Lương %s / ngày." % [title.to_lower(), Fmt.money(ex.head_wage(l))], 13, UiTheme.BAD))
+	if ex.is_factory(l.id):
+		c.add_child(wrap_label("Chưa có %s: máy vẫn chạy nhưng chậm hơn %d%% và không ai gọi thợ khi máy hỏng. Lương %s / ngày." % [title.to_lower(), ExpansionManager.MANAGER_SPEED_PERCENT, Fmt.money(ex.head_wage(l))], 13, UiTheme.WARN))
+	else:
+		c.add_child(wrap_label("Chưa có %s: xưởng chưa thể sản xuất. Lương %s / ngày." % [title.to_lower(), Fmt.money(ex.head_wage(l))], 13, UiTheme.BAD))
 	var fee := ex.head_hire_fee(l)
 	var btn := UiTheme.button("+ Tuyển %s (%s)" % [title.to_lower(), Fmt.money(fee)], func(): GameManager.hire_site_head(l.id), not sim.economy.can_afford(fee))
 	btn.add_theme_color_override("font_color", UiTheme.GOOD)

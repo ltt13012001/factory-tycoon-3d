@@ -1,5 +1,41 @@
 # Changelog
 
+## 0.9.0 – Xưởng 2, 3, 4 chạy như xưởng chính, nhân sự theo xưởng, mây không che nút
+
+- Xưởng 2, 3, 4 (lô đất bên cạnh) giờ vận hành y như xưởng chính thay vì
+  tính lãi gộp theo "dây chuyền":
+  - Mỗi xưởng có 9 ô đặt máy. Vào Xây dựng → "Đặt máy vào" chọn xưởng, rồi
+    chọn máy như bình thường (camera tự đưa tới xưởng đó). Mọi loại máy đều
+    đặt được, nâng cấp, sửa, bán giống xưởng chính.
+  - Mỗi xưởng tuyển công nhân riêng: vận hành máy chỉ đứng máy trong xưởng
+    mình, nhân viên kho mang hàng từ máy ra pallet xuất hàng ở cửa xưởng,
+    kỹ thuật viên chỉ bảo trì máy trong xưởng mình. Xưởng trưởng của xưởng
+    giúp máy nhanh hơn 15% và tự gọi thợ khi máy hỏng; không có xưởng
+    trưởng máy vẫn chạy.
+  - Công nhân đi vào từ cổng xưởng, đứng máy, nghỉ ở bàn ô dù trước xưởng,
+    tan ca đi ra vỉa hè, đình công ngay trong xưởng, trò chuyện với nhau.
+  - Hàng làm ra vào kho chung để giao đơn. Mỗi xưởng có kho riêng: thêm 300
+    chỗ hạt nhựa và 200 chỗ thành phẩm cho cả công ty. Ca làm, mức lương,
+    tâm trạng và đình công áp dụng cho mọi xưởng.
+  - Tự động hoá ở xưởng mới làm máy nhanh hơn 10% mỗi cấp (thêm bồn chứa
+    sau xưởng). Cải tiến dây chuyền giờ áp dụng cho mọi nhà xưởng.
+  - Mở xưởng tiếp theo khi xưởng trước đã đặt đủ 9 máy.
+  - Bản lưu cũ: mỗi dây chuyền ở Xưởng 2–4 đổi thành một máy ép cơ bản kèm
+    một người vận hành (thêm một nhân viên kho cho mỗi 3 máy), phần chênh
+    lệch giá được hoàn lại tiền mặt. Chi nhánh tỉnh và nước ngoài vẫn tính
+    lãi theo dây chuyền như cũ.
+- Bảng Nhân sự chia theo xưởng và theo vị trí: nút chọn xem Tất cả hoặc từng
+  xưởng; mỗi xưởng có số máy, máy thiếu người, xưởng trưởng, nút tuyển riêng;
+  bên trong chia nhóm Vận hành máy, Nhân viên kho, Kỹ thuật viên, mỗi nhóm
+  ghi bao nhiêu người đang làm, nghỉ, về nhà và bấm để mở hoặc gập danh sách.
+  Nút "Xem" đưa camera tới xưởng hoặc chọn người đó. Cuối bảng có ban lãnh
+  đạo và giám đốc chi nhánh, rồi phần ca làm và lương.
+- Mây không còn che khu vực điều khiển: mây mờ dần rồi biến mất khi trôi qua
+  thanh trên cùng, các nút, bảng đang mở, thông báo và vùng giữa màn hình,
+  trôi qua rồi hiện lại ở rìa màn hình.
+- Bảng Tổng quan chia danh sách máy theo xưởng; bảng chọn máy hoặc công nhân
+  ghi rõ thuộc xưởng nào; nút "máy hỏng" đưa camera tới máy đó.
+
 ## 0.8.0 – Đỡ nóng máy, thanh trên cùng gọn, nhân viên trò chuyện
 
 - Đỡ nóng máy và tốn pin mà đồ họa giữ nguyên:

@@ -43,6 +43,8 @@ var _refresh_wait := 0.0
 const REFRESH_INTERVAL := 0.1
 const TOP_BAR_PADDING := 10
 var _pad: Control
+var _bar: PanelContainer
+var _touch: Control
 
 const SETTINGS_PATH := "user://settings.cfg"
 ## Menu ids: Auto, then one per graphics level.
@@ -51,6 +53,7 @@ const GRAPHICS_ITEM := 10
 
 func _ready() -> void:
 	theme = UiTheme.build()
+	add_to_group("hud")
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_build_top_bar()
@@ -82,11 +85,14 @@ func _ready() -> void:
 	EventBus.machine_repaired.connect(func(_d): show_toast("Máy đã sửa xong.", true))
 	EventBus.machine_upgraded.connect(func(_d): show_toast("Đã nâng cấp máy.", true))
 	EventBus.construction_finished.connect(func(d): show_toast("Đã xây xong %s!" % GameManager.sim.content.constructions[d.id].display_name, true))
-	EventBus.site_opened.connect(func(d): show_toast("%s đã xây xong! Nhớ tuyển người quản lý và mua dây chuyền." % d.name, true))
+	EventBus.site_opened.connect(func(d): show_toast(("%s đã xây xong! Vào Xây dựng để đặt máy, Nhân sự để tuyển công nhân cho xưởng." if str(d.id).begins_with("lot_") else "%s đã xây xong! Nhớ tuyển người quản lý và mua dây chuyền.") % d.name, true))
 	EventBus.site_surveyed.connect(func(d): show_toast("Khảo sát %s xong: sức mua %d%%." % [GameManager.sim.content.locations[d.id].display_name, d.market], true))
 	EventBus.strike_started.connect(func(_d): show_toast("Công nhân đình công vì lương thấp! Vào Nhân sự để tăng lương hoặc bớt tăng ca.", false))
 	EventBus.strike_ended.connect(func(_d): show_toast("Công nhân đã quay lại làm việc.", true))
 	EventBus.staff_unhappy.connect(func(_d): show_toast("Công nhân đang bất mãn với lương và giờ làm. Coi chừng đình công!", false))
+	EventBus.panel_requested.connect(func(id):
+		if _current != id:
+			toggle_panel(id))
 	EventBus.site_selected.connect(func(_id):
 		if _current != "expansion":
 			toggle_panel("expansion"))
@@ -172,6 +178,7 @@ func _fit_top_bar() -> void:
 
 func _build_top_bar() -> void:
 	var bar := PanelContainer.new()
+	_bar = bar
 	bar.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
 	bar.add_theme_stylebox_override("panel", UiTheme.panel_style(UiTheme.BG, 0, TOP_BAR_PADDING))
 	add_child(bar)
@@ -372,6 +379,7 @@ func _select_broken_machine() -> void:
 	for m in GameManager.sim.state.machines:
 		if m.broken:
 			EventBus.selection_changed.emit("machine", m.id)
+			EventBus.camera_focus_requested.emit(FactoryLayout.machine_position(m), 30.0)
 			return
 
 
@@ -510,6 +518,7 @@ func _build_touch_buttons() -> void:
 		b.custom_minimum_size = Vector2(96, 52)
 		h.add_child(b)
 	add_child(h)
+	_touch = h
 	_pad = camera_pad()
 	add_child(_pad)
 
@@ -553,6 +562,25 @@ static func camera_pad() -> GridContainer:
 			b.pressed.connect(func(): EventBus.camera_focus_requested.emit(Vector3(-2, 0, 0), 30.0))
 		g.add_child(b)
 	return g
+
+
+## Screen rects of everything the player reads or presses (bars, buttons,
+## open panels, notices), for the clouds to keep clear of.
+func control_rects() -> Array[Rect2]:
+	var out: Array[Rect2] = []
+	var items: Array = [_bar, _tutorial, _build_banner, _selection, _report, _touch, _pad, _help]
+	for b in _nav.get_children():
+		items.append(b)
+	if _current != "":
+		items.append(_panels[_current])
+	for t in _toasts.get_children():
+		items.append(t)
+	for c in items:
+		var ctl := c as Control
+		if ctl and ctl.is_visible_in_tree():
+			var xf := ctl.get_global_transform_with_canvas()
+			out.append(Rect2(xf.origin, ctl.size * xf.get_scale()))
+	return out
 
 
 ## Android back button / gesture: closes whatever is open, one thing at a time.

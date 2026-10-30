@@ -35,11 +35,18 @@ func product_of(m: Dictionary) -> ProductDef:
 	return sim.content.products[def_of(m).output_product_id]
 
 
-func make_machine(def_id: String, slot: int) -> Dictionary:
+## Which factory a machine or employee belongs to: "" for the first
+## factory, otherwise the location id of a factory next door (lot_2 ...).
+static func site_of(d: Dictionary) -> String:
+	return str(d.get("site", ""))
+
+
+func make_machine(def_id: String, slot: int, site := "") -> Dictionary:
 	return {
 		"id": sim.state.take_id(),
 		"def_id": def_id,
 		"slot": slot,
+		"site": site,
 		"in_cycle": false,
 		"ticks_left": 0,
 		"buffer": 0,
@@ -56,11 +63,23 @@ func make_machine(def_id: String, slot: int) -> Dictionary:
 	}
 
 
-func machine_in_slot(slot: int) -> Dictionary:
+func machine_in_slot(slot: int, site := "") -> Dictionary:
 	for m in sim.state.machines:
-		if m.slot == slot:
+		if m.slot == slot and site_of(m) == site:
 			return m
 	return {}
+
+
+func machines_at(site: String) -> Array:
+	return sim.state.machines.filter(func(m): return site_of(m) == site)
+
+
+## Machine places in a factory: the first hall grows with constructions,
+## every factory next door has its location's max_lines once built.
+func slot_count(site := "") -> int:
+	if site == "":
+		return sim.buildings.machine_slots()
+	return sim.expansion.machine_slots(site)
 
 
 func needs_operator(m: Dictionary) -> bool:
@@ -87,7 +106,7 @@ func cycle_seconds(m: Dictionary) -> float:
 func cycle_ticks(m: Dictionary) -> int:
 	var d := def_of(m)
 	var base := d.cycle_ticks * (100 - d.upgrade_speed_percent * (int(m.level) - 1)) / 100.0
-	return maxi(2, roundi(base * 100.0 / (100 + sim.expansion.speed_bonus_percent())))
+	return maxi(2, roundi(base * 100.0 / (100 + sim.expansion.speed_bonus_percent(site_of(m)))))
 
 
 func upgrade_cost(m: Dictionary) -> int:
@@ -110,12 +129,14 @@ func unlock_reason(d: MachineDef) -> String:
 	return ""
 
 
-func buy_machine(def_id: String, slot: int) -> Dictionary:
+func buy_machine(def_id: String, slot: int, site := "") -> Dictionary:
 	if not sim.content.machines.has(def_id):
 		return Simulation.fail("Không có loại máy này.")
-	if slot < 0 or slot >= sim.buildings.machine_slots():
-		return Simulation.fail("Ô đặt máy không hợp lệ.")
-	if not machine_in_slot(slot).is_empty():
+	if site != "" and not sim.expansion.is_factory(site):
+		return Simulation.fail("Không có nhà xưởng này.")
+	if slot < 0 or slot >= slot_count(site):
+		return Simulation.fail("Ô đặt máy không hợp lệ." if site == "" or sim.expansion.is_ready(site) else "Nhà xưởng chưa xây xong.")
+	if not machine_in_slot(slot, site).is_empty():
 		return Simulation.fail("Ô này đã có máy.")
 	var d: MachineDef = sim.content.machines[def_id]
 	var locked := unlock_reason(d)
@@ -124,11 +145,13 @@ func buy_machine(def_id: String, slot: int) -> Dictionary:
 	if not sim.economy.can_afford(d.price):
 		return Simulation.fail("Không đủ tiền. Cần %s." % Fmt.money(d.price))
 	sim.economy.book("machine", -d.price, "Mua " + d.display_name)
-	var m := make_machine(def_id, slot)
+	var m := make_machine(def_id, slot, site)
 	sim.state.machines.append(m)
 	sim.state.machines_bought += 1
 	sim.employees.auto_assign()
 	sim.emit_event(&"machine_added", m.duplicate())
+	if site != "":
+		return Simulation.ok("Đã mua %s cho %s." % [d.display_name, sim.expansion.loc(site).display_name])
 	return Simulation.ok("Đã mua %s." % d.display_name)
 
 
@@ -186,6 +209,8 @@ func repair(machine_id: int) -> Dictionary:
 		sim.economy.book("repair", -cost, "Sửa " + def_of(m).display_name)
 		sim.economy.add_stat("repairs", cost)
 	start_repair(m, OWNER)
+	if site_of(m) != "":
+		return Simulation.ok("Đã gọi thợ đến sửa máy ở %s." % sim.expansion.loc(site_of(m)).display_name)
 	return Simulation.ok("Chủ xưởng đang đến sửa máy.")
 
 

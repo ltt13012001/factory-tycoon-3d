@@ -5,6 +5,8 @@ extends Node
 var sim: Simulation
 ## Machine type chosen in the build panel; placed on the next slot click.
 var pending_machine_id := "basic_injection_molder"
+## Factory the build panel places machines in ("" = the first factory).
+var build_site := ""
 
 
 func _ready() -> void:
@@ -37,7 +39,15 @@ func accept_order(id: int) -> Dictionary: return command(sim.accept_order(id))
 func reject_order(id: int) -> Dictionary: return command(sim.reject_order(id))
 func ship_order(id: int) -> Dictionary: return command(sim.ship_order(id))
 func buy_material(qty: int) -> Dictionary: return command(sim.buy_material(qty))
-func buy_machine(slot: int) -> Dictionary: return command(sim.buy_machine(slot, pending_machine_id))
+## Build-mode pad ids: the slot in the first factory, or plot order * 100 + slot.
+static func slot_pick_id(slot: int, site: String) -> int:
+	return slot if site == "" else int(site.trim_prefix("lot_")) * 100 + slot
+
+
+func buy_machine(pick_id: int) -> Dictionary:
+	var site := "" if pick_id < 100 else "lot_%d" % (pick_id / 100)
+	return command(sim.buy_machine(pick_id % 100, pending_machine_id, site))
+func hire_at(role: String, site: String) -> Dictionary: return command(sim.hire(role, site))
 func upgrade_machine(id: int) -> Dictionary: return command(sim.upgrade_machine(id))
 func repair_machine(id: int) -> Dictionary: return command(sim.repair_machine(id))
 func build(id: String) -> Dictionary: return command(sim.build(id))
@@ -52,6 +62,11 @@ func set_pay(percent: int) -> Dictionary: return command(sim.set_pay(percent))
 func start_placing(def_id: String) -> void:
 	pending_machine_id = def_id
 	EventBus.build_mode_changed.emit(true)
+	# Show the factory the machine goes in.
+	if build_site == "":
+		EventBus.camera_focus_requested.emit(Vector3(-6, 0, -3), 30.0)
+	else:
+		EventBus.camera_focus_requested.emit(FactoryLayout.plot(build_site) + Vector3(0, 0, -1.5), 30.0)
 func sell_machine(id: int) -> Dictionary: return command(sim.sell_machine(id))
 func hire(role: String) -> Dictionary: return command(sim.hire(role))
 func fire(id: int) -> Dictionary: return command(sim.fire(id))
