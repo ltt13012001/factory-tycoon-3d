@@ -1,0 +1,295 @@
+<title>Factory Tycoon 3D</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* One full-screen game canvas with a loading card on top. Single dark look, like the game's own UI. */
+:root {
+	--bg: #171e2b;
+	--card: #232c3b;
+	--fg: #eef2f7;
+	--muted: #9aa7b8;
+	--accent: #3d8bfd;
+	--bad: #ff6b6b;
+	--warn: #ffd166;
+	color-scheme: dark;
+}
+html, body { height: 100%; }
+body {
+	background: var(--bg);
+	color: var(--fg);
+	overflow: hidden;
+	touch-action: none;
+	font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+#canvas {
+	display: block;
+	width: 100%;
+	height: 100%;
+	outline: none;
+	-webkit-tap-highlight-color: transparent;
+}
+#status {
+	position: fixed;
+	inset: 0;
+	display: grid;
+	place-items: center;
+	padding-left: max(16px, env(safe-area-inset-left, 0px));
+	padding-right: max(16px, env(safe-area-inset-right, 0px));
+	background: var(--bg);
+	overflow-y: auto;
+}
+.card {
+	display: grid;
+	gap: 12px;
+	width: min(440px, 100%);
+	padding: 24px;
+	border-radius: 14px;
+	background: var(--card);
+}
+.card h1 { margin: 0; font-size: 1.4rem; text-wrap: balance; }
+.card p { margin: 0; color: var(--muted); font-size: 0.95rem; }
+progress {
+	width: 100%;
+	height: 10px;
+	accent-color: var(--accent);
+}
+#tip { color: var(--warn); }
+#notice { color: var(--bad); white-space: pre-line; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.actions button {
+	flex: 1 1 140px;
+	min-height: 44px;
+	padding: 8px 14px;
+	border: 0;
+	border-radius: 10px;
+	background: var(--accent);
+	color: #fff;
+	font: inherit;
+	font-weight: 600;
+	cursor: pointer;
+}
+.actions button.secondary { background: #3a4659; }
+</style>
+
+<canvas id="canvas" tabindex="0">Trình duyệt này không chạy được HTML5 canvas.</canvas>
+<div id="status">
+	<div class="card">
+		<h1>Quản Lý Nhà Máy 3D</h1>
+		<p id="hint">Đang tải game (khoảng 10 MB). Lần đầu mất vài giây, nên dùng Wi‑Fi.</p>
+		<progress id="progress"></progress>
+		<p id="tip" hidden></p>
+		<p id="notice" hidden></p>
+		<div class="actions" id="actions" hidden>
+			<button type="button" id="retry">Tải lại</button>
+			<button type="button" class="secondary" id="lite">Chơi chế độ nhẹ</button>
+		</div>
+	</div>
+</div>
+
+<script>
+// Works on as many phones, tablets and computers as possible:
+// - The host serves only a fixed set of file types and sizes, so the engine
+//   (index.wasm, ~40 MB) is stored gzip-compressed as engine-gz.wasm and the
+//   game data (index.pck) as game-pck.wasm. Browsers with DecompressionStream
+//   unpack it while downloading; older ones (iOS before 16.4, old Android
+//   WebViews such as in-app browsers) get a small JavaScript unpacker.
+// - Very sharp phone screens draw at most 2 device pixels per CSS pixel
+//   (1 in the light mode), which saves a lot of graphics memory.
+// - If the previous attempt crashed while loading (the browser ran out of
+//   memory and reloaded the page), or the player asks for it, the game
+//   starts in the light mode: low graphics.
+(function () {
+	const KEY = 'ft3d-boot';
+	function store(value) {
+		try {
+			if (value === null) {
+				localStorage.removeItem(KEY);
+			} else {
+				localStorage.setItem(KEY, value);
+			}
+		} catch (e) { /* private mode: no memory between visits */ }
+	}
+	function stored() {
+		try {
+			return localStorage.getItem(KEY);
+		} catch (e) {
+			return null;
+		}
+	}
+	const previous = stored();
+	window.FT3D_LITE = previous === 'lite' || previous === 'pending';
+	window.FT3D_CRASHED = previous === 'pending';
+	window.FT3D_STORE = store;
+
+	const realRatio = window.devicePixelRatio || 1;
+	const cap = window.FT3D_LITE ? 1 : 2;
+	if (realRatio > cap) {
+		try {
+			Object.defineProperty(window, 'devicePixelRatio', { get: function () { return cap; }, configurable: true });
+		} catch (e) { /* keep the real ratio */ }
+	}
+
+	let unpacker = null;
+	function loadUnpacker() {
+		if (!unpacker) {
+			unpacker = new Promise(function (resolve, reject) {
+				const s = document.createElement('script');
+				s.src = 'fflate.js';
+				s.onload = function () { resolve(window.fflate); };
+				s.onerror = function () { reject(new Error('không tải được bộ giải nén.')); };
+				document.head.appendChild(s);
+			});
+		}
+		return unpacker;
+	}
+
+	const realFetch = window.fetch.bind(window);
+	window.fetch = function (input, init) {
+		const url = typeof input === 'string' ? input : input.url;
+		if (/index\.wasm(\?|$)/.test(url)) {
+			return realFetch(url.replace('index.wasm', 'engine-gz.wasm'), init).then(function (res) {
+				if (!res.ok) {
+					return res;
+				}
+				const headers = { 'Content-Type': 'application/wasm', 'Content-Length': String(GODOT_CONFIG.fileSizes['index.wasm']) };
+				if (typeof DecompressionStream !== 'undefined' && res.body && res.body.pipeThrough) {
+					return new Response(res.body.pipeThrough(new DecompressionStream('gzip')), { status: 200, headers: headers });
+				}
+				return Promise.all([res.arrayBuffer(), loadUnpacker()]).then(function (r) {
+					return new Response(r[1].gunzipSync(new Uint8Array(r[0])), { status: 200, headers: headers });
+				});
+			});
+		}
+		if (/index\.pck(\?|$)/.test(url)) {
+			return realFetch(url.replace('index.pck', 'game-pck.wasm'), init);
+		}
+		return realFetch(input, init);
+	};
+}());
+</script>
+<script src="index.js"></script>
+<script>
+const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":false,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":486800,"index.wasm":39514754},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4};
+(function () {
+	const status = document.getElementById('status');
+	const progress = document.getElementById('progress');
+	const hint = document.getElementById('hint');
+	const tip = document.getElementById('tip');
+	const notice = document.getElementById('notice');
+	const actions = document.getElementById('actions');
+	const ua = navigator.userAgent || '';
+	const ios = /iPhone|iPad|iPod/.test(ua) || (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.platform));
+	const inApp = /Zalo|FBAN|FBAV|FB_IAB|Messenger|Instagram|Line\/|musical_ly|Bytedance|TikTok|; wv\)/i.test(ua);
+	const openTip = ios
+		? 'Mở link bằng Safari (bấm ••• hoặc biểu tượng la bàn → Mở bằng Safari).'
+		: 'Mở link bằng Chrome (bấm ⋮ hoặc ••• → Mở bằng trình duyệt).';
+
+	document.getElementById('retry').onclick = function () {
+		window.FT3D_STORE(null);
+		location.reload();
+	};
+	document.getElementById('lite').onclick = function () {
+		window.FT3D_STORE('lite');
+		location.reload();
+	};
+
+	function showTip(text) {
+		tip.textContent = text;
+		tip.hidden = false;
+	}
+
+	function fail(message) {
+		window.FT3D_STORE(null);
+		notice.textContent = message;
+		notice.hidden = false;
+		progress.hidden = true;
+		actions.hidden = false;
+		if (!status.isConnected) {
+			document.body.appendChild(status);
+		}
+	}
+
+	function describe(err) {
+		const text = String(err && err.message ? err.message : err);
+		if (/memory|RangeError|allocation|OOM/i.test(text)) {
+			return 'Máy không đủ bộ nhớ để mở game.\nĐóng bớt các tab và ứng dụng khác rồi bấm "Chơi chế độ nhẹ".';
+		}
+		if (/fetch|network|load|Failed|NetworkError/i.test(text)) {
+			return 'Mạng chập chờn nên tải game bị lỗi (' + text + ').\nKiểm tra Wi‑Fi hoặc 4G rồi bấm "Tải lại".';
+		}
+		return 'Không mở được game: ' + text
+			+ '\nHãy cập nhật trình duyệt lên bản mới nhất rồi tải lại.' + (inApp ? '\n' + openTip : '');
+	}
+
+	if (inApp) {
+		showTip('Bạn đang mở trong ứng dụng (Zalo, Messenger...). Nếu game không chạy: ' + openTip);
+	}
+	if (window.FT3D_CRASHED) {
+		showTip('Lần trước game bị tắt khi đang tải (có thể máy thiếu bộ nhớ), nên lần này chạy ở chế độ nhẹ.');
+	} else if (window.FT3D_LITE) {
+		showTip('Đang chạy chế độ nhẹ (đồ họa Thấp). Đổi lại ở Menu trong game.');
+	}
+
+	if (typeof WebAssembly !== 'object') {
+		fail('Trình duyệt này quá cũ, không chạy được game (thiếu WebAssembly).\nHãy dùng Chrome, Safari, Edge hoặc Firefox bản mới.' + (inApp ? '\n' + openTip : ''));
+		return;
+	}
+	const missing = Engine.getMissingFeatures({ threads: false });
+	if (missing.length) {
+		const webgl = missing.some(function (m) { return /WebGL/.test(m); });
+		fail(webgl
+			? 'Máy hoặc trình duyệt này chưa bật đồ họa 3D (WebGL 2).\n'
+				+ (ios ? 'iPhone và iPad cần iOS 15 trở lên: vào Cài đặt → Cài đặt chung → Cập nhật phần mềm.'
+					: 'Hãy mở bằng Chrome bản mới và bật "Dùng tăng tốc phần cứng" trong Cài đặt → Hệ thống.')
+				+ (inApp ? '\n' + openTip : '')
+			: 'Trình duyệt thiếu: ' + missing.join(', '));
+		return;
+	}
+
+	if (window.FT3D_LITE) {
+		GODOT_CONFIG.args = ['--', '--quality=low'];
+	}
+	// Marked until the game has run for a while: if the page dies while
+	// loading, the next visit starts in the light mode.
+	window.FT3D_STORE('pending');
+
+	let last = Date.now();
+	const stall = setInterval(function () {
+		if (Date.now() - last > 25000 && notice.hidden) {
+			showTip('Tải lâu hơn bình thường... Nếu đứng yên mãi, kiểm tra mạng rồi bấm Tải lại.');
+			actions.hidden = false;
+		}
+	}, 5000);
+
+	const canvas = document.getElementById('canvas');
+	canvas.addEventListener('webglcontextlost', function (ev) {
+		ev.preventDefault();
+		fail('Đồ họa của máy bị quá tải nên game dừng lại.\nBấm "Chơi chế độ nhẹ" để chơi tiếp với đồ họa Thấp (tiến trình đã được tự lưu).');
+	});
+
+	const engine = new Engine(GODOT_CONFIG);
+	engine.startGame({
+		onProgress: function (current, total) {
+			last = Date.now();
+			if (current > 0 && total > 0) {
+				progress.max = total;
+				progress.value = current;
+				hint.textContent = current >= total
+					? 'Đang khởi động game...'
+					: 'Đang tải game: ' + Math.floor(current * 100 / total) + '%';
+			}
+		},
+	}).then(function () {
+		clearInterval(stall);
+		status.remove();
+		// Stays in the light mode once it was needed, until the player picks
+		// a graphics level in the game's Menu (the game clears the mark).
+		setTimeout(function () {
+			window.FT3D_STORE(window.FT3D_LITE ? 'lite' : null);
+		}, 10000);
+	}, function (err) {
+		clearInterval(stall);
+		console.error(err);
+		fail(describe(err));
+	});
+}());
+</script>

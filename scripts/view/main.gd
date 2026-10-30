@@ -60,13 +60,14 @@ func _ready() -> void:
 	sun.shadow_opacity = 0.9
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
 	sun.directional_shadow_max_distance = 140.0
-	if OS.has_feature("web"):
-		# Browsers on tablets: one shadow split instead of four, and the 3D
-		# scene drawn at 75% resolution (the interface stays sharp).
-		sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
-		sun.directional_shadow_max_distance = 90.0
-		get_viewport().scaling_3d_scale = 0.75
 	add_child(sun)
+
+	# Shadows, 3D resolution and bloom per quality level (see Graphics).
+	var graphics := Graphics.new()
+	graphics.name = "Graphics"
+	graphics.sun = sun
+	graphics.environment = e
+	add_child(graphics)
 
 	add_child(preload("res://scripts/view/camera_rig.gd").new())
 	add_child(preload("res://scripts/view/factory_view.gd").new())

@@ -10,6 +10,9 @@ func _ready() -> void:
 		if a.begins_with("--screenshot="):
 			_dir = a.trim_prefix("--screenshot=")
 	DirAccess.make_dir_recursive_absolute(_dir)
+	# Full quality for the shots, whatever the frame rate of a software GPU.
+	Graphics.auto = false
+	get_parent().get_node("Graphics").set_tier(Graphics.HIGH, false)
 	GameManager.new_game()
 	var sim := GameManager.sim
 	var bot := AutoPlayer.new(sim)
@@ -99,6 +102,9 @@ func _staff_shots(hud: Node, rig: Node3D) -> void:
 	TimeManager.set_speed(1)
 	await get_tree().create_timer(2.0).timeout
 	await _shot("11_rest_area")
+	EventBus.camera_focus_requested.emit(Vector3(-21, 0, 8), 6.0)
+	await get_tree().create_timer(1.5).timeout
+	await _shot("16_chibi_closeup")
 	EventBus.camera_focus_requested.emit(Vector3(-9, 0, -6), 14.0)
 	sim.state.finished = {}
 	await get_tree().create_timer(6.0).timeout
