@@ -145,7 +145,10 @@ func _header(text: String) -> void:
 func _build_machine(sim: Simulation, m: Dictionary) -> void:
 	var d: MachineDef = sim.content.machines[m.def_id]
 	var p: ProductDef = sim.content.products[d.output_product_id]
+	var site := ProductionManager.site_of(m)
 	_header("%s · ô %d" % [d.display_name, int(m.slot) + 1])
+	if sim.expansion.factory_ids().size() > 0:
+		_row("Nhà xưởng", sim.expansion.factory_name(site))
 	_row("Trạng thái", STATUS_NAMES.get(m.status, m.status), status_color(m.status))
 	_row("Cấp máy", "%d / %d" % [m.level, d.max_level])
 	var cond := int(m.condition)
@@ -176,12 +179,14 @@ func _build_machine(sim: Simulation, m: Dictionary) -> void:
 	actions.add_child(UiTheme.button("Chủ xưởng kiểm tra", func(): EventBus.inspect_requested.emit(m.id)))
 	actions.add_child(UiTheme.button("Bán (+%s)" % Fmt.money(d.price * d.resale_percent / 100), func(): GameManager.sell_machine(m.id)))
 	if d.operators_required > 0 and m.operator_id == 0:
-		_box.add_child(UiTheme.button("Tuyển người vận hành (%s)" % Fmt.money(sim.config.hire_fee), func(): GameManager.hire(EmployeeManager.OPERATOR)))
+		_box.add_child(UiTheme.button("Tuyển người vận hành (%s)" % Fmt.money(sim.config.hire_fee), func(): GameManager.hire_at(EmployeeManager.OPERATOR, site)))
 
 
 func _build_worker(sim: Simulation, e: Dictionary) -> void:
 	_header(e.name)
 	_row("Vai trò", EmployeeManager.ROLE_NAMES[e.role])
+	if sim.expansion.factory_ids().size() > 0:
+		_row("Nhà xưởng", sim.expansion.factory_name(ProductionManager.site_of(e)))
 	_row("Đang làm", employee_activity(sim, e))
 	var mood := int(e.get("mood", 70))
 	_row("Tâm trạng", "%s (%d)" % [mood_text(mood), mood], mood_color(mood))

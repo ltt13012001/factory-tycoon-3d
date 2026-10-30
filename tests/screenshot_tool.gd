@@ -3,12 +3,16 @@
 extends Node
 
 var _dir := ""
+## --screenshot-sites: only the shots of the factories next door (0.9).
+var _sites_only := false
 
 
 func _ready() -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--screenshot="):
 			_dir = a.trim_prefix("--screenshot=")
+		if a == "--screenshot-sites":
+			_sites_only = true
 	DirAccess.make_dir_recursive_absolute(_dir)
 	# Full quality for the shots, whatever the frame rate of a software GPU.
 	Graphics.auto = false
@@ -33,6 +37,10 @@ func _run() -> void:
 	var hud: Node = get_tree().root.find_child("Hud", true, false)
 	await get_tree().create_timer(3.0).timeout
 	hud.find_child("DailyReport", true, false).visible = false
+	if _sites_only:
+		await _site_shots(hud)
+		get_tree().quit()
+		return
 	await _shot("01_factory")
 	hud.toggle_panel("orders")
 	await get_tree().create_timer(0.6).timeout
@@ -155,6 +163,58 @@ func _street_shots(rig: Node3D) -> void:
 	await _shot("19_paddies")
 
 
+## Factory 2 runs like the first: its machines and staff, the build panel
+## placing machines there, the staff panel by factory and position, and the
+## clouds keeping clear of the panels.
+func _site_shots(hud: Node) -> void:
+	var sim := GameManager.sim
+	var rig: Node3D = get_viewport().get_camera_3d().get_parent().get_parent()
+	sim.state.reputation = 80
+	_expansion()
+	sim.state.tick = sim.day() * sim.config.ticks_per_day + (8 - sim.config.day_start_hour) * sim.config.ticks_per_hour
+	sim.state.raw = sim.buildings.raw_capacity()
+	for o in sim.orders.with_status(OrderManager.OFFERED):
+		sim.accept_order(o.id)
+	TimeManager.set_speed(2)
+	rig.rotation_degrees.y = 0.0
+	rig._yaw_target = 0.0
+	EventBus.camera_focus_requested.emit(FactoryLayout.plot("lot_2") + Vector3(0, 0, 1), 24.0)
+	await get_tree().create_timer(10.0).timeout
+	TimeManager.set_speed(1)
+	await get_tree().create_timer(2.0).timeout
+	await _shot("23_factory2")
+	EventBus.camera_focus_requested.emit(FactoryLayout.plot("lot_2") + Vector3(-1, 0, -3), 12.0)
+	await get_tree().create_timer(2.0).timeout
+	await _shot("24_factory2_closeup")
+	EventBus.camera_focus_requested.emit(FactoryLayout.plot("lot_2") + Vector3(0, 0, 1), 24.0)
+	GameManager.build_site = "lot_2"
+	hud.toggle_panel("build")
+	await get_tree().create_timer(0.8).timeout
+	await _shot("25_build_panel_factory2")
+	GameManager.start_placing("blow_molder")
+	await get_tree().create_timer(1.5).timeout
+	await _shot("26_place_in_factory2")
+	EventBus.build_mode_changed.emit(false)
+	hud.toggle_panel("staff")
+	await get_tree().create_timer(0.8).timeout
+	await _shot("27_staff_by_factory")
+	StaffPanel.filter = "lot_2"
+	hud._panels["staff"].refresh()
+	await get_tree().create_timer(0.8).timeout
+	await _shot("28_staff_factory2")
+	StaffPanel.filter = "all"
+	hud.toggle_panel("staff")
+	hud.toggle_panel("expansion")
+	rig.rotation_degrees.y = 45.0
+	rig._yaw_target = 45.0
+	EventBus.camera_focus_requested.emit(Vector3(40, 0, 0), 70.0)
+	await get_tree().create_timer(4.0).timeout
+	await _shot("29_clouds_clear_of_panels")
+	hud.toggle_panel("expansion")
+	await get_tree().create_timer(4.0).timeout
+	await _shot("30_clouds_no_panel")
+
+
 ## A growing company: factory 2 running, factory 3 being built, a branch.
 func _expansion() -> void:
 	var sim := GameManager.sim
@@ -169,12 +229,19 @@ func _expansion() -> void:
 		if id == "lot_2":
 			sim.advance_ticks(sim.content.locations[id].build_hours * sim.config.ticks_per_hour)
 			sim.hire_site_head(id)
-			for i in 9:
-				sim.buy_line(id)
+			var types := ["basic_injection_molder", "blow_molder", "shelf_press", "industrial_molder", "auto_molder", "blow_molder", "basic_injection_molder"]
+			for i in types.size():
+				print("buy ", types[i], " ", sim.buy_machine(i, types[i], id))
+			for i in 6:
+				sim.hire(EmployeeManager.OPERATOR, id)
+			sim.hire(EmployeeManager.WAREHOUSE, id)
+			sim.hire(EmployeeManager.WAREHOUSE, id)
+			sim.hire(EmployeeManager.TECHNICIAN, id)
 			sim.automate_site(id)
 			sim.automate_site(id)
 	var s3 := sim.expansion.site("lot_3")
-	s3.ticks_left = s3.total_ticks * 2 / 5
+	if not s3.is_empty():
+		s3.ticks_left = s3.total_ticks * 2 / 5
 	print("tier ", sim.advance_tier())
 	sim.hire_executive("production_director")
 	print("survey ", sim.expand("binh_duong"))

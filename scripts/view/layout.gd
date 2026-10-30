@@ -72,18 +72,70 @@ const FINISHED_STACK_ORIGIN := Vector3(13, 0, -2.5)
 const DOCK_STACK_ORIGIN := Vector3(13, 0, 8)
 
 
-static func slot_position(slot: int) -> Vector3:
+## Inside each plot (relative to its centre): the hall with its door at the
+## front left, the dispatch pallets, the rest benches and the office.
+const SITE_HALL_MIN := Vector2(-10, -10.5)
+const SITE_HALL_MAX := Vector2(10, 6.5)
+const SITE_DOOR := Vector2(-9.6, -6.4)
+const SITE_GATE := Vector2(-10.5, -5.0)
+const SITE_OFFICE_MIN := Vector2(3.6, 8.2)
+const SITE_OFFICE_MAX := Vector2(9.4, 11.4)
+const SITE_TABLE_MIN := Vector2(-1.6, 9.7)
+const SITE_TABLE_MAX := Vector2(2.4, 10.7)
+const SITE_STACK_MIN := Vector2(-5.6, 8.0)
+const SITE_STACK_MAX := Vector2(-3.8, 9.6)
+
+
+## Centre of a factory's machine place; site "" is the first factory.
+static func slot_position(slot: int, site := "") -> Vector3:
 	var col := slot % 3
 	var row := slot / 3
+	if site != "":
+		return plot(site) + Vector3(-6.8 + col * 6.5, 0, -8.0 + row * 5.0)
 	return Vector3(-14 + col * 6.5, 0, -9.5 + row * 5.6)
 
 
-static func operator_spot(slot: int) -> Vector3:
-	return slot_position(slot) + Vector3(0, 0, 1.6)
+static func machine_position(m: Dictionary) -> Vector3:
+	return slot_position(int(m.slot), ProductionManager.site_of(m))
 
 
-static func pallet_spot(slot: int) -> Vector3:
-	return slot_position(slot) + Vector3(1.9, 0, 0)
+static func operator_spot(slot: int, site := "") -> Vector3:
+	return slot_position(slot, site) + Vector3(0, 0, 1.6)
+
+
+static func pallet_spot(slot: int, site := "") -> Vector3:
+	return slot_position(slot, site) + Vector3(1.9, 0, 0)
+
+
+static func plot(site: String) -> Vector3:
+	return PLOTS.get(site, Vector3.ZERO)
+
+
+## Where staff of a factory stand while idle, take finished goods to, etc.:
+## operator_idle, tech_idle, warehouse_idle, finished_drop.
+static func spot(site: String, name: String) -> Vector3:
+	if site == "":
+		match name:
+			"operator_idle":
+				return OPERATOR_IDLE
+			"tech_idle":
+				return TECH_IDLE
+			"warehouse_idle":
+				return WAREHOUSE_IDLE
+			"finished_drop":
+				return FINISHED_DROP
+		return OPERATOR_IDLE
+	var p := plot(site)
+	match name:
+		"operator_idle":
+			return p + Vector3(-9.3, 0, -9.6)
+		"tech_idle":
+			return p + Vector3(9.4, 0, -9.6)
+		"warehouse_idle":
+			return p + Vector3(-8.0, 0, 8.6)
+		"finished_drop":
+			return p + Vector3(-4.7, 0, 7.4)
+	return p
 
 
 ## Waypoints from a to b along walkable ground (a excluded, b included).
@@ -119,7 +171,15 @@ static func point_along(start: Vector3, pts: PackedVector3Array, t: float) -> Ve
 ## Seat i for a resting worker: [position, facing yaw]. The break room's
 ## chairs and sofa come first once it is built, then the benches outside,
 ## then standing spots by the water cooler.
-static func rest_seat(i: int, break_room: bool) -> Array:
+static func rest_seat(i: int, break_room: bool, site := "") -> Array:
+	if site != "":
+		# Benches either side of the table in front of the hall, then standing.
+		var p := plot(site)
+		if i < 8:
+			var row := i / 4
+			return [p + Vector3(-1.1 + (i % 4) * 1.0, 0, 9.1 if row == 0 else 11.3), 0.0 if row == 0 else PI, true]
+		i -= 8
+		return [p + Vector3(-1.6 + (i % 5) * 0.9, 0, 8.3 - (i / 5) * 0.6), 0.0, false]
 	if break_room:
 		if i < 4:
 			var ang := i * PI / 2.0
@@ -137,5 +197,13 @@ static func rest_seat(i: int, break_room: bool) -> Array:
 
 
 ## Where striker i stands on the front aisle of the hall.
-static func picket_spot(i: int) -> Vector3:
+static func picket_spot(i: int, site := "") -> Vector3:
+	if site != "":
+		return plot(site) + Vector3(-5.5 + (i % 12) * 1.2, 0, 5.4 - (i / 12) * 0.8)
 	return PICKET_ORIGIN + Vector3((i % 16) * 1.2, 0, -(i / 16) * 0.8)
+
+
+## Staff of a factory next door go out of its gate and east along the
+## pavement after the shift.
+static func site_home(site: String, spread: float) -> Vector3:
+	return Vector3(plot(site).x + 13.0 + spread * 2.0, 0, 15.6)

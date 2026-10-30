@@ -149,8 +149,8 @@ func buy_material(qty: int) -> Dictionary:
 	return inventory.buy_material(qty)
 
 
-func buy_machine(slot: int, def_id: String = "") -> Dictionary:
-	return production.buy_machine(def_id if def_id != "" else config.start_machine_id, slot)
+func buy_machine(slot: int, def_id: String = "", site := "") -> Dictionary:
+	return production.buy_machine(def_id if def_id != "" else config.start_machine_id, slot, site)
 
 
 func sell_machine(id: int) -> Dictionary:
@@ -229,8 +229,8 @@ func fire_executive(id: String) -> Dictionary:
 	return expansion.fire_exec(id)
 
 
-func hire(role: String) -> Dictionary:
-	return employees.hire(role)
+func hire(role: String, site := "") -> Dictionary:
+	return employees.hire(role, site)
 
 
 func fire(id: int) -> Dictionary:
@@ -255,6 +255,7 @@ func load_save_dict(data: Dictionary) -> bool:
 	rng.seed = state.world_seed
 	rng.state = state.rng_state.to_int()
 	_tick_remainder = 0.0
+	expansion.convert_old_lines()
 	employees.auto_assign()
 	emit_event(&"game_loaded", {})
 	return true

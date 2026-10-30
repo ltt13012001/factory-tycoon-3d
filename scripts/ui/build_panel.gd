@@ -9,16 +9,29 @@ func _init() -> void:
 func signature(sim: Simulation) -> String:
 	return str([sim.state.machines.size(), sim.state.cash / 1000, sim.day(), sim.state.reputation,
 		sim.state.buildings, sim.state.construction.get("id", ""), int(sim.state.construction.get("ticks_left", 0)) / 15,
-		sim.employees.count(EmployeeManager.OPERATOR)])
+		sim.state.employees.size(), sim.expansion.factory_ids(), GameManager.build_site])
 
 
 func build(b: VBoxContainer, sim: Simulation) -> void:
 	var cfg := sim.config
-	var used := sim.state.machines.size()
-	var slots := sim.buildings.machine_slots()
+	var factories: Array = [""] + sim.expansion.factory_ids()
+	if not factories.has(GameManager.build_site):
+		GameManager.build_site = ""
+	var site := GameManager.build_site
+	var used := sim.production.machines_at(site).size()
+	var slots := sim.production.slot_count(site)
 	b.add_child(UiTheme.label("Máy móc", 18, UiTheme.WARN, true))
-	row(b, "Ô đặt máy trong xưởng", "%d / %d" % [used, slots])
-	_staff_hint(b, sim)
+	if factories.size() > 1:
+		# Which factory the next machine goes in.
+		var names := []
+		for f in factories:
+			names.append(StaffPanel._short_name(sim, f, factories.size()) if factories.size() > 3 else sim.expansion.factory_name(f))
+		b.add_child(UiTheme.label("Đặt máy vào", 14, UiTheme.MUTED))
+		b.add_child(UiTheme.choice(factories, names, site, func(f):
+			GameManager.build_site = f
+			refresh()))
+	row(b, "Ô đặt máy ở " + sim.expansion.factory_name(site).to_lower(), "%d / %d" % [used, slots])
+	_staff_hint(b, sim, site)
 	for d in sim.content.machine_list():
 		_machine_card(b, sim, d, used >= slots)
 	b.add_child(HSeparator.new())
@@ -52,7 +65,7 @@ func _machine_card(b: VBoxContainer, sim: Simulation, d: MachineDef, full: bool)
 	row(c, "Người vận hành", "Không cần (tự động)" if d.operators_required == 0 else "%d người" % d.operators_required)
 	var reason := sim.production.unlock_reason(d)
 	if reason == "" and full:
-		reason = "Xưởng hết chỗ"
+		reason = "Xưởng hết chỗ" if GameManager.build_site == "" or sim.expansion.factory_ids().size() == 0 else "Xưởng này hết chỗ"
 	if reason == "" and not sim.economy.can_afford(d.price):
 		reason = "Không đủ tiền"
 	var btn := UiTheme.button("Chọn chỗ đặt máy" if reason == "" else reason, func(): GameManager.start_placing(d.id), reason != "")
@@ -81,12 +94,17 @@ func _construction_card(b: VBoxContainer, sim: Simulation, d: ConstructionDef) -
 		buttons(c, [UiTheme.button("Xây ngay" if reason == "" else reason, func(): GameManager.build(d.id), reason != "")])
 
 
-func _staff_hint(b: VBoxContainer, sim: Simulation) -> void:
+func _staff_hint(b: VBoxContainer, sim: Simulation, site: String) -> void:
 	var idle_machines := 0
-	for m in sim.state.machines:
+	for m in sim.production.machines_at(site):
 		if m.operator_id == 0 and sim.production.needs_operator(m):
 			idle_machines += 1
+	var poor := not sim.economy.can_afford(sim.config.hire_fee)
 	if idle_machines > 0:
-		b.add_child(wrap_label("%d máy chưa có người vận hành." % idle_machines, 14, UiTheme.WARN))
+		b.add_child(wrap_label("%d máy ở %s chưa có người vận hành." % [idle_machines, sim.expansion.factory_name(site).to_lower()], 14, UiTheme.WARN))
 		buttons(b, [UiTheme.button("Tuyển người vận hành (%s)" % Fmt.money(sim.config.hire_fee),
-			func(): GameManager.hire(EmployeeManager.OPERATOR), not sim.economy.can_afford(sim.config.hire_fee))])
+			func(): GameManager.hire_at(EmployeeManager.OPERATOR, site), poor)])
+	if site != "" and not sim.production.machines_at(site).is_empty() and sim.employees.count(EmployeeManager.WAREHOUSE, site) == 0:
+		b.add_child(wrap_label("Xưởng này chưa có nhân viên kho: hàng sẽ chất đầy pallet và máy dừng.", 14, UiTheme.WARN))
+		buttons(b, [UiTheme.button("Tuyển nhân viên kho (%s)" % Fmt.money(sim.config.hire_fee),
+			func(): GameManager.hire_at(EmployeeManager.WAREHOUSE, site), poor)])

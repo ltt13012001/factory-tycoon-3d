@@ -4,7 +4,7 @@
 class_name SaveMigrations
 extends RefCounted
 
-const CURRENT_VERSION := 5
+const CURRENT_VERSION := 6
 
 
 static func migrate(data: Dictionary) -> Dictionary:
@@ -24,6 +24,8 @@ static func migrate(data: Dictionary) -> Dictionary:
 				data = _from_3(data)
 			4:
 				data = _from_4(data)
+			5:
+				data = _from_5(data)
 		version += 1
 		data.save_version = version
 	return data
@@ -78,4 +80,19 @@ static func _from_4(data: Dictionary) -> Dictionary:
 	settings.merge({"auto_accept": false, "shift_hours": 8, "pay_percent": 100})
 	data.settings = settings
 	data.merge({"strike": {}})
+	return data
+
+
+## 0.9: the factories next door run machine by machine. Machines and staff
+## belong to a factory ("" = the first). The old production lines of those
+## factories become real machines with operators when the game loads (see
+## ExpansionManager.convert_old_lines), so mark them here.
+static func _from_5(data: Dictionary) -> Dictionary:
+	for m in data.get("machines", []):
+		m.merge({"site": ""})
+	for e in data.get("employees", []):
+		e.merge({"site": ""})
+	for s in data.get("sites", []):
+		if str(s.get("id", "")).begins_with("lot_") and int(s.get("lines", 0)) > 0:
+			s.convert_lines = true
 	return data

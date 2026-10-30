@@ -18,7 +18,8 @@ var _raw_piles: Array[Node3D] = []
 var _finished_piles: Array[MeshInstance3D] = []
 var _dock_piles: Array[Node3D] = []
 var _buildings: Node3D
-var _slot_pads: Array[Node3D] = []
+## Build-mode pads: [site, slot] -> pad, for the first factory and the plots next door.
+var _slot_pads := {}
 var _select_ring: MeshInstance3D
 var _selected_kind := ""
 var _selected_id := 0
@@ -608,27 +609,32 @@ func _plant(p: Vector3) -> void:
 
 
 func _build_slot_pads() -> void:
-	for slot in FactoryLayout.MAX_SLOTS:
-		var pad := Node3D.new()
-		pad.position = FactoryLayout.slot_position(slot)
-		var mi := Palette.box(pad, Vector3(4.6, 0.05, 2.4), Vector3(0.9, 0.08, 0), Color(0.3, 0.9, 0.4, 0.45))
-		mi.material_override = Palette.mat(Color(0.3, 0.9, 0.4, 0.45))
-		Palette.label3d(pad, "Đặt máy ở đây", Vector3(0, 1.2, 0), 36, Color("b9ffc8"))
-		Palette.pick_body(pad, Vector3(4.6, 0.6, 2.4), Vector3(0.9, 0.3, 0), "slot", slot)
-		pad.visible = false
-		pad.process_mode = Node.PROCESS_MODE_DISABLED
-		add_child(pad)
-		_slot_pads.append(pad)
+	for site in [""] + FactoryLayout.PLOTS.keys():
+		for slot in FactoryLayout.MAX_SLOTS:
+			var pad := Node3D.new()
+			pad.position = FactoryLayout.slot_position(slot, site)
+			var mi := Palette.box(pad, Vector3(4.6, 0.05, 2.4), Vector3(0.9, 0.08, 0), Color(0.3, 0.9, 0.4, 0.45))
+			mi.material_override = Palette.mat(Color(0.3, 0.9, 0.4, 0.45))
+			Palette.label3d(pad, "Đặt máy ở đây", Vector3(0, 1.2, 0), 36, Color("b9ffc8"))
+			Palette.pick_body(pad, Vector3(4.6, 0.6, 2.4), Vector3(0.9, 0.3, 0), "slot", GameManager.slot_pick_id(slot, site))
+			pad.visible = false
+			pad.process_mode = Node.PROCESS_MODE_DISABLED
+			add_child(pad)
+			_slot_pads[[site, slot]] = pad
 
 
+## Shows the free places of the factory chosen in the build panel.
 func _on_build_mode(active: bool) -> void:
 	var sim: Simulation = GameManager.sim
-	for slot in _slot_pads.size():
-		var free := sim.production.machine_in_slot(slot).is_empty()
-		var show := active and free and slot < sim.buildings.machine_slots()
-		_slot_pads[slot].visible = show
-		_slot_pads[slot].process_mode = Node.PROCESS_MODE_INHERIT if show else Node.PROCESS_MODE_DISABLED
-		for c in _slot_pads[slot].get_children():
+	for key in _slot_pads:
+		var site: String = key[0]
+		var slot: int = key[1]
+		var pad: Node3D = _slot_pads[key]
+		var free := sim.production.machine_in_slot(slot, site).is_empty()
+		var show := active and site == GameManager.build_site and free and slot < sim.production.slot_count(site)
+		pad.visible = show
+		pad.process_mode = Node.PROCESS_MODE_INHERIT if show else Node.PROCESS_MODE_DISABLED
+		for c in pad.get_children():
 			if c is StaticBody3D:
 				c.collision_layer = 1 if show else 0
 
@@ -649,7 +655,7 @@ func _sync_machines(sim: Simulation) -> void:
 		if not _machines.has(m.id):
 			var v: Node3D = MachineScene.instantiate()
 			v.machine_id = m.id
-			v.position = FactoryLayout.slot_position(int(m.slot))
+			v.position = FactoryLayout.machine_position(m)
 			add_child(v)
 			Palette.pick_body(v, Vector3(4.4, 3.0, 2.4), Vector3(0.8, 1.4, 0), "machine", m.id)
 			_machines[m.id] = v
@@ -661,24 +667,29 @@ func _sync_machines(sim: Simulation) -> void:
 
 func _sync_workers(sim: Simulation) -> void:
 	var seen := {}
-	var idle := {"operator": 0, "warehouse": 0, "technician": 0}
-	var rest := 0
+	# Idle places and rest seats are counted per factory.
+	var idle := {}
+	var rest := {}
 	for e in sim.state.employees:
 		seen[e.id] = true
+		var site := ProductionManager.site_of(e)
 		if not _workers.has(e.id):
 			var w: Node3D = WorkerScene.instantiate()
 			w.employee_id = e.id
 			w.role = e.role
-			w.position = FactoryLayout.WAREHOUSE_IDLE if e.role == "warehouse" else FactoryLayout.OPERATOR_IDLE
+			w.site = site
+			w.position = FactoryLayout.spot(site, "warehouse_idle" if e.role == "warehouse" else "operator_idle")
 			if sim.state.tick > 0:
-				w.position = FactoryLayout.STAFF_GATE  # new hires walk in from the street
+				# New hires walk in from the street.
+				w.position = FactoryLayout.STAFF_GATE if site == "" else FactoryLayout.site_home(site, 0.0)
 			add_child(w)
 			_workers[e.id] = w
-		_workers[e.id].idle_index = idle.get(e.role, 0)
-		idle[e.role] = idle.get(e.role, 0) + 1
+		var key: String = site + "|" + e.role
+		_workers[e.id].idle_index = idle.get(key, 0)
+		idle[key] = idle.get(key, 0) + 1
 		if e.role != EmployeeManager.MANAGER:
-			_workers[e.id].rest_index = rest
-			rest += 1
+			_workers[e.id].rest_index = rest.get(site, 0)
+			rest[site] = rest.get(site, 0) + 1
 	for id in _workers.keys():
 		if not seen.has(id):
 			_workers[id].queue_free()
@@ -810,8 +821,9 @@ func _on_defect(data: Dictionary) -> void:
 	if v == null:
 		return
 	var cube := Palette.box(self, Vector3(0.3, 0.3, 0.3), v.position + Vector3(1.2, 1.2, 0), Palette.SCRAP)
+	var bin := FactoryLayout.SCRAP_BIN if v.position.x < FactoryLayout.LOT_MAX.x else v.position + Vector3(2.6, 0, 1.4)
 	var tw := create_tween()
-	tw.tween_property(cube, "position", FactoryLayout.SCRAP_BIN + Vector3(0, 1.0, 0), 0.8).set_trans(Tween.TRANS_QUAD)
+	tw.tween_property(cube, "position", bin + Vector3(0, 1.0, 0), 0.8).set_trans(Tween.TRANS_QUAD)
 	tw.tween_callback(cube.queue_free)
 
 

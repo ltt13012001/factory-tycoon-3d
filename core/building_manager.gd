@@ -23,11 +23,11 @@ func bonus(field: String) -> int:
 
 
 func raw_capacity() -> int:
-	return sim.config.raw_capacity + bonus("raw_capacity_bonus")
+	return sim.config.raw_capacity + bonus("raw_capacity_bonus") + sim.expansion.extra_raw_capacity()
 
 
 func finished_capacity() -> int:
-	return sim.config.finished_capacity + bonus("finished_capacity_bonus")
+	return sim.config.finished_capacity + bonus("finished_capacity_bonus") + sim.expansion.extra_finished_capacity()
 
 
 func machine_slots() -> int:

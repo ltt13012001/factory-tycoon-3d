@@ -35,6 +35,8 @@ const BUBBLE_COLORS := {
 
 var employee_id := 0
 var role := ""
+## Factory the worker belongs to ("" = the first one), set by FactoryView.
+var site := ""
 var idle_index := 0
 ## Seat in the rest area and place in a strike picket, set by FactoryView.
 var rest_index := 0
@@ -442,7 +444,7 @@ func _update_common(sim: Simulation, e: Dictionary, delta: float) -> bool:
 	if sim.employees.on_strike() and role != "manager":
 		_phase_key = ""
 		_carry.visible = false
-		var spot := FactoryLayout.picket_spot(rest_index)
+		var spot := FactoryLayout.picket_spot(rest_index, site)
 		_walk(spot, delta)
 		if position.distance_to(spot) < 0.2:
 			_pose = "strike"
@@ -452,7 +454,7 @@ func _update_common(sim: Simulation, e: Dictionary, delta: float) -> bool:
 	if e.get("rest", false) and (role != "warehouse" or e.job.is_empty()):
 		_phase_key = ""
 		_carry.visible = false
-		var seat := FactoryLayout.rest_seat(rest_index, sim.buildings.level("break_room") > 0)
+		var seat := FactoryLayout.rest_seat(rest_index, sim.buildings.level("break_room") > 0, site)
 		_walk(seat[0], delta)
 		if position.distance_to(seat[0]) < 0.15:
 			_pose = "sit" if seat[2] else "stand"
@@ -466,6 +468,8 @@ func _update_common(sim: Simulation, e: Dictionary, delta: float) -> bool:
 func _home() -> Vector3:
 	var homes := FactoryLayout.HOMES
 	var spread := fmod(employee_id * 0.37, 1.0) - 0.5
+	if site != "":
+		return FactoryLayout.site_home(site, spread)
 	var h: Vector3 = homes[employee_id % homes.size()]
 	return h + (Vector3(spread * 2.4, 0, 0) if employee_id % homes.size() == 0 else Vector3(0, 0, spread * 0.6))
 
@@ -478,16 +482,16 @@ func _idle_spot(fallback: Vector3, step: Vector3) -> Vector3:
 
 ## Stand beside a machine's control side, facing it.
 func _work_spot(m: Dictionary) -> Vector3:
-	return FactoryLayout.slot_position(int(m.slot)) + Vector3(-1.6, 0, 1.2)
+	return FactoryLayout.machine_position(m) + Vector3(-1.6, 0, 1.2)
 
 
 func _update_operator(sim: Simulation, e: Dictionary, delta: float) -> void:
-	var target := _idle_spot(FactoryLayout.OPERATOR_IDLE, Vector3(0, 0, -0.9))
+	var target := _idle_spot(FactoryLayout.spot(site, "operator_idle"), Vector3(0, 0, -0.9 if site == "" else 0.9))
 	var m := {}
 	if e.machine_id != 0:
 		m = sim.state.find_by_id(sim.state.machines, int(e.machine_id))
 		if not m.is_empty():
-			target = FactoryLayout.operator_spot(int(m.slot))
+			target = FactoryLayout.operator_spot(int(m.slot), site)
 	_walk(target, delta)
 	if not _moving and not m.is_empty() and position.distance_to(target) < 0.2:
 		_face_yaw = PI
@@ -497,7 +501,7 @@ func _update_operator(sim: Simulation, e: Dictionary, delta: float) -> void:
 
 func _update_technician(sim: Simulation, e: Dictionary, delta: float) -> void:
 	var job: Dictionary = e.job
-	var target := _idle_spot(FactoryLayout.TECH_IDLE, Vector3(0.9, 0, 0))
+	var target := _idle_spot(FactoryLayout.spot(site, "tech_idle"), Vector3(0.9, 0, 0) if site == "" else Vector3(0, 0, 0.9))
 	var m := {}
 	if not job.is_empty() and job.kind == "repair":
 		m = sim.state.find_by_id(sim.state.machines, int(job.machine_id))
@@ -511,13 +515,13 @@ func _update_technician(sim: Simulation, e: Dictionary, delta: float) -> void:
 
 ## The factory manager walks from machine to machine, pausing at each.
 func _update_manager(sim: Simulation, delta: float) -> void:
-	var ms := sim.state.machines
+	var ms := sim.production.machines_at(site)
 	if ms.is_empty():
 		_walk(FactoryLayout.OPERATOR_IDLE + Vector3(1.0, 0, 0), delta)
 		return
 	var visit := int(_time / 7.0) % ms.size()
 	var m: Dictionary = ms[visit]
-	var target := FactoryLayout.slot_position(int(m.slot)) + Vector3(0.6, 0, 2.2)
+	var target := FactoryLayout.machine_position(m) + Vector3(0.6, 0, 2.2)
 	_walk(target, delta)
 	if not _moving:
 		_face_yaw = PI
@@ -528,7 +532,7 @@ func _update_warehouse(sim: Simulation, e: Dictionary, delta: float) -> void:
 	if job.is_empty():
 		_phase_key = ""
 		_carry.visible = false
-		_walk(FactoryLayout.WAREHOUSE_IDLE + Vector3(0, 0, idle_index * 0.9), delta)
+		_walk(FactoryLayout.spot(site, "warehouse_idle") + Vector3(0, 0, idle_index * (0.9 if site == "" else 0.7)), delta)
 		return
 	var key := "%s_%s_%s" % [job.kind, job.phase, job.machine_id]
 	if key != _phase_key:
@@ -558,11 +562,11 @@ func _job_destination(sim: Simulation, job: Dictionary) -> Vector3:
 	if job.kind == "unload":
 		return FactoryLayout.DOCK_PICKUP if job.phase == "to_source" else FactoryLayout.RAW_DROP
 	if job.phase == "to_dest":
-		return FactoryLayout.FINISHED_DROP
+		return FactoryLayout.spot(site, "finished_drop")
 	var m := sim.state.find_by_id(sim.state.machines, int(job.machine_id))
 	if m.is_empty():
-		return FactoryLayout.WAREHOUSE_IDLE
-	return FactoryLayout.pallet_spot(int(m.slot)) + Vector3(0, 0, 1.0)
+		return FactoryLayout.spot(site, "warehouse_idle")
+	return FactoryLayout.pallet_spot(int(m.slot), site) + Vector3(0, 0, 1.0)
 
 
 func inspect_machine(machine_id: int) -> void:
@@ -574,7 +578,8 @@ func _update_owner(sim: Simulation, delta: float) -> void:
 	var target := FactoryLayout.OWNER_DESK
 	var repairing := {}
 	for m in sim.state.machines:
-		if int(m.repairer_id) == ProductionManager.OWNER:
+		# Repairs called in the factories next door are done by a hired mechanic.
+		if int(m.repairer_id) == ProductionManager.OWNER and ProductionManager.site_of(m) == "":
 			repairing = m
 			break
 	if not repairing.is_empty():

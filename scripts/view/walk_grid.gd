@@ -10,7 +10,7 @@ extends RefCounted
 const CELL := 0.25
 ## Grid corner (cell edges sit on whole and quarter metres) and size.
 const ORIGIN := Vector2(-41.0, -16.5)
-const SIZE := Vector2i(312, 168)  # up to x = 37, z = 25.5
+const SIZE := Vector2i(644, 168)  # up to x = 120 (the plots next door), z = 25.5
 ## Half the width of a person: obstacles are grown by this much.
 const BODY := 0.25
 ## Walls are thin and their edges straight, so they are grown a little less
@@ -298,7 +298,31 @@ static func _build() -> void:
 			_block(Vector2(x - 0.15, 15.1 - 0.15), Vector2(x + 0.15, 15.1 + 0.15))
 	_block(Vector2(12.2, 14.9), Vector2(12.6, 15.5))  # barrier post
 	_block(Vector2(-37.6, 23.6), Vector2(-34.4, 24.0))  # bus shelter
+	for id in FactoryLayout.PLOTS:
+		_build_plot(id)
 	_set_costs()
+
+
+## A plot next door: fence with the gate, the hall with its door and
+## machine bays, the office, the rest table and the dispatch pallets.
+static func _build_plot(id: String) -> void:
+	var c3 := FactoryLayout.plot(id)
+	var c := Vector2(c3.x, c3.z)
+	var half := FactoryLayout.PLOT_SIZE / 2.0
+	_open(c + Vector2(-half.x, -half.y), c + Vector2(half.x, NEAR_PAVEMENT.x - c.y + 0.2))
+	_wall_line(c + Vector2(-half.x, -half.y), c + Vector2(half.x, -half.y), [])
+	_wall_line(c + Vector2(-half.x, -half.y), c + Vector2(-half.x, half.y), [])
+	_wall_line(c + Vector2(half.x, -half.y), c + Vector2(half.x, half.y), [])
+	var gate := FactoryLayout.SITE_GATE
+	_wall_line(c + Vector2(-half.x, half.y), c + Vector2(half.x, half.y), [Vector2(c.x + gate.x, c.x + gate.y)])
+	var door := FactoryLayout.SITE_DOOR
+	_room(c + FactoryLayout.SITE_HALL_MIN, c + FactoryLayout.SITE_HALL_MAX, {"s": [Vector2(c.x + door.x, c.x + door.y)]})
+	for slot in FactoryLayout.MAX_SLOTS:
+		var p := FactoryLayout.slot_position(slot, id)
+		_block(Vector2(p.x - 1.5, p.z - 1.05), Vector2(p.x + 2.65, p.z + 1.05))
+	_block(c + FactoryLayout.SITE_OFFICE_MIN, c + FactoryLayout.SITE_OFFICE_MAX)
+	_block(c + FactoryLayout.SITE_TABLE_MIN, c + FactoryLayout.SITE_TABLE_MAX)
+	_block(c + FactoryLayout.SITE_STACK_MIN, c + FactoryLayout.SITE_STACK_MAX)
 
 
 ## Open yard costs more than floors, pavements and walkways; the dock more.

@@ -37,6 +37,11 @@ var night_lights: Array[OmniLight3D] = []
 
 var _cars: Array[Node3D] = []  # cars and motorbikes
 var _clouds: Array[Node3D] = []
+## Clouds fade away where they would pass over the interface or the middle
+## of the screen (see _fade_clouds); the rects are refreshed a few times a second.
+const CLOUD_ALPHA := 0.9
+var _cloud_blockers: Array[Rect2] = []
+var _cloud_timer := 0.0
 var _rotors: Array[Node3D] = []
 var _flag: Node3D
 var _time := 0.0
@@ -106,15 +111,11 @@ func _process(delta: float) -> void:
 				if absf(t.position.z - LANE_BIKES_WEST) < 2.0 and dx > -5.0 and dx < 12.0:
 					lane = LANE_PASSING
 			car.position.z = move_toward(car.position.z, lane, delta * speed * 1.6)
-	# Clouds float between the camera and the ground: hide them when zoomed
-	# in close, where one would cover the whole view.
-	var cam := get_viewport().get_camera_3d()
-	var clouds_on := cam == null or cam.size > 34.0
 	for c in _clouds:
-		c.visible = clouds_on
 		c.position.x += delta * 1.2
 		if c.position.x > 130.0:
 			c.position.x = -130.0
+	_fade_clouds(delta)
 	for r in _rotors:
 		r.rotate_object_local(Vector3.FORWARD, delta * 1.2)
 	if _flag:
@@ -830,14 +831,74 @@ func _build_clouds() -> void:
 		var c := Node3D.new()
 		c.position = Vector3(_rng.randf_range(-130, 130), _rng.randf_range(28, 36), _rng.randf_range(-70, 50))
 		add_child(c)
+		# Each cloud has its own see-through material so it can fade on its own.
+		var mat := StandardMaterial3D.new()
+		mat.vertex_color_use_as_albedo = true
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		mat.roughness = 1.0
+		mat.albedo_color = Color(1, 1, 1, CLOUD_ALPHA)
 		var cb := MeshBatch.new()
 		var puffs := _rng.randi_range(4, 7)
 		for k in puffs:
 			var r := _rng.randf_range(2.2, 4.2)
-			cb.sphere(r, Vector3(k * 2.6 - puffs * 1.3, _rng.randf_range(0.0, 1.0) + (0.6 if k % 2 == 1 else 0.0), _rng.randf_range(-1.6, 1.6)), Color("fbfbfb"), null, Vector3(1.25, 0.62, 1.0), 10, 6)
-		cb.sphere(puffs * 1.5, Vector3(0, -0.6, 0), Color("eef1f4"), null, Vector3(1.0, 0.18, 0.45), 12, 6)
+			cb.sphere(r, Vector3(k * 2.6 - puffs * 1.3, _rng.randf_range(0.0, 1.0) + (0.6 if k % 2 == 1 else 0.0), _rng.randf_range(-1.6, 1.6)), Color("fbfbfb"), mat, Vector3(1.25, 0.62, 1.0), 10, 6)
+		cb.sphere(puffs * 1.5, Vector3(0, -0.6, 0), Color("eef1f4"), mat, Vector3(1.0, 0.18, 0.45), 12, 6)
 		cb.build(c, false)
+		c.set_meta("material", mat)
+		c.set_meta("extent", Vector3(puffs * 1.5 + 2.0, 2.5, 4.0))
+		c.set_meta("alpha", CLOUD_ALPHA)
 		_clouds.append(c)
+
+
+## Clouds float between the camera and the ground. They keep clear of the
+## control areas: a cloud fades out while it would cover a panel, a button
+## or the bar at the top, or the middle of the view where the player is
+## working, and fades back in once it has drifted past. Zoomed in close,
+## where one would cover the whole view, they are hidden.
+func _fade_clouds(delta: float) -> void:
+	var cam := get_viewport().get_camera_3d()
+	if cam == null:
+		return
+	_cloud_timer -= delta
+	if _cloud_timer <= 0.0:
+		_cloud_timer = 0.2
+		_cloud_blockers.clear()
+		var hud := get_tree().get_first_node_in_group("hud")
+		if hud:
+			_cloud_blockers.assign(hud.control_rects())
+		var vp := get_viewport().get_visible_rect().size
+		_cloud_blockers.append(Rect2(vp * Vector2(0.27, 0.22), vp * Vector2(0.46, 0.56)))
+	var close := cam.size <= 34.0
+	for c in _clouds:
+		var target := 0.0 if close else CLOUD_ALPHA * (1.0 - clampf(_covered(cam, c) * 3.0, 0.0, 1.0))
+		var a := move_toward(float(c.get_meta("alpha")), target, delta * 1.8)
+		c.set_meta("alpha", a)
+		c.visible = a > 0.01
+		var mat: StandardMaterial3D = c.get_meta("material")
+		mat.albedo_color.a = a
+
+
+## Share (0..1) of a cloud's outline on screen that lies over a control area.
+func _covered(cam: Camera3D, c: Node3D) -> float:
+	var ext: Vector3 = c.get_meta("extent")
+	var lo := Vector2(INF, INF)
+	var hi := -lo
+	for k in 8:
+		var corner := c.global_position + Vector3(ext.x * (1 if k & 1 else -1), ext.y * (1 if k & 2 else -1), ext.z * (1 if k & 4 else -1))
+		if cam.is_position_behind(corner):
+			return 0.0
+		var p := cam.unproject_position(corner)
+		lo = lo.min(p)
+		hi = hi.max(p)
+	var r := Rect2(lo, hi - lo)
+	var area := maxf(r.get_area(), 1.0)
+	var vp := get_viewport().get_visible_rect()
+	if not vp.intersects(r):
+		return 0.0
+	var covered := 0.0
+	for b in _cloud_blockers:
+		covered += r.intersection(b).get_area()
+	return minf(1.0, covered / area)
 
 
 func _build_traffic() -> void:

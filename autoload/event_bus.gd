@@ -42,6 +42,8 @@ signal staff_unhappy(data: Dictionary)
 # Presentation events
 signal toast(text: String, good: bool)
 signal selection_changed(kind: String, id: int)
+## A panel asks for another management panel to open (hud panel id).
+signal panel_requested(id: String)
 signal speed_changed(speed: int)
 signal build_mode_changed(active: bool)
 signal inspect_requested(machine_id: int)

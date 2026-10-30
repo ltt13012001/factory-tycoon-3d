@@ -87,3 +87,32 @@ func test_routes_are_quick() -> void:
 	var ms := (Time.get_ticks_usec() - t) / 1000.0
 	print("  60 routes in %.1f ms" % ms)
 	check(ms < 3000.0, "routes take %.1f ms" % ms)
+
+
+## The factories next door: every spot of a plot can be reached from its
+## gate and the routes between them stay clear of walls and machines.
+func test_plot_routes_are_clear() -> void:
+	for site in FactoryLayout.PLOTS:
+		var pts := []
+		for name in ["operator_idle", "tech_idle", "warehouse_idle", "finished_drop"]:
+			pts.append(FactoryLayout.spot(site, name))
+		for slot in FactoryLayout.MAX_SLOTS:
+			pts.append(FactoryLayout.operator_spot(slot, site))
+			pts.append(FactoryLayout.pallet_spot(slot, site) + Vector3(0, 0, 1.0))
+			pts.append(FactoryLayout.slot_position(slot, site) + Vector3(-1.6, 0, 1.2))
+		for i in 12:
+			pts.append(FactoryLayout.rest_seat(i, false, site)[0])
+			pts.append(FactoryLayout.picket_spot(i, site))
+		var home := FactoryLayout.site_home(site, 0.3)
+		var bad := 0
+		for i in pts.size():
+			if not _check_route(home, pts[i]):
+				bad += 1
+				print("  blocked route ", home, " -> ", pts[i])
+			if not _check_route(pts[i], pts[(i * 7 + 3) % pts.size()]):
+				bad += 1
+				print("  blocked route ", pts[i], " -> ", pts[(i * 7 + 3) % pts.size()])
+		check_eq(bad, 0, "routes in %s through walls or obstacles" % site)
+		var c := FactoryLayout.plot(site)
+		check(not WalkGrid.clear(c + Vector3(5, 0, 5), c + Vector3(5, 0, 8)), "hall front wall of %s" % site)
+		check(WalkGrid.clear(c + Vector3(-8, 0, 5), c + Vector3(-8, 0, 8)), "hall door of %s" % site)

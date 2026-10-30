@@ -1,7 +1,8 @@
 ## A place the business can grow into: a plot of land next to the first
-## factory, a branch elsewhere in Vietnam, or a branch abroad. Factories
-## there are run by their head (a factory manager or branch director) and
-## are simulated as a whole, not machine by machine.
+## factory, a branch elsewhere in Vietnam, or a branch abroad. Factories on
+## the plots next door run machine by machine like the first one (max_lines
+## is their number of machine places); branches are run by their director
+## and simulated as a whole from their production lines.
 class_name LocationDef
 extends Resource
 

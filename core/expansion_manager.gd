@@ -3,9 +3,11 @@
 ## abroad, company stages (workshop -> company -> corporation -> group ->
 ## multinational group) and the executives each stage can appoint.
 ##
-## Only the first factory is simulated machine by machine. Every other site
-## is run by its head (factory manager or branch director) and earns a daily
-## profit from its production lines, booked at the end of the day.
+## The factories next door (lot_2 ...) run like the first one: real
+## machines, operators, warehouse staff and technicians, sharing the company
+## store and the orders; their head is the factory manager. Branches in
+## other provinces and abroad are run by their director and earn a daily
+## profit from their production lines, booked at the end of the day.
 class_name ExpansionManager
 extends RefCounted
 
@@ -27,15 +29,20 @@ const TIER_FEES := [0, 1000000, 5000000, 20000000, 50000000]
 const HEAD_TITLES := {LOCAL: "Xưởng trưởng", DOMESTIC: "Giám đốc chi nhánh", ABROAD: "Giám đốc chi nhánh"}
 const REGION_NAMES := {LOCAL: "Nhà xưởng mới", DOMESTIC: "Chi nhánh trong nước", ABROAD: "Chi nhánh nước ngoài"}
 
-## "Production line improvements" for the first factory: each level makes
-## every machine there this many percent faster.
+## "Production line improvements": each level makes every machine in the
+## first factory and the factories next door this many percent faster.
 const LINE_SPEED_COSTS := [150000, 300000, 600000, 1200000, 2400000]
 const LINE_SPEED_PERCENT := 10
-## A factory manager in the first factory speeds every machine up.
+## A factory manager speeds every machine of their factory up.
 const MANAGER_SPEED_PERCENT := 15
-## Each automation level of a site adds this much to its profit.
+## Each automation level of a branch adds this much to its profit; in a
+## factory next door it makes the machines this much faster.
 const AUTOMATION_PERCENT := 20
+const AUTOMATION_SPEED_PERCENT := 10
 const MAX_AUTOMATION := 3
+## Every finished factory next door has its own store, added to the company's.
+const FACTORY_RAW_CAPACITY := 300
+const FACTORY_FINISHED_CAPACITY := 200
 
 ## Company-wide positions. speed: % faster machines in the first factory;
 ## profit: % more profit at every other site; domestic / abroad: extra % for
@@ -85,6 +92,40 @@ func is_ready(id: String) -> bool:
 	return site(id).get("status", "") == READY
 
 
+## True for the plots next door, whose factories run machine by machine.
+func is_factory(id: String) -> bool:
+	var l := loc(id)
+	return l != null and l.region == LOCAL
+
+
+## Location ids of the finished factories next door, in order.
+func factory_ids() -> Array:
+	var ids := []
+	for s in sim.state.sites:
+		if s.status == READY and is_factory(s.id):
+			ids.append(s.id)
+	ids.sort_custom(func(a, b): return loc(a).order < loc(b).order)
+	return ids
+
+
+## Machine places in a factory next door (0 until it is built).
+func machine_slots(id: String) -> int:
+	return loc(id).max_lines if is_factory(id) and is_ready(id) else 0
+
+
+## "Xưởng chính" for the first factory, else the location's name.
+func factory_name(id: String) -> String:
+	return "Xưởng chính" if id == "" else loc(id).display_name
+
+
+func extra_raw_capacity() -> int:
+	return factory_ids().size() * FACTORY_RAW_CAPACITY
+
+
+func extra_finished_capacity() -> int:
+	return factory_ids().size() * FACTORY_FINISHED_CAPACITY
+
+
 # --- Company stage -------------------------------------------------------------
 
 func tier() -> int:
@@ -99,11 +140,17 @@ func owner_title() -> String:
 	return OWNER_TITLES[tier()]
 
 
-## Factories that are producing: the first one plus every finished site with a head.
+## Factories that are producing: the first one, every factory next door
+## with a machine and every branch with a director.
 func factories_operating() -> int:
 	var n := 1
 	for s in sim.state.sites:
-		if s.status == READY and s.head != "":
+		if s.status != READY:
+			continue
+		if is_factory(s.id):
+			if not sim.production.machines_at(s.id).is_empty():
+				n += 1
+		elif s.head != "":
 			n += 1
 	return n
 
@@ -129,7 +176,7 @@ func next_tier_requirement() -> Dictionary:
 	var t := tier() + 1
 	match t:
 		1:
-			return {"text": "Có ít nhất 2 nhà xưởng đang chạy (xây Xưởng 2 và thuê xưởng trưởng)", "met": factories_operating() >= 2, "fee": TIER_FEES[t]}
+			return {"text": "Có ít nhất 2 nhà xưởng đang chạy (xây Xưởng 2 và đặt máy)", "met": factories_operating() >= 2, "fee": TIER_FEES[t]}
 		2:
 			return {"text": "Có ít nhất 2 chi nhánh trong nước đã hoạt động (đang có %d)" % ready_count(DOMESTIC), "met": ready_count(DOMESTIC) >= 2, "fee": TIER_FEES[t]}
 		3:
@@ -176,12 +223,17 @@ func upgrade_line_speed() -> Dictionary:
 	return Simulation.ok("Dây chuyền cấp %d: máy nhanh hơn %d%%." % [line_speed_level(), line_speed_level() * LINE_SPEED_PERCENT])
 
 
-## Total speed bonus (percent) for every machine in the first factory.
-func speed_bonus_percent() -> int:
-	var total := line_speed_level() * LINE_SPEED_PERCENT
-	if sim.employees.count(EmployeeManager.MANAGER) > 0:
+## Total speed bonus (percent) for every machine in a factory ("" = the first).
+func speed_bonus_percent(site_id := "") -> int:
+	var total := line_speed_level() * LINE_SPEED_PERCENT + _exec_sum("speed")
+	if site_id == "":
+		if sim.employees.count(EmployeeManager.MANAGER, "") > 0:
+			total += MANAGER_SPEED_PERCENT
+		return total
+	var s := site(site_id)
+	if s.get("head", "") != "":
 		total += MANAGER_SPEED_PERCENT
-	return total + _exec_sum("speed")
+	return total + int(s.get("automation", 0)) * AUTOMATION_SPEED_PERCENT
 
 
 # --- Executives ----------------------------------------------------------------
@@ -292,7 +344,7 @@ func previous_full(l: LocationDef) -> bool:
 	if l.order <= 2 or not sim.content.locations.has(prev):
 		return sim.state.machines.size() >= sim.buildings.machine_slots()
 	var p := site(prev)
-	return not p.is_empty() and p.status == READY and int(p.lines) >= loc(prev).max_lines
+	return not p.is_empty() and p.status == READY and sim.production.machines_at(prev).size() >= loc(prev).max_lines
 
 
 ## Why the next step at this location cannot be taken, or "" when it can.
@@ -306,7 +358,7 @@ func block_reason(id: String) -> String:
 	var cost := next_step_cost(id)
 	if s.is_empty():
 		if l.region == LOCAL and not previous_full(l):
-			return "Cần đặt đủ máy ở xưởng trước" if l.order <= 2 else "Cần đủ %d dây chuyền ở %s" % [loc("lot_%d" % (l.order - 1)).max_lines, loc("lot_%d" % (l.order - 1)).display_name]
+			return "Cần đặt đủ máy ở xưởng trước" if l.order <= 2 else "Cần đặt đủ %d máy ở %s" % [loc("lot_%d" % (l.order - 1)).max_lines, loc("lot_%d" % (l.order - 1)).display_name]
 	elif s.status == SURVEYING or s.status == BUILDING or s.status == READY:
 		return "Đang thực hiện" if s.status != READY else "Đã hoạt động"
 	if not sim.economy.can_afford(cost):
@@ -366,6 +418,8 @@ func buy_line(id: String) -> Dictionary:
 	if s.is_empty() or s.status != READY:
 		return Simulation.fail("Nhà xưởng chưa xây xong.")
 	var l := loc(id)
+	if is_factory(id):
+		return Simulation.fail("%s đặt máy thật: vào Xây dựng để mua máy cho xưởng này." % l.display_name)
 	if int(s.lines) >= l.max_lines:
 		return Simulation.fail("Đã đủ %d dây chuyền." % l.max_lines)
 	if not sim.economy.can_afford(l.line_cost):
@@ -388,6 +442,8 @@ func upgrade_automation(id: String) -> Dictionary:
 	sim.economy.book("upgrade", -cost, "Tự động hoá " + loc(id).display_name)
 	s.automation = int(s.automation) + 1
 	sim.emit_event(&"expansion_changed", {"id": id})
+	if is_factory(id):
+		return Simulation.ok("%s tự động hoá cấp %d: máy nhanh hơn %d%%." % [loc(id).display_name, s.automation, int(s.automation) * AUTOMATION_SPEED_PERCENT])
 	return Simulation.ok("%s tự động hoá cấp %d: lãi thêm %d%%." % [loc(id).display_name, s.automation, int(s.automation) * AUTOMATION_PERCENT])
 
 
@@ -415,7 +471,32 @@ func fire_head(id: String) -> Dictionary:
 	var person: String = s.head
 	s.head = ""
 	sim.emit_event(&"expansion_changed", {"id": id})
+	if is_factory(id):
+		return Simulation.ok("%s đã nghỉ. Máy ở %s chạy chậm hơn và không ai gọi thợ khi máy hỏng." % [person, loc(id).display_name])
 	return Simulation.ok("%s đã nghỉ. Xưởng sẽ dừng cho tới khi có người mới." % person)
+
+
+## Saves from before 0.9: each production line of a factory next door
+## becomes a machine of the starting type with an operator, plus one
+## warehouse worker for every three; the difference to the line price is
+## paid back.
+func convert_old_lines() -> void:
+	var refund := 0
+	for s in sim.state.sites:
+		if not s.get("convert_lines", false):
+			continue
+		s.erase("convert_lines")
+		var lines := int(s.lines)
+		s.lines = 0
+		var d: MachineDef = sim.content.machines[sim.config.start_machine_id]
+		for i in mini(lines, loc(s.id).max_lines):
+			sim.state.machines.append(sim.production.make_machine(d.id, i, s.id))
+			sim.state.employees.append(sim.employees.make_employee(EmployeeManager.OPERATOR, s.id))
+			if i % 3 == 0:
+				sim.state.employees.append(sim.employees.make_employee(EmployeeManager.WAREHOUSE, s.id))
+		refund += maxi(0, loc(s.id).line_cost - d.price) * lines
+	if refund > 0:
+		sim.economy.book("machine_sale", refund, "Đổi dây chuyền cũ sang máy")
 
 
 ## Profit bonus (percent) for a site, before its market factor.
@@ -429,9 +510,10 @@ func profit_bonus_percent(s: Dictionary) -> int:
 	return bonus
 
 
-## Daily earnings of a site's lines; nothing without a head.
+## Daily earnings of a branch's lines; nothing without a head. Factories
+## next door earn by selling what their machines make, like the first one.
 func daily_income(s: Dictionary) -> int:
-	if s.status != READY or s.head == "":
+	if s.status != READY or s.head == "" or is_factory(s.id):
 		return 0
 	var l := loc(s.id)
 	return int(s.lines) * l.line_profit_per_day * (100 + profit_bonus_percent(s)) / 100 * int(s.market) / 100
