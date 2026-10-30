@@ -1,7 +1,7 @@
 # Factory Tycoon 3D (Quản Lý Nhà Máy)
 
 Game 3D Idle Tycoon về quản lý nhà máy, viết bằng **Godot 4.7.2 + GDScript**.
-Đây là **bản 0.6**, chơi được trên Windows, Android, iOS và trình duyệt: một xưởng nhựa làm hộp, bình nước và kệ lưu trữ với 5 loại
+Đây là **bản 0.7**, chơi được trên Windows, Android, iOS và trình duyệt: một xưởng nhựa làm hộp, bình nước và kệ lưu trữ với 5 loại
 máy, nâng cấp và sửa máy, kỹ thuật viên, 5 công trình mở rộng, chu kỳ ngày đêm,
 ca làm và tăng ca, tâm trạng và đình công, mở rộng thành tập đoàn đa quốc gia
 và khu phố xung quanh. Xem thay đổi trong `docs/changelog.md`.

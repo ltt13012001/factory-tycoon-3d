@@ -18,29 +18,29 @@ const DOCK_MAX := Vector2(21, 13)
 const OFFICE_MIN := Vector2(-18, 6)
 const OFFICE_MAX := Vector2(-9, 13)
 
-## Outdoor rest area west of the office (always there), the gate where
-## staff leave after the shift, and the hall aisle where strikers sit in.
+## Outdoor rest area west of the office (always there), the gate staff
+## walk through to and from the street, and the hall aisle where strikers
+## sit in.
 const REST_MIN := Vector2(-23.6, 4.6)
 const REST_MAX := Vector2(-18.6, 13.4)
-const REST_GATE := Vector3(-18.6, 0, 3.9)
 const STAFF_GATE := Vector3(1, 0, 15.6)
 const PICKET_ORIGIN := Vector3(-15.5, 0, 4.3)
 const SEAT_HEIGHT := 0.48
 
-## Doorways the workers walk through.
-const DOOR_HALL_WAREHOUSE := Vector3(6, 0, -4)
-const DOOR_WAREHOUSE_YARD := Vector3(15, 0, 4)
-const DOOR_HALL_YARD := Vector3(-6, 0, 5)
-const DOOR_HALL_WEST := Vector3(-18, 0, 0)
-
-## Which zones open into which, and through which doorway.
-const LINKS := {
-	"hall": {"warehouse": DOOR_HALL_WAREHOUSE, "yard": DOOR_HALL_YARD, "side": DOOR_HALL_WEST},
-	"warehouse": {"hall": DOOR_HALL_WAREHOUSE, "yard": DOOR_WAREHOUSE_YARD},
-	"yard": {"hall": DOOR_HALL_YARD, "warehouse": DOOR_WAREHOUSE_YARD},
-	"side": {"hall": DOOR_HALL_WEST, "rest": REST_GATE},
-	"rest": {"side": REST_GATE},
-}
+## Painted walkways across the yard: from the staff gate between the parked
+## cars, up past the office to the hall door, and along the alley between
+## the hall and the office to the rest area. [min corner, max corner].
+const WALKWAYS := [
+	[Vector2(1.4, 10.9), Vector2(2.6, 14.2)],
+	[Vector2(-7.6, 10.9), Vector2(2.6, 11.7)],
+	[Vector2(-7.6, 5.0), Vector2(-6.4, 11.7)],
+	[Vector2(-18.6, 5.15), Vector2(-6.4, 5.85)],
+]
+## Trees on the pavement outside the fence (x, at z = 15).
+const STREET_TREES := [-21.0, -16.5, -9.0, 7.0, 22.0, 33.0]
+## Where staff go home to after the shift and come from in the morning:
+## the bus stop across the road, or along the pavement out of sight.
+const HOMES := [Vector3(-35.2, 0, 22.7), Vector3(36.5, 0, 15.6), Vector3(-40.5, 0, 15.6)]
 
 const RAW_DROP := Vector3(11, 0, -7)
 const FINISHED_DROP := Vector3(11, 0, 0)
@@ -50,7 +50,6 @@ const OPERATOR_IDLE := Vector3(-17.2, 0, 4)
 const OWNER_DESK := Vector3(-13.5, 0, 9.5)
 const SCRAP_BIN := Vector3(4.2, 0, 3.6)
 const TECH_IDLE := Vector3(-17.2, 0, -11)
-const BREAK_IDLE := Vector3(-22.6, 0, -2.2)
 const PARKING_MIN := Vector2(-6, 7.5)
 const PARKING_MAX := Vector2(8, 13)
 const SALES_OFFICE_MIN := Vector2(-23.5, -13)
@@ -87,44 +86,9 @@ static func pallet_spot(slot: int) -> Vector3:
 	return slot_position(slot) + Vector3(1.9, 0, 0)
 
 
-static func zone(p: Vector3) -> String:
-	if p.x < HALL_MIN.x - 0.2:
-		return "rest" if p.z > REST_GATE.z - 0.2 else "side"
-	if p.z > HALL_MAX.y + 0.5:
-		return "yard"
-	return "hall" if p.x < HALL_MAX.x else "warehouse"
-
-
-## Waypoints from a to b through doorways (a excluded, b included).
+## Waypoints from a to b along walkable ground (a excluded, b included).
 static func route(a: Vector3, b: Vector3) -> PackedVector3Array:
-	var pts := PackedVector3Array()
-	for door in _doors_between(zone(a), zone(b)):
-		pts.append(door)
-	pts.append(b)
-	return pts
-
-
-## Breadth-first search over LINKS; returns the doorways in walking order.
-static func _doors_between(za: String, zb: String) -> Array:
-	if za == zb:
-		return []
-	var prev := {za: ""}
-	var queue := [za]
-	while not queue.is_empty():
-		var z: String = queue.pop_front()
-		if z == zb:
-			break
-		for n in LINKS[z]:
-			if not prev.has(n):
-				prev[n] = z
-				queue.append(n)
-	var doors := []
-	var cur := zb
-	while prev.get(cur, "") != "":
-		var from: String = prev[cur]
-		doors.push_front(LINKS[from][cur])
-		cur = from
-	return doors
+	return WalkGrid.route(a, b)
 
 
 static func path_length(start: Vector3, pts: PackedVector3Array) -> float:

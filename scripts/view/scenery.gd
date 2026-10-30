@@ -1,8 +1,10 @@
-## Everything outside the factory fence: pavements, street lamps, a power
-## line, the silos and plant behind the hall, the neighbourhood across the
-## road, a pond, a farm with fields, hills, wind turbines, woods, grass,
-## drifting clouds and traffic. Purely decorative; lamp materials and lights
-## are handed to the day/night cycle.
+## Everything outside the factory fence, set in a Vietnamese industrial
+## suburb: pavements with street trees, street lamps, concrete power poles,
+## the silos and plant behind the hall, a row of narrow tube houses with
+## shops across the road, a pond with coconut palms, rice paddies with a
+## farmhouse, haystacks and bamboo, hills, wind turbines, woods, grass,
+## drifting clouds, and cars and motorbikes keeping to their lanes. Purely
+## decorative; lamp materials and lights are handed to the day/night cycle.
 ##
 ## Static pieces are merged into three meshes (see MeshBatch): props that
 ## cast shadows, ground-level detail and far scenery that do not.
@@ -13,15 +15,27 @@ const TRUNK := Color("6b4a2e")
 const LEAVES := [Color("4f8a3c"), Color("3f7a34"), Color("5f9c44"), Color("6b8e23"), Color("45803a")]
 const PINE := [Color("2f5d33"), Color("35683a"), Color("2a5330")]
 const CAR_COLORS := [Color("c62828"), Color("f9a825"), Color("eceff1"), Color("1565c0"), Color("2e7d32"), Color("212121"), Color("78909c")]
-const HOUSE_WALLS := [Color("f3e0cf"), Color("f5ecc8"), Color("d9e6d0"), Color("d6e2ee"), Color("efd6dc")]
-const HOUSE_ROOFS := [Color("a63c2c"), Color("7d4a2e"), Color("9a3d48"), Color("5d4037"), Color("8f4434")]
+const HOUSE_WALLS := [Color("f4e3a1"), Color("cfe8d8"), Color("cfe0f0"), Color("f3d0cc"), Color("f6ead2"), Color("e3d6ef"), Color("ffd9b0"), Color("e4e4dc")]
+const SIGN_COLORS := [Color("c62828"), Color("1565c0"), Color("f9a825"), Color("2e7d32"), Color("6a1b9a"), Color("ef6c00")]
+const AWNINGS := [Color("1e88e5"), Color("43a047"), Color("e53935"), Color("fb8c00")]
+const SHIRTS := [Color("eceff1"), Color("1565c0"), Color("c62828"), Color("2e7d32"), Color("f9a825"), Color("6d4c41"), Color("90a4ae")]
+## Traffic lanes (right-hand traffic): eastbound cars, eastbound motorbikes
+## by the kerb, westbound motorbikes, and the lane they swerve into to pass a
+## truck stopped at the factory gate. Every vehicle in a lane keeps the same
+## speed so nothing drives through anything.
+const LANE_CARS := 20.4
+const LANE_BIKES_EAST := 21.6
+const LANE_BIKES_WEST := 16.6
+const LANE_PASSING := 19.3
+## Trees on the far pavement (x, at z = ROAD_Z + 4).
+const FAR_STREET_TREES := [-46.0, -14.0, 0.0, 14.0, 28.0, 42.0, 56.0]
 
 ## Emissive lamp heads and OmniLights the day/night cycle switches on at dusk.
 var lamp_material: StandardMaterial3D
 var window_material: StandardMaterial3D
 var night_lights: Array[OmniLight3D] = []
 
-var _cars: Array[Node3D] = []
+var _cars: Array[Node3D] = []  # cars and motorbikes
 var _clouds: Array[Node3D] = []
 var _rotors: Array[Node3D] = []
 var _flag: Node3D
@@ -79,12 +93,25 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	_time += delta
 	var speed := maxf(1.0, TimeManager.speed) if TimeManager.speed > 0 else 0.4
+	var trucks := get_tree().get_nodes_in_group("road_trucks")
 	for car in _cars:
 		var v: float = car.get_meta("speed")
-		car.position.x += v * delta * speed
-		if car.position.x > 120.0:
-			car.position.x = -120.0 - _rng.randf_range(0, 30)
+		car.position.x = wrapf(car.position.x + v * delta * speed, -120.0, 120.0)
+		if v < 0.0:
+			# Westbound bikes share the gate lane with the trucks: pull out
+			# around a truck ahead, then back in.
+			var lane := LANE_BIKES_WEST
+			for t in trucks:
+				var dx: float = car.position.x - t.position.x
+				if absf(t.position.z - LANE_BIKES_WEST) < 2.0 and dx > -5.0 and dx < 12.0:
+					lane = LANE_PASSING
+			car.position.z = move_toward(car.position.z, lane, delta * speed * 1.6)
+	# Clouds float between the camera and the ground: hide them when zoomed
+	# in close, where one would cover the whole view.
+	var cam := get_viewport().get_camera_3d()
+	var clouds_on := cam == null or cam.size > 34.0
 	for c in _clouds:
+		c.visible = clouds_on
 		c.position.x += delta * 1.2
 		if c.position.x > 130.0:
 			c.position.x = -130.0
@@ -103,7 +130,7 @@ func _free_spot(p: Vector3, margin := 0.0) -> bool:
 		return false  # plots for more factories
 	if absf(p.z - FactoryLayout.ROAD_Z) < 6.5 + margin:
 		return false  # road and pavements
-	if p.z > 22 and p.z < 46 and p.x > -38 and p.x < 58:
+	if p.z > 22 and p.z < 42 and p.x > -38 and p.x < 66:
 		return false  # neighbourhood
 	if Vector2(p.x + 42, (p.z + 4) * 1.5).length() < 12 + margin:
 		return false  # pond
@@ -131,6 +158,10 @@ func _build_pavements_and_lamps() -> void:
 	for k in 7:
 		_flat.box(Vector3(0.5, 0.012, 4.6), Vector3(-30.0 + k * 0.9, 0.064, z), Color("f2f2ee"))
 	_bus_stop(Vector3(-36, 0, z + 4.2))
+	for x in FactoryLayout.STREET_TREES:
+		_street_tree(Vector3(x, 0, z - 4.0), posmod(int(x), 3))
+	for x in FAR_STREET_TREES:
+		_street_tree(Vector3(x, 0, z + 4.0), posmod(int(x / 14.0), 3))
 	for x in range(-84, 85, 14):
 		if absf(x - 16) < 4:
 			continue
@@ -148,6 +179,28 @@ func _lamp(pos: Vector3, yaw: float) -> void:
 	_b.box(Vector3(0.36, 0.12, 0.65), Vector3(0, 4.58, 1.15), Color("3a3f44"), _steel)
 	_b.box(Vector3(0.3, 0.04, 0.55), Vector3(0, 4.5, 1.15), Color("fff3c4"), lamp_material)
 	_b.origin = keep
+
+
+## A pavement tree in a square grate: shade trees, purple crape myrtle
+## (bằng lăng) and red flame trees (phượng).
+func _street_tree(p: Vector3, kind: int) -> void:
+	var curb := Color("9a978f")
+	_flat.box(Vector3(1.1, 0.03, 1.1), p + Vector3(0, 0.1, 0), Color("4e3424"), _ground)
+	for k in 4:
+		var a := k * PI / 2.0
+		_flat.box(Vector3(1.2, 0.14, 0.1), p + Vector3(cos(a) * 0.55, 0.07, sin(a) * 0.55), curb, _paving, Vector3(0, a + PI / 2.0, 0))
+	var h := 3.4
+	_b.cylinder(0.17, h, p + Vector3(0, h / 2.0, 0), TRUNK.darkened(0.1), null, 0.12, Vector3.ZERO, 7)
+	_b.bar(p + Vector3(0, h * 0.75, 0), p + Vector3(0.9, h + 0.4, 0.3), 0.1, TRUNK)
+	_b.bar(p + Vector3(0, h * 0.7, 0), p + Vector3(-0.8, h + 0.3, -0.4), 0.1, TRUNK)
+	var leaf: Color = [Color("4c8a3a"), Color("9a6fc4"), Color("e0502a")][kind]
+	var under := Color("3f7a34")
+	var clumps := [[Vector3(0, 0.6, 0), 1.5], [Vector3(1.0, 0.4, 0.4), 1.05], [Vector3(-0.9, 0.35, -0.4), 1.05], [Vector3(0.2, 1.1, -0.3), 1.0], [Vector3(-0.3, 0.3, 0.9), 0.9]]
+	for k in clumps.size():
+		var c: Array = clumps[k]
+		# Flowering trees show green leaves under the blossom.
+		var col := under if kind > 0 and k == 0 else leaf.lightened(0.05 * (k % 2))
+		_b.sphere(c[1], p + Vector3(0, h, 0) + c[0], col, null, Vector3(1.15, 0.6, 1.15), _leaf_segments, _leaf_segments - 4)
 
 
 func _bus_stop(p: Vector3) -> void:
@@ -168,17 +221,24 @@ func _build_power_line() -> void:
 	for i in range(-5, 6):
 		var x := i * 22.0 + 3.0
 		var p := Vector3(x, 0, z)
-		_b.cylinder(0.15, 9.0, p + Vector3(0, 4.5, 0), Color("6d5442"), null, 0.11, Vector3.ZERO, 8)
-		_b.box(Vector3(2.6, 0.14, 0.14), p + Vector3(0, 8.4, 0), Color("5d4037"))
+		_b.box(Vector3(0.3, 9.0, 0.3), p + Vector3(0, 4.5, 0), Color("a8a49c"), _paving)  # concrete pole
+		_b.box(Vector3(2.6, 0.14, 0.14), p + Vector3(0, 8.4, 0), Color("6d747a"), _steel)
+		_b.box(Vector3(1.6, 0.1, 0.1), p + Vector3(0, 7.2, 0), Color("6d747a"), _steel)
+		# Telecom cables bundled lower down, the way they hang in town
+		for k in 2:
+			_b.box(Vector3(0.22, 0.35, 0.16), p + Vector3(0.0, 5.6 + k * 0.5, -0.24), Color("37474f"), _paint)
 		var tops := []
 		for k in 3:
 			var t := p + Vector3(-1.1 + k * 1.1, 8.55, 0)
 			_b.cylinder(0.05, 0.18, t, Color("8fb3c4"), _paint, 0.035, Vector3.ZERO, 6)
 			tops.append(t + Vector3(0, 0.1, 0))
+		var low := [p + Vector3(-0.7, 7.25, 0), p + Vector3(0.7, 7.25, 0), p + Vector3(0, 5.9, -0.2), p + Vector3(0.1, 5.75, -0.2)]
 		if not prev.is_empty():
 			for k in 3:
 				_wire(prev[k], tops[k], 0.6)
-		prev = tops
+			for k in low.size():
+				_wire(prev[3 + k], low[k], 0.9 + k * 0.25)
+		prev = tops + low
 	# Transformer on one pole
 	_b.cylinder(0.35, 0.9, Vector3(3.0 + 22.0, 6.6, z + 0.45), Color("8d969d"), _steel)
 
@@ -268,9 +328,19 @@ func _build_plant_yard() -> void:
 func _build_neighbourhood() -> void:
 	var z0 := FactoryLayout.ROAD_Z + 6.0
 	_build_neighbour_factory(Vector3(-22, 0, z0 + 9))
-	for i in 5:
-		_house(Vector3(4 + i * 9.0, 0, z0 + 5 + (i % 2) * 2.0), i)
-	_build_shop(Vector3(50, 0, z0 + 5))
+	# A street front of narrow tube houses (nhà ống), shops below and
+	# homes above, with an alley halfway along. One or two storeys, so they
+	# never hide the factory from the usual camera angle.
+	var x := -8.0
+	var count := 12 if Palette.low_end() else 16
+	for i in count:
+		var w: float = [4.2, 4.6, 5.0, 4.0, 3.8, 4.4][i % 6]
+		_tube_house(Vector3(x + w / 2.0, 0, z0), w, [2, 1, 2, 2, 1, 2, 2, 1][i % 8], i)
+		x += w
+		if i == 6:
+			_flat.box(Vector3(2.4, 0.04, 12.0), Vector3(x + 1.2, 0.02, z0 + 6.0), Color("9a978f"), _paving)
+			x += 2.4
+	Palette.label3d(self, "Tạp hoá", Vector3(-8.0 + 4.2 + 4.6 + 2.5, 4.4, z0 - 0.5), 30)
 
 
 func _build_neighbour_factory(o: Vector3) -> void:
@@ -332,65 +402,126 @@ func _build_neighbour_factory(o: Vector3) -> void:
 	Palette.label3d(self, "Xưởng cơ khí bên cạnh", o + Vector3(0, 8.5, 0), 30, Color("eceff1"))
 
 
-## A house with a pitched roof, chimney, windows, porch, picket fence,
-## a front path and a garden tree.
-func _house(p: Vector3, i: int) -> void:
-	var wall: Color = HOUSE_WALLS[i % HOUSE_WALLS.size()]
-	var roof: Color = HOUSE_ROOFS[i % HOUSE_ROOFS.size()]
-	var front := p.z - 2.5
-	_b.box(Vector3(6.2, 0.4, 5.2), p + Vector3(0, 0.2, 0), Color("9a9893"), _paving)
-	_b.box(Vector3(6, 3.0, 5), p + Vector3(0, 1.9, 0), wall)
-	_b.box(Vector3(6.05, 0.15, 5.05), p + Vector3(0, 3.38, 0), wall.darkened(0.15))
-	_b.prism(Vector3(6.8, 2.0, 5.8), p + Vector3(0, 4.45, 0), roof)
-	_b.box(Vector3(0.7, 1.6, 0.7), p + Vector3(1.8, 4.9, 1.0), Color("8d6e63"))
-	_b.box(Vector3(0.8, 0.1, 0.8), p + Vector3(1.8, 5.73, 1.0), Color("5d4037"))
-	# Door with a porch roof, windows with frames and shutters
-	_b.box(Vector3(1.0, 1.9, 0.08), Vector3(p.x, 1.35, front - 0.02), Color("6d4c41"))
-	_b.box(Vector3(0.08, 0.08, 0.06), Vector3(p.x + 0.35, 1.3, front - 0.08), Color("d4af37"), _steel)
-	_b.box(Vector3(1.8, 0.1, 1.0), Vector3(p.x, 2.45, front - 0.5), roof.darkened(0.1), null, Vector3(-0.2, 0, 0))
-	for x in [-0.8, 0.8]:
-		_b.box(Vector3(0.1, 2.0, 0.1), Vector3(p.x + x, 1.4, front - 0.9), Color("eceff1"))
-	for x in [-1.9, 1.9]:
-		var c := Vector3(p.x + x, 1.95, front - 0.03)
-		_b.box(Vector3(1.24, 1.04, 0.06), c, Color("f5f5f5"))
-		_b.box(Vector3(1.1, 0.9, 0.07), c - Vector3(0, 0, 0.01), Color("8fb6d6"), window_material)
-		_b.box(Vector3(1.1, 0.05, 0.08), c - Vector3(0, 0, 0.015), Color("f5f5f5"))
-		for s in [-1, 1]:
-			_b.box(Vector3(0.35, 1.0, 0.05), c + Vector3(s * 0.82, 0, 0), roof.darkened(0.2))
-		_b.box(Vector3(1.0, 0.25, 0.3), c + Vector3(0, -0.65, -0.15), Color("6d4c41"))
-		for k in 3:
-			_b.sphere(0.12, c + Vector3(-0.3 + k * 0.3, -0.45, -0.15), [Color("ec407a"), Color("ffee58"), Color("ff7043")][k], null, Vector3.ONE, 6, 4)
-	# Front path, picket fence with a gate gap, hedge and a garden tree
-	var fz := p.z - 6.2 if i % 2 == 0 else p.z - 8.2
-	_flat.box(Vector3(1.0, 0.03, front - fz), Vector3(p.x, 0.015, (front + fz) / 2.0), Color("b9b0a2"), _paving)
-	for side in [-1, 1]:
-		var x0: float = p.x + side * 0.7
-		var x1: float = p.x + side * 3.9
-		_b.box(Vector3(absf(x1 - x0), 0.06, 0.04), Vector3((x0 + x1) / 2.0, 0.65, fz), Color("f5f5f5"))
-		_b.box(Vector3(absf(x1 - x0), 0.06, 0.04), Vector3((x0 + x1) / 2.0, 0.35, fz), Color("f5f5f5"))
-		for k in 9:
-			_b.box(Vector3(0.08, 0.85, 0.03), Vector3(x0 + (x1 - x0) * k / 8.0, 0.43, fz + 0.03), Color("f5f5f5"))
-	_b.box(Vector3(0.3, 1.0, 0.3), Vector3(p.x + 3.4, 0.5, fz + 0.4), Color("37474f"), _paint)
-	_b.box(Vector3(0.4, 0.3, 0.5), Vector3(p.x + 3.4, 1.1, fz + 0.4), Color("c62828"), _paint)
-	_tree(Vector3(p.x - 4.3, 0, p.z - 0.5), 0.75, false)
-	for k in 4:
-		_b.sphere(0.5, Vector3(p.x + 3.2, 0.4, p.z - 3.4 + k * 0.9), Color("3f6e2e"), null, Vector3(1, 0.8, 1), 8, 5)
+## A glazed window or door in a frame.
+func _house_front_glass(c: Vector3, size: Vector2, frame: Color) -> void:
+	_b.box(Vector3(size.x + 0.12, size.y + 0.12, 0.05), c + Vector3(0, 0, 0.01), frame)
+	_b.box(Vector3(size.x, size.y, 0.06), c, Color("8fb6d6"), window_material)
 
 
-func _build_shop(o: Vector3) -> void:
-	_b.box(Vector3(7.2, 0.3, 6.2), o + Vector3(0, 0.15, 0), Color("9a9893"), _paving)
-	_b.box(Vector3(7, 3.4, 6), o + Vector3(0, 2.0, 0), Color("eceff1"))
-	_b.box(Vector3(7.2, 0.5, 6.2), o + Vector3(0, 3.95, 0), Color("c62828"), _paint)
-	for i in 7:
-		var c := Color("c62828") if i % 2 == 0 else Color.WHITE
-		_b.box(Vector3(1.0, 0.06, 1.6), o + Vector3(-3.0 + i * 1.0, 3.0, -3.65), c, _paint, Vector3(0.35, 0, 0))
-	_b.box(Vector3(5.2, 1.8, 0.06), o + Vector3(-0.5, 1.6, -3.02), Color("3a3f44"), _steel)
-	_b.box(Vector3(5.0, 1.6, 0.07), o + Vector3(-0.5, 1.6, -3.03), Color("8fb6d6"), window_material)
-	_b.box(Vector3(1.1, 2.2, 0.08), o + Vector3(2.7, 1.4, -3.03), Color("455a64"), _steel)
-	_b.box(Vector3(0.6, 0.9, 0.5), o + Vector3(3.8, 0.6, -3.4), Color("1565c0"), _paint)
-	for k in 3:
-		_b.box(Vector3(0.6, 0.12, 0.5), o + Vector3(-3.0 + k * 1.3, 0.4, -4.4), Color("8d6e63"))
-	Palette.label3d(self, "Tạp hoá", o + Vector3(0, 4.6, -3), 30)
+## A tube house: narrow and deep, its ground floor an open shop (or a home
+## behind a folding gate) under an awning and a signboard, balconies with
+## railings and plants above, bare grey side walls, and a roof terrace
+## with a stainless water tank and a small tiled roof, a tin roof or a
+## washing line. The camera mostly sees the back: windows, air
+## conditioners and a back door.
+func _tube_house(p: Vector3, w: float, floors: int, i: int) -> void:
+	var wall: Color = HOUSE_WALLS[(i * 3) % HOUSE_WALLS.size()]
+	var trim := wall.darkened(0.14)
+	var d := 9.0 + (i % 3)
+	var h0 := 3.6
+	var hf := 3.1
+	var top := h0 + (floors - 1) * hf
+	var zf := p.z
+	var zb := zf + d
+	var cx := p.x
+	# Tiled forecourt where motorbikes park, and the house body
+	_flat.box(Vector3(w, 0.06, 1.4), Vector3(cx, 0.03, zf - 0.7), Color("c9a98a") if i % 2 == 0 else Color("b8ad9e"), _paving)
+	_b.box(Vector3(w - 0.06, top, d), Vector3(cx, top / 2.0, zf + d / 2.0), wall)
+	for sx in [-1.0, 1.0]:
+		_b.box(Vector3(0.03, top - 0.05, d - 0.1), Vector3(cx + sx * (w / 2.0 - 0.02), top / 2.0, zf + d / 2.0), Color("bdb7ab"))
+	# Ground floor: a shop, a café or a home behind a folding gate
+	var kind := i % 4
+	_b.box(Vector3(w - 0.6, 2.7, 0.06), Vector3(cx, 1.35, zf - 0.02), Color("3b332d"))
+	match kind:
+		0:
+			for r in 3:
+				for k in int(w / 0.5):
+					_b.box(Vector3(0.38, 0.32, 0.2), Vector3(cx - w / 2.0 + 0.55 + k * 0.5, 0.45 + r * 0.7, zf + 0.05), SIGN_COLORS[(k + r + i) % SIGN_COLORS.size()].lightened(0.25))
+		1:
+			for k in 2:
+				var t := Vector3(cx - 0.8 + k * 1.6, 0, zf - 1.0)
+				_b.cylinder(0.35, 0.04, t + Vector3(0, 0.45, 0), Color("eceff1"), _paint, -1.0, Vector3.ZERO, 10)
+				_b.cylinder(0.04, 0.44, t + Vector3(0, 0.22, 0), Color("6d747a"), _steel, -1.0, Vector3.ZERO, 6)
+				for sx in [-1.0, 1.0]:
+					_b.box(Vector3(0.3, 0.25, 0.3), t + Vector3(sx * 0.55, 0.13, 0), Color("1e88e5") if k == 0 else Color("e53935"), _paint)
+		2:
+			for k in int((w - 0.6) / 0.22):
+				_b.box(Vector3(0.04, 2.5, 0.05), Vector3(cx - w / 2.0 + 0.4 + k * 0.22, 1.3, zf - 0.08), Color("4f7f88"), _steel)
+		3:
+			_b.cylinder(0.32, 0.12, Vector3(cx + w / 2.0 - 0.7, 0.35, zf - 0.7), Color("1d2125"), Palette.surface("rubber"), -1.0, Vector3(PI / 2, 0, 0), 12)
+			_b.box(Vector3(0.6, 0.5, 0.4), Vector3(cx - w / 2.0 + 0.8, 0.25, zf - 0.5), Color("c62828"), _paint)
+	_b.box(Vector3(w - 0.4, 0.28, 0.32), Vector3(cx, 2.86, zf - 0.12), Color("8d969d"), _steel)  # rolled-up shutter
+	_b.box(Vector3(w - 0.15, 0.05, 1.5), Vector3(cx, 2.72, zf - 0.75), AWNINGS[i % AWNINGS.size()], _paint, Vector3(-0.22, 0, 0))
+	_b.box(Vector3(w - 0.3, 0.8, 0.08), Vector3(cx, 3.3, zf - 0.08), SIGN_COLORS[i % SIGN_COLORS.size()], _paint)
+	_b.box(Vector3(w - 1.0, 0.14, 0.09), Vector3(cx, 3.36, zf - 0.09), Color("fff8e1"), _paint)
+	_b.box(Vector3(w - 1.8, 0.1, 0.09), Vector3(cx, 3.12, zf - 0.09), Color("fff8e1"), _paint)
+	# A parked motorbike on most forecourts
+	if i % 3 != 2:
+		_parked_bike(Vector3(cx + (0.6 if i % 2 == 0 else -0.6), 0, zf - 0.8), SIGN_COLORS[(i + 2) % SIGN_COLORS.size()])
+	# Upper floors: balcony with railing, French door, window; at the back
+	# windows, an air conditioner and drain pipe
+	for f in range(1, floors):
+		var y := h0 + (f - 1) * hf
+		_b.box(Vector3(w, 0.2, 0.3), Vector3(cx, y, zf - 0.12), trim)
+		_b.box(Vector3(w - 0.3, 0.12, 0.9), Vector3(cx, y + 0.06, zf - 0.45), Color("d8d3c8"))
+		_b.box(Vector3(w - 0.3, 0.06, 0.08), Vector3(cx, y + 1.05, zf - 0.88), Color("37474f"), _steel)
+		_flat.box(Vector3(w - 0.32, 0.95, 0.02), Vector3(cx, y + 0.6, zf - 0.88), Color(0.2, 0.25, 0.28, 0.55), Palette.surface("mesh"))
+		_house_front_glass(Vector3(cx - w * 0.18, y + 1.25, zf - 0.03), Vector2(1.2, 2.2), Color("6d4c41"))
+		_house_front_glass(Vector3(cx + w * 0.27, y + 1.55, zf - 0.03), Vector2(0.9, 1.1), Color("eceff1"))
+		if (i + f) % 2 == 0:
+			_b.cylinder(0.14, 0.25, Vector3(cx + w * 0.3, y + 0.25, zf - 0.6), Color("b07a54"), null, 0.18, Vector3.ZERO, 8)
+			_b.sphere(0.3, Vector3(cx + w * 0.3, y + 0.55, zf - 0.6), Color("4f8a3c"), null, Vector3(1, 1.2, 1), 7, 4)
+		_b.box(Vector3(w, 0.14, 0.1), Vector3(cx, y, zb + 0.05), trim)
+		_house_front_glass(Vector3(cx - w * 0.12, y + 1.5, zb + 0.03), Vector2(1.0, 1.1), Color("eceff1"))
+		if (i + f) % 3 == 0:
+			_b.box(Vector3(0.8, 0.55, 0.3), Vector3(cx + w * 0.28, y + 0.7, zb + 0.16), Color("eceff1"), _paint)
+			_b.box(Vector3(0.5, 0.5, 0.02), Vector3(cx + w * 0.28, y + 0.7, zb + 0.32), Color("90a4ae"), _steel)
+	_house_front_glass(Vector3(cx + w * 0.2, 1.6, zb + 0.03), Vector2(0.9, 1.0), Color("eceff1"))
+	_b.box(Vector3(0.9, 2.1, 0.06), Vector3(cx - w * 0.2, 1.05, zb + 0.03), Color("6d4c41"))
+	_b.cylinder(0.05, top, Vector3(cx + w / 2.0 - 0.2, top / 2.0, zb + 0.08), Color("eceff1"), _paint, -1.0, Vector3.ZERO, 6)
+	# Roof terrace: parapet, water tank on a stand, and one of three tops
+	var paint := _paint
+	_b.box(Vector3(w, 0.9, 0.16), Vector3(cx, top + 0.45, zf + 0.08), trim)
+	_b.box(Vector3(w, 0.9, 0.16), Vector3(cx, top + 0.45, zb - 0.08), trim)
+	for sx in [-1.0, 1.0]:
+		_b.box(Vector3(0.16, 0.9, d), Vector3(cx + sx * (w / 2.0 - 0.08), top + 0.45, zf + d / 2.0), trim)
+	_flat.box(Vector3(w - 0.3, 0.04, d - 0.3), Vector3(cx, top + 0.02, zf + d / 2.0), Color("9e9a92"), _paving)
+	var tank := Vector3(cx + w * 0.18, top, zb - 1.4)
+	_b.box(Vector3(1.0, 0.5, 0.8), tank + Vector3(0, 0.25, 0), Color("6d747a"), _steel)
+	_b.cylinder(0.48, 1.3, tank + Vector3(0, 0.98, 0), Color("dfe4e8"), _steel, -1.0, Vector3(0, 0, PI / 2), 14)
+	match i % 3:
+		0:
+			# Small tiled roof over the front (mái thái)
+			_b.prism(Vector3(3.6, 1.2, w - 0.1), Vector3(cx, top + 0.95 + 0.6, zf + 2.0), Color("b5452f"), null, 0.5, Vector3(0, PI / 2, 0))
+			_b.box(Vector3(w - 0.2, 0.2, 3.4), Vector3(cx, top + 0.95, zf + 2.0), trim)
+		1:
+			# Tin roof over the back half
+			_b.box(Vector3(w - 0.1, 0.06, d * 0.45), Vector3(cx, top + 2.0, zf + d * 0.62), Color("5c8fb8") if i % 2 == 0 else Color("8a9aa5"), _steel, Vector3(-0.12, 0, 0))
+			for sx in [-1.0, 1.0]:
+				_b.box(Vector3(0.08, 1.9, 0.08), Vector3(cx + sx * (w / 2.0 - 0.3), top + 1.0, zf + d * 0.42), Color("6d747a"), _steel)
+		2:
+			# Washing on a line and potted plants
+			_b.bar(Vector3(cx - w / 2.0 + 0.3, top + 1.5, zf + 3.0), Vector3(cx + w / 2.0 - 0.3, top + 1.5, zf + 3.0), 0.02, Color("37474f"))
+			for k in 4:
+				_b.box(Vector3(0.45, 0.6, 0.03), Vector3(cx - w / 2.0 + 0.8 + k * (w - 1.4) / 3.0, top + 1.2, zf + 3.0), SHIRTS[(k + i) % SHIRTS.size()])
+			for k in 3:
+				_b.cylinder(0.2, 0.35, Vector3(cx - w / 2.0 + 0.5 + k * 0.6, top + 0.18, zf + 0.6), Color("b07a54"), null, 0.25, Vector3.ZERO, 8)
+				_b.sphere(0.32, Vector3(cx - w / 2.0 + 0.5 + k * 0.6, top + 0.6, zf + 0.6), Color("4f8a3c").lightened(k * 0.05), null, Vector3(1, 1.1, 1), 7, 4)
+	if i % 4 == 1:
+		# Solar water heater
+		_b.box(Vector3(1.6, 0.06, 1.2), Vector3(cx - w * 0.15, top + 0.7, zb - 1.6), Color("1d2a3a"), paint, Vector3(0.6, 0, 0))
+		_b.cylinder(0.2, 1.6, Vector3(cx - w * 0.15, top + 1.15, zb - 2.0), Color("dfe4e8"), _steel, -1.0, Vector3(0, 0, PI / 2), 10)
+
+
+## A scooter on its stand, facing the road.
+func _parked_bike(p: Vector3, color: Color) -> void:
+	var rubber := Palette.surface("rubber")
+	for z in [-0.55, 0.55]:
+		_b.cylinder(0.27, 0.1, p + Vector3(0, 0.27, z), Color("17181a"), rubber, -1.0, Vector3(0, 0, PI / 2), 10)
+	_b.box(Vector3(0.32, 0.35, 0.95), p + Vector3(0, 0.5, 0), color, _paint)
+	_b.box(Vector3(0.3, 0.1, 0.6), p + Vector3(0, 0.72, 0.15), Color("1d2125"))
+	_b.box(Vector3(0.26, 0.55, 0.16), p + Vector3(0, 0.75, -0.48), color, _paint, Vector3(0.3, 0, 0))
+	_b.bar(p + Vector3(-0.3, 1.05, -0.5), p + Vector3(0.3, 1.05, -0.5), 0.04, Color("3a3f44"), _steel)
 
 
 # --- Nature ------------------------------------------------------------------------
@@ -431,6 +562,12 @@ func _build_pond() -> void:
 	for x in [5.4, 6.6]:
 		for z in [1.8, 3.5, 5.2]:
 			_b.cylinder(0.07, 0.8, c + Vector3(x, 0.1, z), Color("6d4c41"), null, -1.0, Vector3.ZERO, 6)
+	# Coconut palms and banana plants on the shore
+	for k in 4:
+		var a := 0.6 + k * 1.3
+		_palm(c + Vector3(cos(a) * 11.5, 0, sin(a) * 8.0), k)
+	for k in 3:
+		_banana(c + Vector3(-11.5 + k * 1.4, 0, 5.5 + (k % 2) * 1.2))
 	# Ducks
 	for i in 3:
 		var d := Vector3(c.x - 3 + i * 1.4, 0.2, c.z + 1 - i * 0.6)
@@ -439,38 +576,109 @@ func _build_pond() -> void:
 		_b.box(Vector3(0.12, 0.04, 0.06), d + Vector3(0.4, 0.18, 0), Color("f9a825"))
 
 
-## Fields with crop rows, a barn, a silo, hay bales, a tractor and a fence.
+## Rice paddies: flooded young rice in rows and ripe golden rice, earth
+## dikes between the fields, a farmhouse with a tiled roof, haystacks, a
+## tractor, and clumps of bamboo along the edge.
 func _build_farm() -> void:
-	var soil := Color("7a5a3c")
-	var colors := [Color("9ccc65"), Color("c0ca33"), Color("8bc34a"), Color("d4c25a")]
+	var dike := Color("8a7a4f")
+	var water := Palette.surface("water")
+	var greens := [Color("8cc63f"), Color("a4d65e"), Color("7cb342")]
 	for f in 3:
 		var x0 := -24.0 + f * 14.0
-		var col: Color = colors[f % colors.size()]
-		_flat.box(Vector3(13.0, 0.08, 20.0), Vector3(x0 + 6.5, 0.04, -33.0), soil, _ground)
-		for i in 16:
-			_flat.box(Vector3(12.4, 0.28, 0.55), Vector3(x0 + 6.5, 0.14, -42.0 + i * 1.2), col.darkened(0.05 * (i % 2)), _ground)
-	# Wheat field ready for harvest
-	_flat.box(Vector3(13.0, 0.5, 20.0), Vector3(26.5, 0.25, -33.0), Color("d8b75a"), _ground)
-	# Barn, silo and hay bales
-	var barn := Vector3(31, 0, -16.5)
-	_b.box(Vector3(8, 4.0, 6), barn + Vector3(0, 2.0, 0), Color("a83a2a"))
-	_b.prism(Vector3(8.6, 2.4, 6.6), barn + Vector3(0, 5.2, 0), Color("4a4f54"), _steel, 0.5, Vector3(0, PI / 2, 0))
-	_b.box(Vector3(3.0, 3.0, 0.08), barn + Vector3(0, 1.5, -3.02), Color("e8e4dc"))
-	_b.box(Vector3(2.8, 2.8, 0.1), barn + Vector3(0, 1.5, -3.04), Color("8d2f22"))
-	_b.bar(barn + Vector3(-1.4, 0.1, -3.1), barn + Vector3(1.4, 2.9, -3.1), 0.12, Color("e8e4dc"))
-	_b.bar(barn + Vector3(1.4, 0.1, -3.1), barn + Vector3(-1.4, 2.9, -3.1), 0.12, Color("e8e4dc"))
-	_b.cylinder(1.4, 8.0, barn + Vector3(5.8, 4.0, 1.0), Color("b0bec5"), _steel, -1.0, Vector3.ZERO, 16)
-	_b.sphere(1.4, barn + Vector3(5.8, 8.0, 1.0), Color("90a4ae"), _steel, Vector3(1, 0.6, 1), 16, 6)
-	for k in 5:
-		_b.cylinder(0.65, 1.1, barn + Vector3(-5.5 + (k % 3) * 1.4, 0.65 + (k / 3) * 1.25, -4.5 - (k % 2) * 0.3), Color("d9b85c"), null, -1.0, Vector3(0, 0, PI / 2), 12)
-	_tractor(barn + Vector3(-1.0, 0, -6.8))
-	# Farm fence along the road side of the fields
-	for i in 33:
-		var x := -26.0 + i * 2.0
-		_b.box(Vector3(0.12, 1.1, 0.12), Vector3(x, 0.55, -22.0), Color("8d6e63"))
-	_b.box(Vector3(64.0, 0.08, 0.06), Vector3(6.0, 0.9, -22.0), Color("8d6e63"))
-	_b.box(Vector3(64.0, 0.08, 0.06), Vector3(6.0, 0.5, -22.0), Color("8d6e63"))
+		var col: Color = greens[f % greens.size()]
+		_flat.box(Vector3(13.0, 0.1, 20.0), Vector3(x0 + 6.5, 0.05, -33.0), Color("5f7f6a"), water)
+		for i in 26:
+			_flat.box(Vector3(12.2, 0.22, 0.32), Vector3(x0 + 6.5, 0.12, -42.4 + i * 0.75), col.darkened(0.06 * (i % 2)), _ground)
+		_dikes(Vector2(x0, -43.0), Vector2(x0 + 13.0, -23.0), dike)
+	# Ripe rice ready for harvest
+	_flat.box(Vector3(13.0, 0.55, 20.0), Vector3(26.5, 0.27, -33.0), Color("d9b44a"), _ground)
+	for i in 20:
+		_flat.box(Vector3(12.6, 0.06, 0.12), Vector3(26.5, 0.56, -42.5 + i * 1.0), Color("c9a03c"), _ground)
+	_dikes(Vector2(20.0, -43.0), Vector2(33.0, -23.0), dike)
+	# Farmhouse with a tiled roof, a porch and a water jar, and haystacks
+	var house := Vector3(31, 0, -16.5)
+	_b.box(Vector3(8.4, 0.35, 5.4), house + Vector3(0, 0.17, 0), Color("a8a49c"), _paving)
+	_b.box(Vector3(8, 3.0, 5), house + Vector3(0, 1.85, 0), Color("f1e3c6"))
+	_b.prism(Vector3(8.8, 2.2, 6.2), house + Vector3(0, 4.45, 0), Color("b5452f"), null, 0.5, Vector3(0, PI / 2, 0))
+	for k in 3:
+		_b.box(Vector3(1.1, 2.1, 0.06), house + Vector3(-2.6 + k * 2.6, 1.4, -2.52), Color("7b4a2e"))
+	for k in 4:
+		_b.box(Vector3(0.14, 2.4, 0.14), house + Vector3(-3.8 + k * 2.53, 1.55, -3.4), Color("8d6e63"))
+	_b.box(Vector3(8.4, 0.1, 1.2), house + Vector3(0, 2.8, -3.0), Color("a0412c"), null, Vector3(-0.25, 0, 0))
+	_b.sphere(0.45, house + Vector3(4.6, 0.45, -3.3), Color("6d4c41"), null, Vector3(1, 1.2, 1), 10, 6)
+	for k in 3:
+		var hay := house + Vector3(-6.0 + (k % 2) * 1.8, 0, -4.5 - k * 1.6)
+		_b.cylinder(0.9, 1.4, hay + Vector3(0, 0.7, 0), Color("d9b85c"), null, 0.75, Vector3.ZERO, 12)
+		_b.cylinder(0.75, 1.0, hay + Vector3(0, 1.9, 0), Color("cfae52"), null, 0.05, Vector3.ZERO, 12)
+		_b.cylinder(0.04, 0.6, hay + Vector3(0, 2.5, 0), Color("6d4c41"), null, -1.0, Vector3.ZERO, 5)
+	_tractor(house + Vector3(-1.0, 0, -6.8))
+	# Bamboo clumps along the field edge
+	var clumps := 4 if Palette.low_end() else 7
+	for k in clumps:
+		_bamboo(Vector3(-27.0 + k * 9.5, 0, -21.6 - (k % 2) * 0.8))
 	_flat.box(Vector3(3.0, 0.04, 30.0), Vector3(36.5, 0.02, -8.0), Color("9c8a6a"), _ground)
+
+
+## Raised earth banks around a paddy, with grass on top.
+func _dikes(a: Vector2, b: Vector2, color: Color) -> void:
+	var c := (a + b) / 2.0
+	var s := b - a
+	for z in [a.y, b.y, c.y]:
+		_flat.box(Vector3(s.x + 0.6, 0.32, 0.6), Vector3(c.x, 0.16, z), color, _ground)
+		_flat.box(Vector3(s.x + 0.6, 0.04, 0.5), Vector3(c.x, 0.33, z), Color("7a9a3a"), _ground)
+	for x in [a.x, b.x]:
+		_flat.box(Vector3(0.6, 0.32, s.y), Vector3(x, 0.16, c.y), color, _ground)
+		_flat.box(Vector3(0.5, 0.04, s.y), Vector3(x, 0.33, c.y), Color("7a9a3a"), _ground)
+
+
+## A clump of bamboo: tall jointed stems leaning out, feathery tops.
+func _bamboo(p: Vector3) -> void:
+	var stems := 11
+	for k in stems:
+		var a := k * TAU / stems + _rng.randf() * 0.4
+		var r := _rng.randf_range(0.1, 0.5)
+		var base := p + Vector3(cos(a) * r, 0, sin(a) * r)
+		var h := _rng.randf_range(5.5, 8.0)
+		var lean := Vector3(cos(a), 0, sin(a)) * h * 0.3
+		var mid := base + Vector3(0, h * 0.6, 0) + lean * 0.3
+		var tip := base + Vector3(0, h, 0) + lean
+		var stem := Color("8bb24a") if k % 3 else Color("b5a642")
+		_b.bar(base, mid, 0.08, stem, null, true)
+		_b.bar(mid, tip, 0.06, stem, null, true)
+		# Feathery leaves: thin drooping sprays along the top half
+		for n in 3:
+			var at := mid.lerp(tip, 0.2 + n * 0.35)
+			_b.sphere(0.55 - n * 0.08, at + lean.normalized() * 0.3, Color("6f9f3a").darkened(0.05 * ((k + n) % 3)), null, Vector3(1.4, 0.45, 0.8), 7, 4)
+
+
+## A coconut palm: a curved ringed trunk and drooping fronds.
+func _palm(p: Vector3, k: int) -> void:
+	var lean := Vector3(cos(k * 2.1), 0, sin(k * 2.1)) * 0.9
+	var prev := p
+	var h := 7.0 + (k % 3)
+	for i in range(1, 6):
+		var t := i / 5.0
+		var q := p + Vector3(0, h * t, 0) + lean * t * t * 2.0
+		_b.bar(prev, q, 0.32 - t * 0.08, Color("8d7b62").darkened(0.06 * (i % 2)), null, true)
+		prev = q
+	for f in 8:
+		var a := f * TAU / 8.0
+		var dir := Vector3(cos(a), 0, sin(a))
+		var mid := prev + dir * 1.3 + Vector3(0, 0.35, 0)
+		var tip := prev + dir * 2.6 + Vector3(0, -0.6, 0)
+		_b.bar(prev, mid, 0.12, Color("4f8a3c"))
+		_b.bar(mid, tip, 0.1, Color("5f9c44"))
+		_b.box(Vector3(0.7, 0.03, 1.5), prev.lerp(tip, 0.55) + Vector3(0, 0.05, 0), Color("5a9a3e"), null, Vector3(0, -a + PI / 2.0, 0.25))
+	for n in 3:
+		_b.sphere(0.18, prev + Vector3(cos(n * 2.1) * 0.25, -0.3, sin(n * 2.1) * 0.25), Color("6b8e23"), null, Vector3.ONE, 6, 4)
+
+
+## A banana plant: a short stem and big arching leaves.
+func _banana(p: Vector3) -> void:
+	_b.cylinder(0.16, 2.0, p + Vector3(0, 1.0, 0), Color("7a8f4a"), null, 0.12, Vector3.ZERO, 7)
+	for f in 6:
+		var a := f * TAU / 6.0 + 0.3
+		_b.box(Vector3(0.6, 0.03, 1.8), p + Vector3(cos(a) * 0.8, 2.2, sin(a) * 0.8), Color("6fae3f").darkened(0.05 * (f % 2)), null, Vector3(0, -a + PI / 2.0, 0.5))
 
 
 func _tractor(p: Vector3) -> void:
@@ -534,9 +742,6 @@ func _build_trees() -> void:
 		# Most trees grow in small groves
 		if r == 2:
 			_bush(p + Vector3(_rng.randf_range(-2, 2), 0, _rng.randf_range(-2, 2)), _rng.randf_range(0.7, 1.2))
-	# A neat row of trees along the front fence
-	for x in [-22, -16, -10, 6, 22]:
-		_tree(Vector3(x, 0, 15.0), 0.7, false)
 
 
 func _tree(p: Vector3, s: float, pine: bool) -> void:
@@ -578,7 +783,7 @@ func _build_rocks() -> void:
 
 func _build_flowers() -> void:
 	var colors := [Color("ec407a"), Color("ffee58"), Color("ff7043"), Color("ab47bc"), Color.WHITE]
-	for bed in [[Vector3(-17.5, 0, 13.6), 8.0], [Vector3(5, 0, 13.6), 7.0], [Vector3(-8.5, 0, 5.8), 2.0]]:
+	for bed in [[Vector3(-17.5, 0, 13.6), 8.0], [Vector3(5, 0, 13.6), 7.0], [Vector3(-3.4, 0, 5.8), 2.0]]:
 		var c: Vector3 = bed[0]
 		var w: float = bed[1]
 		_b.box(Vector3(w + 0.2, 0.22, 0.78), c + Vector3(w / 2.0, 0.11, 0), Color("9a9893"), _paving)
@@ -636,10 +841,53 @@ func _build_clouds() -> void:
 
 
 func _build_traffic() -> void:
-	for i in 6:
-		var car := BuildingsView._car(self, Vector3(-120 + i * 42 + _rng.randf_range(0, 15), 0, FactoryLayout.ROAD_Z + 1.5), PI / 2, CAR_COLORS[i % CAR_COLORS.size()], lamp_material)
-		car.set_meta("speed", _rng.randf_range(5.0, 8.0))
+	var low := Palette.low_end()
+	var cars := 4 if low else 6
+	for i in cars:
+		var car := BuildingsView._car(self, Vector3(-120 + i * 240.0 / cars, 0, LANE_CARS), PI / 2, CAR_COLORS[i % CAR_COLORS.size()], lamp_material)
+		car.set_meta("speed", 7.0)
 		_cars.append(car)
+	var bikes := 5 if low else 9
+	for i in bikes:
+		var east := i % 2 == 0
+		var x := -120 + i * 240.0 / bikes + 11.0
+		var bike := _motorbike(Vector3(x, 0, LANE_BIKES_EAST if east else LANE_BIKES_WEST), i)
+		bike.rotation.y = PI / 2 if east else -PI / 2
+		bike.set_meta("speed", 5.5 if east else -5.5)
+		_cars.append(bike)
+
+
+## A scooter with a rider in a helmet (and sometimes a passenger), faces +Z.
+func _motorbike(pos: Vector3, i: int) -> Node3D:
+	var n := Node3D.new()
+	n.position = pos
+	add_child(n)
+	var b := MeshBatch.new()
+	var rubber := Palette.surface("rubber")
+	var body: Color = SIGN_COLORS[(i * 5) % SIGN_COLORS.size()]
+	var shirt: Color = SHIRTS[i % SHIRTS.size()]
+	var skin := Color("e0ac83")
+	for z in [-0.6, 0.6]:
+		b.cylinder(0.28, 0.1, Vector3(0, 0.28, z), Color("17181a"), rubber, -1.0, Vector3(0, 0, PI / 2), 10)
+	b.box(Vector3(0.32, 0.32, 1.0), Vector3(0, 0.5, -0.05), body, _paint)
+	b.box(Vector3(0.3, 0.1, 0.7), Vector3(0, 0.72, -0.15), Color("1d2125"))
+	b.box(Vector3(0.28, 0.6, 0.16), Vector3(0, 0.78, 0.5), body, _paint, Vector3(-0.3, 0, 0))
+	b.bar(Vector3(-0.32, 1.1, 0.5), Vector3(0.32, 1.1, 0.5), 0.04, Color("3a3f44"), _steel)
+	b.box(Vector3(0.16, 0.1, 0.06), Vector3(0, 1.02, 0.66), Color("fff3c4"), lamp_material)
+	b.box(Vector3(0.14, 0.08, 0.04), Vector3(0, 0.66, -0.58), Color("c62828"), Palette.surface("screen"))
+	# Rider: legs on the floorboard, torso, arms to the bars, helmet
+	for sx in [-1.0, 1.0]:
+		b.box(Vector3(0.13, 0.13, 0.5), Vector3(sx * 0.13, 0.82, 0.05), Color("37474f"))
+		b.box(Vector3(0.12, 0.4, 0.13), Vector3(sx * 0.13, 0.6, 0.3), Color("37474f"))
+		b.bar(Vector3(sx * 0.2, 1.38, -0.05), Vector3(sx * 0.28, 1.1, 0.45), 0.09, shirt)
+	b.box(Vector3(0.42, 0.55, 0.26), Vector3(0, 1.17, -0.15), shirt, null, Vector3(0.15, 0, 0))
+	b.sphere(0.12, Vector3(0, 1.55, -0.1), skin)
+	b.sphere(0.17, Vector3(0, 1.62, -0.12), SIGN_COLORS[(i + 3) % SIGN_COLORS.size()].lightened(0.2), _paint, Vector3(1, 0.9, 1.05), 8, 5)
+	if i % 3 == 1:
+		b.box(Vector3(0.4, 0.5, 0.24), Vector3(0, 1.12, -0.5), SHIRTS[(i + 3) % SHIRTS.size()], null, Vector3(0.1, 0, 0))
+		b.sphere(0.16, Vector3(0, 1.52, -0.52), Color("f5f5f5"), _paint, Vector3(1, 0.9, 1.05), 8, 5)
+	b.build(n)
+	return n
 
 
 ## Warm yard lights that come on at night (on the higher graphics levels,
