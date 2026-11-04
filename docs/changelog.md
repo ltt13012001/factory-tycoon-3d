@@ -18,6 +18,13 @@ Lưu game:
 - Menu → Sao lưu / chuyển máy khác: sao chép mã lưu (nén, một dòng) hoặc tải
   file lưu (bản web), dán mã để chơi tiếp trên máy hoặc trình duyệt khác.
 
+Đồ hoạ (phong cách stylized realism, theo cấu hình máy):
+- Mọi vật thể có bóng tiếp đất nướng sẵn vào lưới (chân tường, gốc cây, chân
+  máy tối dần xuống đất), không tốn thêm lệnh vẽ, chạy cả ở mức Thấp.
+- Mức Vừa và Cao: ánh sáng quấn mềm, viền sáng nhẹ ở mép vật thể, mép bóng đổ
+  mềm. Mức Cao trên máy tính (Forward+): thêm ánh sáng dội (SSIL) và bóng mềm
+  theo góc mặt trời. Mức Thấp giữ ánh sáng đơn giản để máy yếu chạy mượt.
+
 Chi nhánh:
 - Chi nhánh mới: Hạ Long (Quảng Ninh), sát bờ vịnh.
 - Nút "Ghé thăm" ở mỗi chi nhánh trong bảng Mở rộng (kể cả nơi chưa mở, để

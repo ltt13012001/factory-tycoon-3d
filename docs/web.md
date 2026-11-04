@@ -34,6 +34,10 @@ cũ). Trang sẽ báo rõ lý do và cách sửa.
 | Bloom, chỉnh màu, khử răng cưa | tắt | bật | bật |
 | Đèn sân ban đêm | tắt | tắt trên web | bật |
 | Giới hạn khung hình (web, di động) | 30 | 60 | 60 |
+| Bóng tiếp đất nướng sẵn (stylized realism) | bật | bật | bật |
+| Ánh sáng | Lambert | quấn mềm, viền sáng | quấn mềm, viền sáng |
+| Mép bóng đổ | cứng | mềm nhẹ | mềm (web: mềm nhẹ) |
+| SSIL, bóng mềm theo góc mặt trời | tắt | tắt | bật (chỉ Forward+, không có trên web) |
 
 Giao diện luôn vẽ ở độ nét đầy đủ. Lựa chọn lưu trong `user://settings.cfg`.
 Chạy thử một mức: `godot --path . -- --quality=low` (low, medium, high).

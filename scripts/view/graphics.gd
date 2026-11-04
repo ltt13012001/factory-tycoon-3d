@@ -157,7 +157,33 @@ func apply() -> void:
 	environment.glow_enabled = tier != LOW
 	environment.adjustment_enabled = tier != LOW
 	environment.ssao_enabled = _ssao and tier == HIGH
+	_stylize(web)
 	Engine.max_fps = fps_cap()
+
+
+## Stylized realism per level. Every level gets the same palette, the
+## baked contact shadows and the wrapped, rim-lit materials (Palette); the
+## higher levels add what the device can afford:
+## - Low: no real-time shadows or post effects, stronger baked occlusion;
+## - Medium: soft-edged sun shadows (cheap filter), bloom and grading;
+## - High: wider soft shadows that blur with distance from the caster, screen
+##   space ambient occlusion and, on desktop GPUs, indirect light bounce
+##   (SSIL) that tints shade with the colour of nearby walls and grass.
+func _stylize(web: bool) -> void:
+	Palette.set_style(tier)
+	var forward := RenderingServer.get_current_rendering_method() == "forward_plus"
+	var soft: int = [RenderingServer.SHADOW_QUALITY_HARD, RenderingServer.SHADOW_QUALITY_SOFT_VERY_LOW, RenderingServer.SHADOW_QUALITY_SOFT_LOW][tier]
+	if web:
+		soft = mini(soft, RenderingServer.SHADOW_QUALITY_SOFT_VERY_LOW)
+	RenderingServer.directional_soft_shadow_filter_set_quality(soft)
+	sun.light_angular_distance = 1.2 if tier == HIGH and forward else 0.0
+	sun.shadow_blur = [1.0, 1.4, 1.8][tier]
+	environment.ssil_enabled = forward and tier == HIGH and not web
+	environment.ssil_intensity = 0.8
+	environment.ssil_radius = 4.0
+	environment.ssao_intensity = 1.6
+	environment.ssao_radius = 1.2
+	environment.ssao_light_affect = 0.15
 
 
 ## Frame limit for the level, the pause and the window focus (0 = the

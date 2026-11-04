@@ -8,14 +8,22 @@
 class_name MeshBatch
 extends RefCounted
 
-## Shape key -> [vertices, normals], already expanded from the index buffer.
+## Shape key -> [vertices, normals, occlusion UV2], already expanded from
+## the index buffer.
+##
+## Baked contact shadow: every shape carries a second UV channel whose U is
+## how deep in the shape's own lower part a vertex lies (1 at its foot, 0
+## from 60% of its height up). The shared materials read it through a small
+## gradient as ambient occlusion (Palette.surface), so walls, machines,
+## trees and people darken softly where they meet the ground, a staple of
+## stylized realism that costs nothing per frame and works without shadows.
 static var _shapes := {}
 
 ## Optional transform applied to every shape added afterwards.
 var origin := Transform3D.IDENTITY
 
 ## Material -> [Array of PackedVector3Array, normals likewise, Array of
-## PackedColorArray]. Kept as chunks and joined once in build(), because
+## PackedColorArray, Array of PackedVector2Array (occlusion)]. Kept as chunks and joined once in build(), because
 ## appending to a packed array stored in a Dictionary copies it every time.
 var _parts := {}
 
@@ -130,11 +138,15 @@ func build_mesh() -> ArrayMesh:
 			normals.append_array(chunk)
 		for chunk in _parts[m][2]:
 			colors.append_array(chunk)
+		var occlusion := PackedVector2Array()
+		for chunk in _parts[m][3]:
+			occlusion.append_array(chunk)
 		var arrays := []
 		arrays.resize(Mesh.ARRAY_MAX)
 		arrays[Mesh.ARRAY_VERTEX] = verts
 		arrays[Mesh.ARRAY_NORMAL] = normals
 		arrays[Mesh.ARRAY_COLOR] = colors
+		arrays[Mesh.ARRAY_TEX_UV2] = occlusion
 		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 		mesh.surface_set_material(mesh.get_surface_count() - 1, m)
 	_parts.clear()
@@ -144,7 +156,7 @@ func build_mesh() -> ArrayMesh:
 func _add(shape: Array, xform: Transform3D, color: Color, mat: Material) -> void:
 	var m: Material = mat if mat != null else Palette.surface("matte")
 	if not _parts.has(m):
-		_parts[m] = [[], [], []]
+		_parts[m] = [[], [], [], []]
 	var t := origin * xform
 	var src_v: PackedVector3Array = shape[0]
 	var src_n: PackedVector3Array = shape[1]
@@ -157,6 +169,7 @@ func _add(shape: Array, xform: Transform3D, color: Color, mat: Material) -> void
 	part[0].append(vs)
 	part[1].append(ns)
 	part[2].append(cs)
+	part[3].append(shape[2])
 
 
 static func _expand(mesh: PrimitiveMesh) -> Array:
@@ -167,10 +180,23 @@ static func _expand(mesh: PrimitiveMesh) -> Array:
 	var out_v := PackedVector3Array()
 	var out_n := PackedVector3Array()
 	if idx.is_empty():
-		return [v, n]
-	out_v.resize(idx.size())
-	out_n.resize(idx.size())
-	for i in idx.size():
-		out_v[i] = v[idx[i]]
-		out_n[i] = n[idx[i]]
-	return [out_v, out_n]
+		out_v = v
+		out_n = n
+	else:
+		out_v.resize(idx.size())
+		out_n.resize(idx.size())
+		for i in idx.size():
+			out_v[i] = v[idx[i]]
+			out_n[i] = n[idx[i]]
+	var lo := INF
+	var hi := -INF
+	for p in out_v:
+		lo = minf(lo, p.y)
+		hi = maxf(hi, p.y)
+	var h := maxf(hi - lo, 0.001)
+	var occ := PackedVector2Array()
+	occ.resize(out_v.size())
+	for i in out_v.size():
+		var t := (out_v[i].y - lo) / h
+		occ[i] = Vector2(1.0 - smoothstep(0.0, 0.6, t), 0.5)
+	return [out_v, out_n, occ]

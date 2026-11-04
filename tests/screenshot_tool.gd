@@ -22,7 +22,11 @@ func _ready() -> void:
 	DirAccess.make_dir_recursive_absolute(_dir)
 	# Full quality for the shots, whatever the frame rate of a software GPU.
 	Graphics.auto = false
-	get_parent().get_node("Graphics").set_tier(Graphics.HIGH, false)
+	var q := Graphics.HIGH
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--quality="):
+			q = ["low", "medium", "high"].find(a.trim_prefix("--quality="))
+	get_parent().get_node("Graphics").set_tier(q, false)
 	GameManager.new_game()
 	var sim := GameManager.sim
 	var bot := AutoPlayer.new(sim)
@@ -286,7 +290,10 @@ func _branch_shots(hud: Node) -> void:
 	print("branch fps (software GPU): %.1f" % ((Engine.get_frames_drawn() - frames) * 1000.0 / (Time.get_ticks_msec() - t0)))
 	print("draw calls: ", RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME), " objects: ", RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_OBJECTS_IN_FRAME), " primitives: ", RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME))
 	get_parent().get_node("Branches").leave()
-	await get_tree().create_timer(2.0).timeout
+	EventBus.camera_focus_requested.emit(Vector3(-4, 0, -2), 30.0)
+	await get_tree().create_timer(2.5).timeout
+	_clear_hud(hud)
+	await _shot("36_factory")
 	print("factory draw calls: ", RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME), " objects: ", RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_OBJECTS_IN_FRAME), " primitives: ", RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME))
 
 
