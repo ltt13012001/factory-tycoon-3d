@@ -123,6 +123,10 @@ func _site_card(b: VBoxContainer, sim: Simulation, l: LocationDef) -> void:
 		head.add_child(UiTheme.label(l.country, 13, UiTheme.MUTED))
 	if FactoryLayout.PLOTS.has(l.id):
 		head.add_child(UiTheme.button("Xem", func(): EventBus.camera_focus_requested.emit(FactoryLayout.PLOTS[l.id], 34.0)))
+	else:
+		var visit := UiTheme.button("Ghé thăm", func(): EventBus.branch_visit_requested.emit(l.id))
+		visit.tooltip_text = "Xem chi nhánh và cảnh quan nơi đó"
+		head.add_child(visit)
 	c.add_child(head)
 	var status: String = "" if s.is_empty() else s.status
 	if status != ExpansionManager.READY:

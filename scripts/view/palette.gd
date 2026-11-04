@@ -53,6 +53,11 @@ static func surface(kind: String) -> Material:
 	m.vertex_color_use_as_albedo = true
 	m.vertex_color_is_srgb = true
 	m.roughness = 0.85
+	# Baked contact shadow from MeshBatch's second UV channel.
+	m.ao_enabled = true
+	m.ao_texture = occlusion_texture()
+	m.ao_on_uv2 = true
+	m.ao_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
 	match kind:
 		"paint":
 			m.roughness = 0.38
@@ -98,8 +103,53 @@ static func surface(kind: String) -> Material:
 			m.metallic = 0.35
 			m.metallic_specular = 0.8
 			_add_grain(m, 0.08)
+	_style(m, kind)
 	_surfaces[kind] = m
 	return m
+
+
+static var _occlusion: GradientTexture2D
+## Graphics level the shared materials are styled for (Graphics.tier).
+static var style_tier := 2
+
+
+## White where nothing is occluded (U = 0, also meshes without the
+## channel), a soft warm-dark at the foot of each shape (U = 1).
+static func occlusion_texture() -> GradientTexture2D:
+	if _occlusion:
+		return _occlusion
+	var g := Gradient.new()
+	g.set_color(0, Color(1, 1, 1))
+	g.set_color(1, Color(0.42, 0.42, 0.42))
+	g.add_point(0.55, Color(0.8, 0.8, 0.8))
+	_occlusion = GradientTexture2D.new()
+	_occlusion.gradient = g
+	_occlusion.width = 64
+	_occlusion.height = 1
+	return _occlusion
+
+
+## Stylized realism, scaled to the device (see Graphics.apply):
+## - Low: plain Lambert light, but the baked contact shadow is strong
+##   (there are no real shadows on Low), so objects still sit on the ground;
+## - Medium: soft "wrapped" light that rolls gently into shade, and a faint
+##   rim of sky light on silhouettes that separates shapes from the ground;
+## - High: the same, with real-time ambient occlusion on top, so the baked
+##   one is lighter.
+static func set_style(tier: int) -> void:
+	style_tier = tier
+	for kind in _surfaces:
+		_style(_surfaces[kind], kind)
+
+
+static func _style(m: StandardMaterial3D, kind: String) -> void:
+	var flat := kind == "screen" or kind == "glass" or kind == "mesh"
+	m.ao_enabled = not flat
+	m.ao_light_affect = [0.7, 0.5, 0.35][style_tier]
+	m.diffuse_mode = BaseMaterial3D.DIFFUSE_LAMBERT if style_tier == 0 else BaseMaterial3D.DIFFUSE_LAMBERT_WRAP
+	m.rim_enabled = style_tier > 0 and not flat and kind != "water"
+	m.rim = 0.25 if kind == "ground" or kind == "paving" or kind == "floor" else 0.45
+	m.rim_tint = 0.6
 
 
 ## Soft world-space noise multiplied into the vertex colour, so large flat

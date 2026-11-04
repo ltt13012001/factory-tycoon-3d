@@ -3,6 +3,7 @@
 ## Touch: one finger drags to pan (and glides on after a flick), a tap selects
 ## or places, two fingers pinch to zoom, move to pan and twist to turn freely.
 ## The HUD can also pan, zoom, turn and jump to a place (EventBus).
+class_name CameraRig
 extends Node3D
 
 const PITCH := -35.264
@@ -19,6 +20,8 @@ const TAP_SLOP := 14.0
 const TWIST_START := 12.0
 
 var camera: Camera3D
+## Where the camera may go: the first factory site, or a branch being visited.
+var bounds := BOUNDS
 var build_mode := false
 
 var _yaw_target := 45.0
@@ -80,7 +83,21 @@ func _process(delta: float) -> void:
 ## Glides the camera to a point (and zoom level, 0 keeps the current one).
 func focus_on(target: Vector3, zoom: float = 0.0) -> void:
 	_velocity = Vector2.ZERO
-	_focus = Vector3(clampf(target.x, BOUNDS.position.x, BOUNDS.end.x), 0, clampf(target.z, BOUNDS.position.y, BOUNDS.end.y))
+	_focus = Vector3(clampf(target.x, bounds.position.x, bounds.end.x), 0, clampf(target.z, bounds.position.y, bounds.end.y))
+	if zoom > 0.0:
+		_size_target = clampf(zoom, MIN_SIZE, MAX_SIZE)
+
+
+## Moves the camera to another area (a branch, or back to the factory):
+## new limits, a point to jump to (INF keeps the place) and a zoom (0 keeps it).
+func set_area(area: Rect2, target: Vector3, zoom: float) -> void:
+	bounds = area
+	_velocity = Vector2.ZERO
+	_focus = Vector3.INF
+	if target != Vector3.INF:
+		position = Vector3(target.x, 0, target.z)
+	position.x = clampf(position.x, bounds.position.x, bounds.end.x)
+	position.z = clampf(position.z, bounds.position.y, bounds.end.y)
 	if zoom > 0.0:
 		_size_target = clampf(zoom, MIN_SIZE, MAX_SIZE)
 
@@ -100,8 +117,8 @@ func _pan(screen_delta: Vector2) -> void:
 	right.y = 0
 	forward.y = 0
 	position += right.normalized() * screen_delta.x - forward.normalized() * screen_delta.y
-	position.x = clampf(position.x, BOUNDS.position.x, BOUNDS.end.x)
-	position.z = clampf(position.z, BOUNDS.position.y, BOUNDS.end.y)
+	position.x = clampf(position.x, bounds.position.x, bounds.end.x)
+	position.z = clampf(position.z, bounds.position.y, bounds.end.y)
 
 
 ## Rotates the camera by 45° steps (negative turns left).
