@@ -29,7 +29,7 @@ và khu phố xung quanh. Xem thay đổi trong `docs/changelog.md`.
 | Tạm dừng / tiếp tục | Space |
 | Hủy chế độ xây / bỏ chọn | Esc |
 
-Game tự lưu mỗi 60 giây và khi thoát, vào `user://saves/slot_1.json`
+Game tự lưu mỗi 30 giây, cuối mỗi ngày game và khi thoát hoặc chuyển ứng dụng, vào `user://saves/slot_1.json` (kèm bản dự phòng `slot_1.bak.json`; bản web lưu thêm vào bộ nhớ trình duyệt). Menu → Sao lưu / chuyển máy khác cho mã lưu để chơi tiếp ở máy khác
 (trên Windows: `%APPDATA%\Godot\app_userdata\Factory Tycoon 3D\saves\`).
 
 ## Kiểm thử

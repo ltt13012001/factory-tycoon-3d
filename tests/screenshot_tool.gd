@@ -5,6 +5,8 @@ extends Node
 var _dir := ""
 ## --screenshot-sites: only the shots of the factories next door (0.9).
 var _sites_only := false
+## --screenshot-branches[=id,id]: only the branches in their scenery (0.10).
+var _branches := ""
 
 
 func _ready() -> void:
@@ -13,6 +15,10 @@ func _ready() -> void:
 			_dir = a.trim_prefix("--screenshot=")
 		if a == "--screenshot-sites":
 			_sites_only = true
+		if a.begins_with("--screenshot-branches"):
+			_branches = a.trim_prefix("--screenshot-branches").trim_prefix("=")
+			if _branches == "":
+				_branches = "all"
 	DirAccess.make_dir_recursive_absolute(_dir)
 	# Full quality for the shots, whatever the frame rate of a software GPU.
 	Graphics.auto = false
@@ -37,6 +43,10 @@ func _run() -> void:
 	var hud: Node = get_tree().root.find_child("Hud", true, false)
 	await get_tree().create_timer(3.0).timeout
 	hud.find_child("DailyReport", true, false).visible = false
+	if _branches != "":
+		await _branch_shots(hud)
+		get_tree().quit()
+		return
 	if _sites_only:
 		await _site_shots(hud)
 		get_tree().quit()
@@ -213,6 +223,78 @@ func _site_shots(hud: Node) -> void:
 	hud.toggle_panel("expansion")
 	await get_tree().create_timer(4.0).timeout
 	await _shot("30_clouds_no_panel")
+
+
+## Every branch in its scenery: open, with a director and lines (Hạ Long
+## also at dusk and zoomed out), one still being built and one only surveyed.
+func _branch_shots(hud: Node) -> void:
+	var sim := GameManager.sim
+	var rig: CameraRig = get_viewport().get_camera_3d().get_parent().get_parent()
+	sim.state.cash += 1000000000
+	sim.state.company_tier = 4
+	var ids: Array = BranchView.branch_ids(sim) if _branches == "all" else Array(_branches.split(","))
+	for id in ids:
+		var l: LocationDef = sim.content.locations[id]
+		if id == "india":
+			continue  # left unopened: the land for sale
+		sim.expand(id)
+		sim.advance_ticks(sim.expansion.survey_hours(l) * sim.config.ticks_per_hour + 1)
+		sim.expand(id)
+		if id == "germany":
+			var s := sim.expansion.site(id)
+			s.ticks_left = s.total_ticks / 2
+			continue
+		sim.advance_ticks(l.build_hours * sim.config.ticks_per_hour + 1)
+		sim.hire_site_head(id)
+		for k in l.max_lines - 2:
+			sim.buy_line(id)
+		sim.automate_site(id)
+		sim.automate_site(id)
+	sim.state.tick = sim.day() * sim.config.ticks_per_day + (10 - sim.config.day_start_hour) * sim.config.ticks_per_hour
+	TimeManager.set_speed(1)
+	for id in ids:
+		EventBus.branch_visit_requested.emit(id)
+		rig.rotation_degrees.y = 45.0
+		rig._yaw_target = 45.0
+		await get_tree().create_timer(2.0).timeout
+		_clear_hud(hud)
+		await _shot("31_branch_%s" % id)
+		if id == "quang_ninh":
+			rig._size_target = 100.0
+			await get_tree().create_timer(2.0).timeout
+			_clear_hud(hud)
+			await _shot("32_branch_%s_wide" % id)
+			rig._size_target = 18.0
+			EventBus.camera_focus_requested.emit(BranchView.ORIGIN + Vector3(-10, 0, -4), 0.0)
+			await get_tree().create_timer(2.0).timeout
+			_clear_hud(hud)
+			await _shot("33_branch_%s_closeup" % id)
+			rig._size_target = 60.0
+			rig._yaw_target = 135.0
+			await get_tree().create_timer(2.0).timeout
+			_clear_hud(hud)
+			await _shot("34_branch_%s_turned" % id)
+			sim.state.tick += 8 * sim.config.ticks_per_hour
+			await get_tree().create_timer(2.0).timeout
+			_clear_hud(hud)
+			await _shot("35_branch_%s_evening" % id)
+			sim.state.tick -= 8 * sim.config.ticks_per_hour
+			rig._yaw_target = 45.0
+	var frames := Engine.get_frames_drawn()
+	var t0 := Time.get_ticks_msec()
+	await get_tree().create_timer(3.0).timeout
+	print("branch fps (software GPU): %.1f" % ((Engine.get_frames_drawn() - frames) * 1000.0 / (Time.get_ticks_msec() - t0)))
+	print("draw calls: ", RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME), " objects: ", RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_OBJECTS_IN_FRAME), " primitives: ", RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME))
+	get_parent().get_node("Branches").leave()
+	await get_tree().create_timer(2.0).timeout
+	print("factory draw calls: ", RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME), " objects: ", RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_OBJECTS_IN_FRAME), " primitives: ", RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME))
+
+
+func _clear_hud(hud: Node) -> void:
+	hud.find_child("DailyReport", true, false).visible = false
+	for t in hud._toasts.get_children():
+		t.queue_free()
+	await get_tree().process_frame
 
 
 ## A growing company: factory 2 running, factory 3 being built, a branch.

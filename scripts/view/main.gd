@@ -70,10 +70,17 @@ func _ready() -> void:
 	add_child(graphics)
 
 	add_child(preload("res://scripts/view/camera_rig.gd").new())
-	add_child(preload("res://scripts/view/factory_view.gd").new())
+	var factory: Node3D = preload("res://scripts/view/factory_view.gd").new()
+	add_child(factory)
 	var scenery: Node3D = preload("res://scripts/view/scenery.gd").new()
 	add_child(scenery)
-	add_child(preload("res://scripts/view/sites_view.gd").new())
+	var sites: Node3D = preload("res://scripts/view/sites_view.gd").new()
+	add_child(sites)
+	var branches: Node3D = preload("res://scripts/view/branch_view.gd").new()
+	branches.name = "Branches"
+	branches.scenery = scenery
+	branches.main_world.assign([factory, scenery, sites])
+	add_child(branches)
 
 	var cycle: Node = preload("res://scripts/view/day_night.gd").new()
 	cycle.name = "DayNight"

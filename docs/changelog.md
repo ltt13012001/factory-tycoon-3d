@@ -1,5 +1,48 @@
 # Changelog
 
+## 0.10.0 – Lưu game an toàn hơn, ghé thăm chi nhánh giữa cảnh quan thật
+
+Lưu game:
+- Ghi file lưu an toàn: ghi ra file tạm, đọc lại kiểm tra rồi mới thay file
+  cũ, nên điện thoại tắt game giữa lúc ghi không còn làm hỏng file lưu. Luôn
+  giữ một bản dự phòng (`slot_1.bak.json`) là lần lưu trước đó.
+- Khi mở game, tải bản mới nhất còn đọc được trong file lưu, bản dự phòng và
+  bộ nhớ trình duyệt. File không đọc được (hoặc từ bản game mới hơn) được giữ
+  lại bên cạnh, không bị ghi đè bằng game mới như trước, và game báo rõ.
+- Bản web (iPad, iPhone, Safari): lưu thêm vào localStorage của trình duyệt,
+  lưu ngay khi chuyển ứng dụng hoặc đóng tab (pagehide, visibilitychange,
+  trước đây Safari thường bỏ qua). Nếu trình duyệt không giữ dữ liệu (cửa sổ
+  ẩn danh) game báo để người chơi giữ mã lưu.
+- Tự lưu mỗi 30 giây (trước là 60) và cuối mỗi ngày game. Menu → Lưu game
+  cho biết lần tự lưu gần nhất.
+- Menu → Sao lưu / chuyển máy khác: sao chép mã lưu (nén, một dòng) hoặc tải
+  file lưu (bản web), dán mã để chơi tiếp trên máy hoặc trình duyệt khác.
+
+Chi nhánh:
+- Chi nhánh mới: Hạ Long (Quảng Ninh), sát bờ vịnh.
+- Nút "Ghé thăm" ở mỗi chi nhánh trong bảng Mở rộng (kể cả nơi chưa mở, để
+  xem trước). Camera đến chi nhánh: nhà xưởng có số dây chuyền bạn đã mua,
+  hàng chạy trên băng chuyền, robot theo mức tự động hoá, kho, văn phòng, cờ
+  nước sở tại; lúc đang khảo sát có người đo đạc, lúc xây có cần cẩu và khung
+  thép. Thanh trên cùng có ◀ ▶ để sang chi nhánh khác và "Về nhà máy".
+- Cảnh quan theo nơi thật: Hạ Long (vịnh, núi đá vôi, tàu du lịch, làng chài
+  nổi, khách sạn Bãi Cháy, cầu dây văng), Hải Phòng (cảng container, cẩu
+  giàn, tàu hàng, đảo Cát Bà xa), Đà Nẵng (bãi biển, dừa, ô dù, thúng chai, bán
+  đảo Sơn Trà, Ngũ Hành Sơn), Bắc Ninh (ruộng lúa, làng có chùa và ao sen),
+  Bình Dương (khu công nghiệp, rừng cao su trên đất đỏ), Thái Lan (sông,
+  thuyền đuôi dài, chùa tháp), Indonesia (núi lửa bốc khói, ruộng bậc thang),
+  Ấn Độ (đồng bằng khô, cây đa, đình đá, xe tuk-tuk), Mexico (sa mạc, núi
+  mặt bàn, xương rồng, ruộng thùa, kim tự tháp), Đức (đồi, rừng thông, nhà
+  khung gỗ, nhà thờ, tua-bin gió), Hoa Kỳ (đồng ngô, nông trại, tháp nước,
+  tàu hàng, nhà chọc trời xa). Có ngày đêm, đèn sáng về đêm.
+- Hiệu năng: chỉ dựng một chi nhánh lúc đang xem, ẩn nhà máy chính lúc đó.
+  Đồ tĩnh gộp lưới, cây, đảo, container vẽ bằng MultiMesh, địa hình và biển
+  mỗi thứ một lưới, bóng tối nền nướng sẵn vào màu đỉnh, biển là một shader
+  đục không texture. Chi tiết nhỏ (người, ghế) ẩn khi thu nhỏ xa; điện thoại
+  và web dùng ít cây, ít đảo, lưới thưa hơn. Đo trên GPU phần mềm: một chi
+  nhánh khoảng 210 lệnh vẽ và 120–250 nghìn tam giác, nhà máy chính khoảng
+  600 lệnh vẽ và 760 nghìn tam giác.
+
 ## 0.9.0 – Xưởng 2, 3, 4 chạy như xưởng chính, nhân sự theo xưởng, mây không che nút
 
 - Xưởng 2, 3, 4 (lô đất bên cạnh) giờ vận hành y như xưởng chính thay vì

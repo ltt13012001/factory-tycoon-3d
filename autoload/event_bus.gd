@@ -57,6 +57,8 @@ signal camera_pad_changed(direction: Vector2)
 signal camera_zoom_requested(factor: float)
 ## A plot or factory next door was tapped (location id).
 signal site_selected(location_id: String)
+## Show a branch in another province or abroad in its own scenery.
+signal branch_visit_requested(location_id: String)
 
 
 func forward(name: StringName, data: Dictionary) -> void:

@@ -31,6 +31,7 @@ var _build_banner: PanelContainer
 var _banner_label: Label
 var _toasts: VBoxContainer
 var _confirm: ConfirmationDialog
+var _save_dialog: SaveDialog
 var _current := ""
 var _top_bar: HBoxContainer
 var _nav: VBoxContainer
@@ -68,6 +69,10 @@ func _ready() -> void:
 	get_viewport().size_changed.connect(_relayout)
 	_relayout.call_deferred()
 	EventBus.toast.connect(show_toast)
+	_report_load.call_deferred()
+	EventBus.branch_visit_requested.connect(func(_id):
+		if _current != "":
+			toggle_panel(_current))
 	EventBus.speed_changed.connect(func(_s): _update_speed_buttons())
 	EventBus.build_mode_changed.connect(func(active):
 		_build_banner.visible = active
@@ -222,8 +227,10 @@ func _build_top_bar() -> void:
 	for i in Graphics.NAMES.size():
 		pm.add_radio_check_item(Graphics.NAMES[i], GRAPHICS_ITEM + 1 + i)
 	pm.about_to_popup.connect(_update_graphics_items)
+	pm.about_to_popup.connect(_update_save_item)
 	pm.add_separator()
 	pm.add_item("Lưu game", 2)
+	pm.add_item("Sao lưu / chuyển máy khác", 4)
 	pm.add_item("Chơi lại từ đầu", 3)
 	pm.id_pressed.connect(_on_menu)
 	h.add_child(_menu)
@@ -237,6 +244,8 @@ func _build_top_bar() -> void:
 		EventBus.selection_changed.emit("", 0)
 		show_toast("Bắt đầu game mới.", true))
 	add_child(_confirm)
+	_save_dialog = SaveDialog.new()
+	add_child(_save_dialog)
 
 
 func _on_menu(id: int) -> void:
@@ -246,7 +255,10 @@ func _on_menu(id: int) -> void:
 		1:
 			set_ui_scale(_ui_scale - 0.1)
 		2:
-			show_toast("Đã lưu game." if SaveManager.save_game() else "Không lưu được!", true)
+			var saved := SaveManager.save_game()
+			show_toast("Đã lưu game." if saved else "Không lưu được! Thử Menu → Sao lưu để giữ mã lưu.", saved)
+		4:
+			_save_dialog.open()
 		3:
 			_confirm.popup_centered()
 		_:
@@ -254,6 +266,31 @@ func _on_menu(id: int) -> void:
 				var g: Graphics = get_tree().current_scene.get_node("Graphics")
 				g.set_tier(id - GRAPHICS_ITEM - 1)
 				show_toast("Đồ họa: %s%s" % ["Tự động – " if Graphics.auto else "", Graphics.NAMES[Graphics.tier]], true)
+
+
+## "Lưu game" says when the game last saved itself.
+func _update_save_item() -> void:
+	var pm := _menu.get_popup()
+	var text := "Lưu game"
+	if SaveManager.last_saved > 0.0:
+		var ago := int(Time.get_unix_time_from_system() - SaveManager.last_saved)
+		text += " (tự lưu %s trước)" % ("%d giây" % ago if ago < 60 else "%d phút" % (ago / 60))
+	pm.set_item_text(pm.get_item_index(2), text)
+
+
+## Tells the player how the game started from the save, once the HUD is up.
+func _report_load() -> void:
+	match SaveManager.load_note:
+		"loaded":
+			show_toast("Đã tải tiến trình đã lưu: ngày %d." % GameManager.sim.day(), true)
+		"backup":
+			show_toast("File lưu chính bị hỏng, đã tải bản dự phòng gần nhất (ngày %d)." % GameManager.sim.day(), false)
+		"broken":
+			show_toast("Không đọc được file lưu cũ nên bắt đầu game mới. File cũ được giữ lại trong thư mục saves.", false)
+		"newer":
+			show_toast("File lưu đến từ bản game mới hơn nên không mở được. Hãy cập nhật game; file cũ vẫn được giữ.", false)
+	if not SaveManager.storage_is_persistent():
+		show_toast("Trình duyệt này không giữ dữ liệu sau khi đóng trang. Vào Menu → Sao lưu để giữ mã lưu.", false)
 
 
 ## Ticks the graphics level in the menu; on Auto it also names the level in use.
