@@ -302,13 +302,18 @@ func _finish_cycle(m: Dictionary, d: MachineDef) -> void:
 		sim.economy.add_stat("produced", 1)
 		sim.emit_event(&"unit_produced", {"id": m.id, "product_id": d.output_product_id})
 	m.wear_count = int(m.wear_count) + 1
-	if m.wear_count >= d.wear_cycles:
+	if m.wear_count >= d.wear_cycles * (100 + sim.diamonds.bonus("wear")) / 100:
 		m.wear_count = 0
 		m.condition = maxi(0, int(m.condition) - 1)
 	if int(m.condition) <= 0 or (int(m.condition) < d.fragile_below and sim.rng.randi_range(1, 100) <= d.breakdown_percent):
 		m.broken = true
 		m.status = BROKEN
 		sim.emit_event(&"machine_broken", {"id": m.id})
+
+
+## Ends a repair at once (or fixes a machine nobody is repairing yet).
+func finish_repair(m: Dictionary) -> void:
+	_finish_repair(m)
 
 
 func _finish_repair(m: Dictionary) -> void:

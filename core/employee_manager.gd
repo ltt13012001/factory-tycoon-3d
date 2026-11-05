@@ -138,6 +138,7 @@ func mood_target(e: Dictionary) -> int:
 	var t := BASE_MOOD + (pay_percent() - 100) * 6 / 5 - int(OVERTIME_MOOD.get(shift_hours(), 0))
 	if sim.buildings.level("break_room") > 0:
 		t += BREAK_ROOM_MOOD
+	t += sim.diamonds.bonus("mood")
 	t += int(e.id) * 7 % 11 - 5  # everyone is a little different
 	return clampi(t, 0, 100)
 

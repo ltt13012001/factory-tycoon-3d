@@ -38,6 +38,9 @@ signal site_opened(data: Dictionary)
 signal strike_started(data: Dictionary)
 signal strike_ended(data: Dictionary)
 signal staff_unhappy(data: Dictionary)
+signal diamonds_changed(data: Dictionary)
+signal quest_completed(data: Dictionary)
+signal boost_ended(data: Dictionary)
 
 # Presentation events
 signal toast(text: String, good: bool)

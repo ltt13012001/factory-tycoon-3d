@@ -110,7 +110,7 @@ func _process(_delta: float) -> void:
 	if shown.has("job") and shown.job is Dictionary:
 		shown.job.erase("ticks_left")
 		shown.job.erase("wait")
-	var sig := str(shown) + str(sim.state.cash / 1000)
+	var sig := str(shown) + str(sim.state.cash / 1000) + str(sim.diamonds.balance())
 	if sig == _signature or Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
 		return
 	_signature = sig
@@ -176,6 +176,8 @@ func _build_machine(sim: Simulation, m: Dictionary) -> void:
 		if m.broken:
 			b.add_theme_color_override("font_color", UiTheme.BAD)
 		actions.add_child(b)
+	if m.broken or (int(m.repairer_id) == 0 and cond < 60) or int(m.repairer_id) != 0:
+		actions.add_child(UiTheme.diamond_button("Sửa ngay · %d" % DiamondManager.REPAIR_COST, func(): GameManager.instant_repair(m.id), not sim.diamonds.can_spend(DiamondManager.REPAIR_COST)))
 	actions.add_child(UiTheme.button("Chủ xưởng kiểm tra", func(): EventBus.inspect_requested.emit(m.id)))
 	actions.add_child(UiTheme.button("Bán (+%s)" % Fmt.money(d.price * d.resale_percent / 100), func(): GameManager.sell_machine(m.id)))
 	if d.operators_required > 0 and m.operator_id == 0:
