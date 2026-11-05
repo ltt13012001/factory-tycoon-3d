@@ -11,7 +11,7 @@ func signature(sim: Simulation) -> String:
 	var parts := [sim.state.cash / 1000, sim.state.company_tier, sim.state.line_speed_level,
 		sim.state.executives, sim.employees.count(EmployeeManager.MANAGER), sim.state.machines.size(), sim.buildings.machine_slots()]
 	for s in sim.state.sites:
-		parts.append("%s%s%d%d%s%d%d%d" % [s.id, s.status, s.lines, s.automation, s.head, int(s.ticks_left) / 30,
+		parts.append("%s%s%d%d%d%s%d%d%d" % [s.id, s.status, s.lines, s.automation, int(s.get("workers", 0)), s.head, int(s.ticks_left) / 30,
 			sim.production.machines_at(s.id).size(), sim.employees.staff_at(s.id).size()])
 	return str(parts)
 
@@ -33,7 +33,7 @@ func build(b: VBoxContainer, sim: Simulation) -> void:
 			ExpansionManager.LOCAL:
 				b.add_child(wrap_label("Đặt đủ máy trong xưởng thì mua được lô đất bên cạnh để xây thêm nhà xưởng. Xưởng mới chạy y như xưởng chính: tự đặt máy, tuyển công nhân vận hành, kho, kỹ thuật và xưởng trưởng riêng; hàng làm ra vào kho chung để giao đơn."))
 			ExpansionManager.DOMESTIC:
-				b.add_child(wrap_label("Mở khi đã là %s. Khảo sát trước để biết sức mua của thị trường, rồi mở chi nhánh." % ExpansionManager.TIER_NAMES[1]))
+				b.add_child(wrap_label("Mở khi đã là %s. Khảo sát trước để biết sức mua của thị trường, rồi mở chi nhánh. Dây chuyền tự chạy bằng máy; tuyển công nhân xưởng đứng máy thì mỗi dây chuyền đủ người lãi thêm %d%%." % [ExpansionManager.TIER_NAMES[1], ExpansionManager.CREW_PROFIT_PERCENT]))
 			ExpansionManager.ABROAD:
 				b.add_child(wrap_label("Mở khi đã là %s. Lãi cao hơn nhưng vốn lớn." % ExpansionManager.TIER_NAMES[2]))
 		for l in sim.content.location_list(region):
@@ -215,6 +215,7 @@ func _ready_site(c: VBoxContainer, sim: Simulation, l: LocationDef, s: Dictionar
 	if l.region != ExpansionManager.LOCAL:
 		row(c, "Sức mua thị trường", "%d%%" % s.market)
 	_head_row(c, sim, l, s)
+	_workers_row(c, sim, l, s)
 	var income := ex.daily_income(s)
 	var cost := ex.daily_cost(s)
 	row(c, "Thu · chi mỗi ngày", "+%s · -%s" % [Fmt.money(income), Fmt.money(cost)], UiTheme.GOOD if income >= cost else UiTheme.WARN)
@@ -224,6 +225,37 @@ func _ready_site(c: VBoxContainer, sim: Simulation, l: LocationDef, s: Dictionar
 	var auto := ex.automation_cost(s)
 	if auto >= 0:
 		items.append(UiTheme.button("Tự động hoá (%s)" % Fmt.money(auto), func(): GameManager.automate_site(l.id), not sim.economy.can_afford(auto)))
+	if not items.is_empty():
+		var h := buttons(c, items)
+		h.add_theme_constant_override("separation", 4)
+
+
+## A branch's factory workers: how many lines have their full crew, and
+## buttons to hire one, hire everyone still needed, or let one go.
+func _workers_row(c: VBoxContainer, sim: Simulation, l: LocationDef, s: Dictionary) -> void:
+	var ex := sim.expansion
+	var have := ex.workers(s)
+	var need := ex.workers_needed(s)
+	var staffed := ex.staffed_lines(s)
+	var crew := ex.crew_per_line(s)
+	var color := UiTheme.GOOD if need > 0 and have >= need else (UiTheme.WARN if int(s.lines) > 0 else UiTheme.MUTED)
+	row(c, "Công nhân xưởng", "%d / %d người · %d/%d dây chuyền đủ người" % [have, need, staffed, int(s.lines)], color)
+	var note := "Mỗi dây chuyền cần %d công nhân đứng máy; đủ người thì lãi thêm %d%%, thiếu người thì chỉ chạy máy tự động. Lương %s / người / ngày." \
+		% [crew, ExpansionManager.CREW_PROFIT_PERCENT, Fmt.money(ex.worker_wage(l))]
+	if have > need:
+		note += " Đang thừa %d người." % (have - need)
+	c.add_child(wrap_label(note, 13, UiTheme.MUTED))
+	var fee := ex.worker_hire_fee(l)
+	var items := []
+	if have < need:
+		items.append(UiTheme.button("+ Tuyển công nhân (%s)" % Fmt.money(fee), func(): GameManager.hire_branch_workers(l.id, 1), not sim.economy.can_afford(fee)))
+		if need - have > 1:
+			var all := (need - have) * fee
+			var btn := UiTheme.button("Tuyển đủ %d người (%s)" % [need - have, Fmt.money(all)], func(): GameManager.hire_branch_workers(l.id, 0), not sim.economy.can_afford(fee))
+			btn.add_theme_color_override("font_color", UiTheme.GOOD)
+			items.append(btn)
+	if have > 0:
+		items.append(UiTheme.button("Cho nghỉ 1", func(): GameManager.fire_branch_workers(l.id, 1)))
 	if not items.is_empty():
 		var h := buttons(c, items)
 		h.add_theme_constant_override("separation", 4)

@@ -82,6 +82,8 @@ func expand(location_id: String) -> Dictionary: return command(sim.expand(locati
 func buy_line(location_id: String) -> Dictionary: return command(sim.buy_line(location_id))
 func automate_site(location_id: String) -> Dictionary: return command(sim.automate_site(location_id))
 func hire_site_head(location_id: String) -> Dictionary: return command(sim.hire_site_head(location_id))
+func hire_branch_workers(location_id: String, count := 1) -> Dictionary: return command(sim.hire_branch_workers(location_id, count))
+func fire_branch_workers(location_id: String, count := 1) -> Dictionary: return command(sim.fire_branch_workers(location_id, count))
 func fire_site_head(location_id: String) -> Dictionary: return command(sim.fire_site_head(location_id))
 func hire_executive(id: String) -> Dictionary: return command(sim.hire_executive(id))
 func fire_executive(id: String) -> Dictionary: return command(sim.fire_executive(id))

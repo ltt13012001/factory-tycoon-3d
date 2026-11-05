@@ -206,6 +206,9 @@ func _leaders_card(b: VBoxContainer, sim: Simulation) -> void:
 		if not sim.expansion.is_factory(s.id) and s.head != "":
 			var l: LocationDef = sim.content.locations[s.id]
 			lines.append(["%s %s" % [sim.expansion.head_title(l), l.display_name], s.head])
+		if not sim.expansion.is_factory(s.id) and sim.expansion.workers(s) > 0:
+			var l: LocationDef = sim.content.locations[s.id]
+			lines.append(["Công nhân xưởng %s" % l.display_name, "%d người" % sim.expansion.workers(s)])
 	if lines.is_empty():
 		b.add_child(HSeparator.new())
 		b.add_child(UiTheme.button("Chiêu mộ quản lý cấp cao bằng kim cương →", func(): EventBus.panel_requested.emit("diamonds")))
@@ -215,7 +218,7 @@ func _leaders_card(b: VBoxContainer, sim: Simulation) -> void:
 	var c := card(b)
 	for x in lines:
 		row(c, x[0], x[1])
-	c.add_child(wrap_label("Bổ nhiệm ban lãnh đạo ở bảng Mở rộng; quản lý cấp cao chiêu mộ bằng kim cương ở bảng Kim cương."))
+	c.add_child(wrap_label("Bổ nhiệm ban lãnh đạo, giám đốc và công nhân chi nhánh ở bảng Mở rộng; quản lý cấp cao chiêu mộ bằng kim cương ở bảng Kim cương."))
 
 
 ## Short factory names for the rows of choice buttons on narrow phones.

@@ -7,7 +7,9 @@
 ## machines, operators, warehouse staff and technicians, sharing the company
 ## store and the orders; their head is the factory manager. Branches in
 ## other provinces and abroad are run by their director and earn a daily
-## profit from their production lines, booked at the end of the day.
+## profit from their production lines, booked at the end of the day. A
+## branch line runs on its machines alone, or with a crew of the branch's
+## own factory workers, who make it produce more (see CREW_PROFIT_PERCENT).
 class_name ExpansionManager
 extends RefCounted
 
@@ -40,6 +42,14 @@ const MANAGER_SPEED_PERCENT := 15
 const AUTOMATION_PERCENT := 20
 const AUTOMATION_SPEED_PERCENT := 10
 const MAX_AUTOMATION := 3
+## Factory workers of a branch: a line with its full crew earns this many
+## percent more than a line running on its machines alone. A crew is
+## CREW_PER_LINE workers, one less from automation level CREW_SMALL_FROM.
+const CREW_PROFIT_PERCENT := 50
+const CREW_PER_LINE := 2
+const CREW_SMALL_FROM := 2
+## A branch worker's daily wage is the standard wage times this factor.
+const BRANCH_WAGE_FACTOR := {DOMESTIC: 1, ABROAD: 3}
 ## Every finished factory next door has its own store, added to the company's.
 const FACTORY_RAW_CAPACITY := 300
 const FACTORY_FINISHED_CAPACITY := 200
@@ -392,7 +402,7 @@ func next_step(id: String) -> Dictionary:
 	var s := site(id)
 	var cost := next_step_cost(id)
 	if s.is_empty():
-		s = {"id": id, "status": LAND, "ticks_left": 0, "total_ticks": 0, "lines": 0, "automation": 0, "head": "", "market": 100}
+		s = {"id": id, "status": LAND, "ticks_left": 0, "total_ticks": 0, "lines": 0, "automation": 0, "head": "", "market": 100, "workers": 0}
 		sim.state.sites.append(s)
 		if l.region == LOCAL:
 			sim.economy.book("expansion", -cost, "Mua đất " + l.display_name)
@@ -476,6 +486,75 @@ func fire_head(id: String) -> Dictionary:
 	return Simulation.ok("%s đã nghỉ. Xưởng sẽ dừng cho tới khi có người mới." % person)
 
 
+# --- Branch factory workers --------------------------------------------------------
+
+## Workers one line of a branch needs to run with a full crew.
+func crew_per_line(s: Dictionary) -> int:
+	return CREW_PER_LINE - (1 if int(s.get("automation", 0)) >= CREW_SMALL_FROM else 0)
+
+
+func workers(s: Dictionary) -> int:
+	return int(s.get("workers", 0))
+
+
+## Workers needed for every line bought so far.
+func workers_needed(s: Dictionary) -> int:
+	return int(s.get("lines", 0)) * crew_per_line(s)
+
+
+## Lines with their full crew; the others run on their machines alone.
+func staffed_lines(s: Dictionary) -> int:
+	return mini(int(s.get("lines", 0)), workers(s) / crew_per_line(s))
+
+
+func worker_wage(l: LocationDef) -> int:
+	return sim.config.wage_per_day * int(BRANCH_WAGE_FACTOR.get(l.region, 1))
+
+
+func worker_hire_fee(l: LocationDef) -> int:
+	return sim.config.hire_fee * int(BRANCH_WAGE_FACTOR.get(l.region, 1))
+
+
+## Hires factory workers for a branch: count of them, or (count 0) as many
+## as its lines still need.
+func hire_workers(id: String, count := 1) -> Dictionary:
+	var s := site(id)
+	var l := loc(id)
+	if l == null or is_factory(id):
+		return Simulation.fail("Xưởng này tuyển nhân viên ở bảng Nhân sự.")
+	if s.is_empty() or s.status != READY:
+		return Simulation.fail("Chi nhánh chưa xây xong.")
+	var missing := workers_needed(s) - workers(s)
+	if int(s.lines) == 0:
+		return Simulation.fail("Mua dây chuyền trước rồi mới tuyển công nhân.")
+	if missing <= 0:
+		return Simulation.fail("Mọi dây chuyền đã đủ công nhân.")
+	var n := missing if count <= 0 else mini(count, missing)
+	var fee := worker_hire_fee(l)
+	# Hire as many as the money allows.
+	while n > 0 and not sim.economy.can_afford(fee * n):
+		n -= 1
+	if n <= 0:
+		return Simulation.fail("Không đủ tiền tuyển (%s mỗi người)." % Fmt.money(fee))
+	sim.economy.book("hire", -fee * n, "Tuyển %d công nhân %s" % [n, l.display_name])
+	s.workers = workers(s) + n
+	sim.emit_event(&"expansion_changed", {"id": id})
+	return Simulation.ok("%s có %d công nhân, %d/%d dây chuyền đủ người." % [l.display_name, workers(s), staffed_lines(s), int(s.lines)])
+
+
+## Lets count factory workers of a branch go (count 0: those no line needs).
+func fire_workers(id: String, count := 1) -> Dictionary:
+	var s := site(id)
+	if s.is_empty() or is_factory(id) or workers(s) == 0:
+		return Simulation.fail("Chi nhánh không có công nhân.")
+	var n := maxi(0, workers(s) - workers_needed(s)) if count <= 0 else mini(count, workers(s))
+	if n <= 0:
+		return Simulation.fail("Không có công nhân thừa.")
+	s.workers = workers(s) - n
+	sim.emit_event(&"expansion_changed", {"id": id})
+	return Simulation.ok("%d công nhân %s đã nghỉ việc." % [n, loc(id).display_name])
+
+
 ## Saves from before 0.9: each production line of a factory next door
 ## becomes a machine of the starting type with an operator, plus one
 ## warehouse worker for every three; the difference to the line price is
@@ -516,15 +595,18 @@ func daily_income(s: Dictionary) -> int:
 	if s.status != READY or s.head == "" or is_factory(s.id):
 		return 0
 	var l := loc(s.id)
-	return int(s.lines) * l.line_profit_per_day * (100 + profit_bonus_percent(s)) / 100 * int(s.market) / 100
+	var base := int(s.lines) * l.line_profit_per_day + staffed_lines(s) * l.line_profit_per_day * CREW_PROFIT_PERCENT / 100
+	return base * (100 + profit_bonus_percent(s)) / 100 * int(s.market) / 100
 
 
-## Daily costs of a site once built: upkeep and the head's wage.
+## Daily costs of a site once built: upkeep, the head's wage and the wages
+## of a branch's factory workers.
 func daily_cost(s: Dictionary) -> int:
 	if s.status != READY and s.status != BUILDING:
 		return 0
 	var l := loc(s.id)
 	var cost := l.upkeep_per_day * (100 - _exec_sum("upkeep")) / 100 if s.status == READY else 0
+	cost += workers(s) * worker_wage(l)
 	if s.head != "":
 		cost += head_wage(l)
 	return cost

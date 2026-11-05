@@ -262,6 +262,8 @@ func _branch_shots(hud: Node) -> void:
 			sim.buy_line(id)
 		sim.automate_site(id)
 		sim.automate_site(id)
+		# Factory workers on every line; in Đà Nẵng only half of them yet.
+		sim.hire_branch_workers(id, sim.expansion.workers_needed(sim.expansion.site(id)) / 2 if id == "da_nang" else 0)
 	sim.state.tick = sim.day() * sim.config.ticks_per_day + (10 - sim.config.day_start_hour) * sim.config.ticks_per_hour
 	TimeManager.set_speed(1)
 	for id in ids:
@@ -292,6 +294,21 @@ func _branch_shots(hud: Node) -> void:
 			await _shot("35_branch_%s_evening" % id)
 			sim.state.tick -= 8 * sim.config.ticks_per_hour
 			rig._yaw_target = 45.0
+	# A branch's card in the expansion panel: its factory workers.
+	EventBus.branch_visit_requested.emit("da_nang")
+	EventBus.camera_focus_requested.emit(BranchView.ORIGIN + Vector3(-10, 0, -4), 0.0)
+	rig._size_target = 30.0
+	hud.toggle_panel("expansion")
+	await get_tree().create_timer(1.0).timeout
+	var panel: Control = hud._panels["expansion"]
+	var scroll: ScrollContainer = panel.find_children("*", "ScrollContainer", true, false)[0]
+	for lab in panel.find_children("*", "Label", true, false):
+		if lab.text == "Chi nhánh Đà Nẵng":
+			scroll.scroll_vertical = int(lab.global_position.y - scroll.global_position.y) + scroll.scroll_vertical - 20
+			break
+	await get_tree().create_timer(1.0).timeout
+	await _shot("37_branch_workers_panel")
+	hud.toggle_panel("expansion")
 	var frames := Engine.get_frames_drawn()
 	var t0 := Time.get_ticks_msec()
 	await get_tree().create_timer(3.0).timeout

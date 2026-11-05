@@ -74,7 +74,7 @@ func update_label(sim: Simulation, l: LocationDef, s: Dictionary) -> void:
 		ExpansionManager.BUILDING:
 			text = "Đang xây %d%%" % (100 - int(s.ticks_left) * 100 / maxi(1, int(s.total_ticks)))
 		ExpansionManager.READY:
-			text = "%d/%d dây chuyền" % [int(s.lines), l.max_lines]
+			text = "%d/%d dây chuyền · %d công nhân" % [int(s.lines), l.max_lines, ex.workers(s)]
 			if s.head == "":
 				text += " · chưa có giám đốc, chưa sản xuất"
 				color = Color("ffab91")
@@ -215,7 +215,7 @@ func _plant(b: MeshBatch, flat: MeshBatch, sim: Simulation, l: LocationDef, s: D
 	var abroad := l.region == ExpansionManager.ABROAD
 	var accent := Color("1565c0") if not abroad else Color("00897b")
 	_hall(b, flat, accent)
-	_lines(b, flat, l, s, accent)
+	_lines(b, flat, l, s, accent, sim.expansion.staffed_lines(s), sim.expansion.crew_per_line(s))
 	_warehouse(b, flat)
 	_office(b, l, s)
 	_yard(b, flat)
@@ -251,7 +251,7 @@ func _hall(b: MeshBatch, flat: MeshBatch, accent: Color) -> void:
 	flat.box(Vector3(w - 1.0, 0.012, 1.2), Vector3(c.x, 0.11, hi.y - 1.0), Color("4f9a63"))
 
 
-func _lines(b: MeshBatch, flat: MeshBatch, l: LocationDef, s: Dictionary, accent: Color) -> void:
+func _lines(b: MeshBatch, flat: MeshBatch, l: LocationDef, s: Dictionary, accent: Color, staffed: int, crew_size: int) -> void:
 	var rows := int(ceil(l.max_lines / 2.0))
 	var gap := minf(3.0, 18.0 / rows)
 	var lines := int(s.lines)
@@ -299,8 +299,9 @@ func _lines(b: MeshBatch, flat: MeshBatch, l: LocationDef, s: Dictionary, accent
 			b.cylinder(0.25, 0.5, r + Vector3(0, 0.25, 0), Color("f57c00"), _paint, -1.0, Vector3.ZERO, 10)
 			b.bar(r + Vector3(0, 0.5, 0), r + Vector3(0.2, 1.6, 0.1), 0.18, Color("f57c00"), _paint, true)
 			b.bar(r + Vector3(0.2, 1.6, 0.1), r + Vector3(-0.4, 1.4, 0.7), 0.14, Color("f57c00"), _paint, true)
-		# Operators: fewer as the line gets automated.
-		var crew := 2 if auto == 0 else (1 if auto < 3 else 0)
+		# The branch's factory workers: a full crew on each staffed line;
+		# the other lines run on their machines alone.
+		var crew := crew_size if i < staffed else 0
 		for k in crew:
 			var p := Vector3(x0 + 1.2 + k * 6.0, 0.08, z + 0.85)
 			_person(b, p, shirts[k], PI, Color("ffd23f"))

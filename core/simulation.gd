@@ -223,6 +223,14 @@ func automate_site(location_id: String) -> Dictionary:
 	return expansion.upgrade_automation(location_id)
 
 
+func hire_branch_workers(location_id: String, count := 1) -> Dictionary:
+	return expansion.hire_workers(location_id, count)
+
+
+func fire_branch_workers(location_id: String, count := 1) -> Dictionary:
+	return expansion.fire_workers(location_id, count)
+
+
 func hire_site_head(location_id: String) -> Dictionary:
 	return expansion.hire_head(location_id)
 
