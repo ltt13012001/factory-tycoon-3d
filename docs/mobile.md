@@ -62,7 +62,7 @@ iPhone và iPad, màn hình ngang).
 
 ### Cách 1: mở project Xcode đã xuất sẵn
 
-1. Trên Mac, cài Xcode (App Store), giải nén `FactoryTycoon3D-0.3-ios-xcode.zip`.
+1. Trên Mac, cài Xcode (App Store), giải nén `FactoryTycoon3D-0.10-ios-xcode.zip`.
 2. Mở `FactoryTycoon3D.xcodeproj`.
 3. Chọn target FactoryTycoon3D → **Signing & Capabilities** → **Team**:
    chọn Apple ID của bạn (Xcode → Settings → Accounts để thêm). Nếu Xcode báo
@@ -76,7 +76,9 @@ iPhone và iPad, màn hình ngang).
 
 Với Apple ID miễn phí, ứng dụng chạy được 7 ngày rồi phải cài lại từ Xcode.
 Tài khoản Apple Developer Program (99 USD/năm) bỏ giới hạn này và cho phép
-gửi bản thử qua TestFlight hoặc đưa lên App Store (Product → Archive).
+gửi bản thử qua TestFlight hoặc đưa lên App Store. Các bước đưa lên App Store
+xem trong [ios-app-store.md](ios-app-store.md). Không có Mac: xem
+[ios-khong-can-mac.md](ios-khong-can-mac.md).
 
 ### Cách 2: xuất từ Godot trên Mac
 
