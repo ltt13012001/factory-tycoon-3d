@@ -77,7 +77,8 @@ iPhone và iPad, màn hình ngang).
 Với Apple ID miễn phí, ứng dụng chạy được 7 ngày rồi phải cài lại từ Xcode.
 Tài khoản Apple Developer Program (99 USD/năm) bỏ giới hạn này và cho phép
 gửi bản thử qua TestFlight hoặc đưa lên App Store. Các bước đưa lên App Store
-xem trong [ios-app-store.md](ios-app-store.md).
+xem trong [ios-app-store.md](ios-app-store.md). Không có Mac: xem
+[ios-khong-can-mac.md](ios-khong-can-mac.md).
 
 ### Cách 2: xuất từ Godot trên Mac
 
