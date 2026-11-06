@@ -4,7 +4,7 @@
 class_name SaveMigrations
 extends RefCounted
 
-const CURRENT_VERSION := 6
+const CURRENT_VERSION := 7
 
 
 static func migrate(data: Dictionary) -> Dictionary:
@@ -26,6 +26,8 @@ static func migrate(data: Dictionary) -> Dictionary:
 				data = _from_4(data)
 			5:
 				data = _from_5(data)
+			6:
+				data = _from_6(data)
 		version += 1
 		data.save_version = version
 	return data
@@ -95,4 +97,17 @@ static func _from_5(data: Dictionary) -> Dictionary:
 	for s in data.get("sites", []):
 		if str(s.get("id", "")).begins_with("lot_") and int(s.get("lines", 0)) > 0:
 			s.convert_lines = true
+	return data
+
+
+## 0.11: diamonds, quests, senior managers, boosts, rewarded ads and
+## in-app purchases. Players from earlier versions get the starting
+## diamonds too, and orders they already delivered count towards the
+## achievements (as far as the kept reports go back).
+static func _from_6(data: Dictionary) -> Dictionary:
+	var shipped := 0
+	for r in data.get("reports", []):
+		shipped += int(r.get("stats", {}).get("orders_delivered", 0))
+	data.merge({"diamonds": DiamondManager.START_DIAMONDS, "diamond_stats": {}, "seniors": {},
+		"quests": {"shipped": shipped}, "boost": {}, "ads": {}, "iap_log": []})
 	return data

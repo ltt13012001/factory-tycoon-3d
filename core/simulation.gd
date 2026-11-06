@@ -19,6 +19,8 @@ var employees: EmployeeManager
 var tutorial: Tutorial
 var buildings: BuildingManager
 var expansion: ExpansionManager
+var diamonds: DiamondManager
+var quests: QuestManager
 
 var _tick_remainder := 0.0
 
@@ -34,6 +36,8 @@ func _init(p_content: ContentDB = null) -> void:
 	tutorial = Tutorial.new(self)
 	buildings = BuildingManager.new(self)
 	expansion = ExpansionManager.new(self)
+	diamonds = DiamondManager.new(self)
+	quests = QuestManager.new(self)
 
 
 ## Breaks the reference cycles between the simulation, its managers and
@@ -49,6 +53,8 @@ func dispose() -> void:
 	tutorial = null
 	buildings = null
 	expansion = null
+	diamonds = null
+	quests = null
 
 
 static func ok(message: String = "") -> Dictionary:
@@ -67,6 +73,7 @@ func new_game(world_seed: int = 12345) -> void:
 	state.cash = cfg.start_cash
 	state.reputation = cfg.start_reputation
 	state.raw = cfg.start_raw_material
+	state.diamonds = DiamondManager.START_DIAMONDS
 	state.raw_value = cfg.start_raw_material * content.material().unit_price
 	state.machines.append(production.make_machine(cfg.start_machine_id, 0))
 	for i in cfg.start_operators:
@@ -113,6 +120,7 @@ func step() -> void:
 	state.tick += 1
 	buildings.tick()
 	expansion.tick()
+	diamonds.tick()
 	inventory.tick()
 	employees.tick()
 	production.tick()
@@ -128,6 +136,8 @@ func step() -> void:
 
 func emit_event(name: StringName, data: Dictionary) -> void:
 	tutorial.on_event(name)
+	if quests:
+		quests.on_event(name, data)
 	event.emit(name, data)
 
 
@@ -227,6 +237,38 @@ func hire_executive(id: String) -> Dictionary:
 
 func fire_executive(id: String) -> Dictionary:
 	return expansion.fire_exec(id)
+
+
+func recruit_senior(id: String) -> Dictionary:
+	return diamonds.recruit_senior(id)
+
+
+func buy_boost() -> Dictionary:
+	return diamonds.buy_boost()
+
+
+func staff_party() -> Dictionary:
+	return diamonds.party()
+
+
+func instant_repair(machine_id: int) -> Dictionary:
+	return diamonds.instant_repair(machine_id)
+
+
+func rush(kind: String, id: String) -> Dictionary:
+	return diamonds.rush(kind, id)
+
+
+func exchange_diamonds() -> Dictionary:
+	return diamonds.exchange()
+
+
+func claim_daily_quest(index: int) -> Dictionary:
+	return quests.claim_daily(index)
+
+
+func claim_milestone(id: String) -> Dictionary:
+	return quests.claim_milestone(id)
 
 
 func hire(role: String, site := "") -> Dictionary:

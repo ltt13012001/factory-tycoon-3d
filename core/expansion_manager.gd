@@ -225,7 +225,7 @@ func upgrade_line_speed() -> Dictionary:
 
 ## Total speed bonus (percent) for every machine in a factory ("" = the first).
 func speed_bonus_percent(site_id := "") -> int:
-	var total := line_speed_level() * LINE_SPEED_PERCENT + _exec_sum("speed")
+	var total := line_speed_level() * LINE_SPEED_PERCENT + _exec_sum("speed") + sim.diamonds.bonus("speed") + sim.diamonds.boost_percent()
 	if site_id == "":
 		if sim.employees.count(EmployeeManager.MANAGER, "") > 0:
 			total += MANAGER_SPEED_PERCENT
@@ -301,7 +301,7 @@ func exec_wages() -> int:
 
 ## Percent multiplier for new order prices.
 func order_price_percent() -> int:
-	return 100 + _exec_sum("price")
+	return 100 + _exec_sum("price") + sim.diamonds.bonus("price")
 
 
 ## Percent of overdraft interest still charged.
@@ -502,7 +502,7 @@ func convert_old_lines() -> void:
 ## Profit bonus (percent) for a site, before its market factor.
 func profit_bonus_percent(s: Dictionary) -> int:
 	var l := loc(s.id)
-	var bonus := int(s.automation) * AUTOMATION_PERCENT + _exec_sum("profit")
+	var bonus := int(s.automation) * AUTOMATION_PERCENT + _exec_sum("profit") + sim.diamonds.bonus("profit")
 	if l.region == DOMESTIC:
 		bonus += _exec_sum("domestic")
 	elif l.region == ABROAD:

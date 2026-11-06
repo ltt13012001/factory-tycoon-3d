@@ -20,7 +20,7 @@ func _init() -> void:
 
 
 func signature(sim: Simulation) -> String:
-	var parts := [sim.state.cash, sim.state.settings, sim.state.strike, sim.employees.on_shift(), filter, _open,
+	var parts := [sim.state.cash, sim.state.settings, sim.state.seniors, sim.diamonds.balance(), sim.state.strike, sim.employees.on_shift(), filter, _open,
 		sim.expansion.factory_ids(), sim.state.machines.size()]
 	for s in sim.state.sites:
 		parts.append(s.head)
@@ -41,6 +41,7 @@ func build(b: VBoxContainer, sim: Simulation) -> void:
 	row(b, "Tâm trạng chung", "%s (%d)" % [SelectionPanel.mood_text(avg), avg], SelectionPanel.mood_color(avg))
 	if sim.employees.on_strike():
 		b.add_child(wrap_label("⚠ Công nhân đang đình công! Xem phần Ca làm việc và lương ở cuối bảng.", 14, UiTheme.BAD))
+		buttons(b, [UiTheme.diamond_button("Liên hoan, chấm dứt đình công · %d" % DiamondManager.PARTY_COST, func(): GameManager.staff_party(), not sim.diamonds.can_spend(DiamondManager.PARTY_COST))])
 	if factories.size() > 1:
 		var values := ["all"] + factories
 		var labels := ["Tất cả"]
@@ -198,18 +199,23 @@ func _leaders_card(b: VBoxContainer, sim: Simulation) -> void:
 	for id in ExpansionManager.EXECUTIVE_ORDER:
 		if sim.expansion.has_exec(id):
 			lines.append([ExpansionManager.EXECUTIVES[id].name, str(sim.state.executives[id])])
+	for id in DiamondManager.SENIOR_ORDER:
+		if sim.diamonds.senior_level(id) > 0:
+			lines.append(["%s (cấp %d)" % [DiamondManager.SENIORS[id].name, sim.diamonds.senior_level(id)], sim.diamonds.senior_name(id)])
 	for s in sim.state.sites:
 		if not sim.expansion.is_factory(s.id) and s.head != "":
 			var l: LocationDef = sim.content.locations[s.id]
 			lines.append(["%s %s" % [sim.expansion.head_title(l), l.display_name], s.head])
 	if lines.is_empty():
+		b.add_child(HSeparator.new())
+		b.add_child(UiTheme.button("Chiêu mộ quản lý cấp cao bằng kim cương →", func(): EventBus.panel_requested.emit("diamonds")))
 		return
 	b.add_child(HSeparator.new())
 	b.add_child(UiTheme.label("Ban lãnh đạo và chi nhánh", 18, UiTheme.WARN, true))
 	var c := card(b)
 	for x in lines:
 		row(c, x[0], x[1])
-	c.add_child(wrap_label("Bổ nhiệm và cho thôi ở bảng Mở rộng."))
+	c.add_child(wrap_label("Bổ nhiệm ban lãnh đạo ở bảng Mở rộng; quản lý cấp cao chiêu mộ bằng kim cương ở bảng Kim cương."))
 
 
 ## Short factory names for the rows of choice buttons on narrow phones.

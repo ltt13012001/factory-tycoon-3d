@@ -38,7 +38,7 @@ func finished_free_space() -> int:
 
 
 func lot_cost(qty: int) -> int:
-	return qty * sim.content.material().unit_price + sim.config.shipping_per_lot
+	return qty * sim.content.material().unit_price * (100 - sim.diamonds.bonus("material")) / 100 + sim.config.shipping_per_lot
 
 
 ## Auto-buy amounts, chosen with sliders in the purchase panel.
