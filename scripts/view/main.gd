@@ -20,12 +20,18 @@ func _ready() -> void:
 	sky.radiance_size = Sky.RADIANCE_SIZE_64 if Palette.low_end() else Sky.RADIANCE_SIZE_128
 	e.background_mode = Environment.BG_SKY
 	e.sky = sky
-	e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	# Shade lit by the sky itself: blue from above, a green bounce from the
+	# ground below, so shadows read as daylight rather than flat grey.
+	e.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
+	e.ambient_light_sky_contribution = 0.75
 	e.ambient_light_color = Color(0.62, 0.68, 0.78)
 	e.ambient_light_energy = 0.55
-	e.tonemap_mode = Environment.TONE_MAPPER_FILMIC
-	e.tonemap_exposure = 1.0
+	# AgX keeps strong sunlight from clipping and rolls bright colours off
+	# naturally, like a camera: the photographic look of city builders.
+	e.tonemap_mode = Environment.TONE_MAPPER_AGX
+	e.tonemap_exposure = 1.08
 	e.tonemap_white = 6.0
+	e.tonemap_agx_contrast = 1.45
 	# Haze that softens the distant hills and town (aerial perspective).
 	# The camera is orthographic and 80 m back, so depth fog starts beyond
 	# the factory lot and only reaches the far scenery.
@@ -37,6 +43,10 @@ func _ready() -> void:
 	e.fog_depth_end = 240.0
 	e.fog_depth_curve = 1.6
 	e.fog_sky_affect = 0.0
+	# The haze takes the colour of the sky behind it, and glows warmer
+	# towards the sun.
+	e.fog_aerial_perspective = 0.25
+	e.fog_sun_scatter = 0.12
 	# Gentle bloom on lamps, windows and status lights.
 	e.glow_enabled = true
 	e.glow_intensity = 0.55

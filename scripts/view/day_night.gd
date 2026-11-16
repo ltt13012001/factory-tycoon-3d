@@ -52,10 +52,13 @@ func apply_hour(h: float) -> void:
 		elevation = 50.0
 		yaw = -30.0
 	sun.rotation_degrees = Vector3(-elevation, yaw, 0)
-	sun.light_energy = lerpf(0.22, 1.0, day)
+	sun.light_energy = lerpf(0.22, 1.25, day)
 	sun.light_color = Color("aabbee").lerp(Color("fff4e0"), day).lerp(Color("ffb36b"), dusk * 0.6)
 
-	environment.ambient_light_energy = lerpf(0.42, 0.55, day)
+	environment.ambient_light_energy = lerpf(0.42, 0.46, day)
+	# By day the shade takes the sky's colour; at night a fixed moonlit blue
+	# keeps the factory readable.
+	environment.ambient_light_sky_contribution = 0.75 * day
 	environment.ambient_light_color = Color(0.42, 0.48, 0.68).lerp(Color(0.62, 0.68, 0.78), day)
 	var horizon := NIGHT_HORIZON.lerp(DAY_HORIZON, day).lerp(DUSK_HORIZON, dusk * 0.8)
 	environment.fog_light_color = horizon.lerp(Color("cfe0f0"), day * 0.4)
@@ -65,6 +68,11 @@ func apply_hour(h: float) -> void:
 		sky_material.sky_horizon_color = horizon
 		sky_material.ground_horizon_color = horizon
 		sky_material.ground_bottom_color = Color("1c2230").lerp(Color("5a6b4a"), day)
+
+	# Cloud shadows drift over the fields by day; the ripples on ponds and
+	# paddies pick up the colour of the sky.
+	Landscape.set_cloud_shadow(Palette.surface("ground"), day if Graphics.tier != Graphics.LOW else 0.0)
+	Landscape.set_sky(Palette.surface("water"), DAY_TOP.lerp(DAY_HORIZON, 0.5).lerp(NIGHT_TOP, night).lerp(DUSK_HORIZON, dusk * 0.5))
 
 	var glow := smoothstep(0.35, 0.8, night)
 	if scenery:

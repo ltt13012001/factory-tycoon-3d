@@ -12,6 +12,9 @@ var _diamonds_only := false
 ## --screenshot-lang: the main panels and the language menu, to check a
 ## translation (pick the language with --lang=en, --lang=ja, ...).
 var _lang_only := false
+## --screenshot-scenery: the landscape around the main factory and a few
+## branches, with the interface hidden, at several times of day (0.14).
+var _scenery_only := false
 
 
 func _ready() -> void:
@@ -24,6 +27,8 @@ func _ready() -> void:
 			_diamonds_only = true
 		if a == "--screenshot-lang":
 			_lang_only = true
+		if a == "--screenshot-scenery":
+			_scenery_only = true
 		if a.begins_with("--screenshot-branches"):
 			_branches = a.trim_prefix("--screenshot-branches").trim_prefix("=")
 			if _branches == "":
@@ -70,6 +75,10 @@ func _run() -> void:
 		return
 	if _lang_only:
 		await _lang_shots(hud)
+		get_tree().quit()
+		return
+	if _scenery_only:
+		await _scenery_shots(hud)
 		get_tree().quit()
 		return
 	await _shot("01_factory")
@@ -474,3 +483,80 @@ func _diamond_shots(hud: Node) -> void:
 	Monetization.watch("diamonds")
 	await get_tree().create_timer(1.2).timeout
 	await _shot("46_demo_ad")
+
+
+## The landscape with the interface hidden: the factory, wide, the paddies,
+## the street, late afternoon and night, then four branches (0.14).
+func _scenery_shots(hud: Node) -> void:
+	var sim := GameManager.sim
+	var rig: CameraRig = get_viewport().get_camera_3d().get_parent().get_parent()
+	hud.get_parent().visible = false
+	_showcase()
+	var day0 := (sim.day() - 1) * sim.config.ticks_per_day
+	var at := func(hour: float) -> void:
+		sim.state.tick = day0 + int((hour - sim.config.day_start_hour) * sim.config.ticks_per_hour)
+	at.call(10.0)
+	await get_tree().create_timer(2.5).timeout
+	await _shot("70_factory")
+	_stats("factory")
+	rig._size_target = 90.0
+	await get_tree().create_timer(2.0).timeout
+	await _shot("71_wide")
+	_stats("wide")
+	rig.rotation_degrees.y = 20.0
+	rig._yaw_target = 20.0
+	EventBus.camera_focus_requested.emit(Vector3(0, 0, -75), 85.0)
+	await get_tree().create_timer(2.5).timeout
+	await _shot("71_hills")
+	rig._size_target = 42.0
+	rig.rotation_degrees.y = 20.0
+	rig._yaw_target = 20.0
+	EventBus.camera_focus_requested.emit(Vector3(4, 0, -30), 40.0)
+	await get_tree().create_timer(2.0).timeout
+	await _shot("72_paddies")
+	rig.rotation_degrees.y = 200.0
+	rig._yaw_target = 200.0
+	EventBus.camera_focus_requested.emit(Vector3(14, 0, 24), 26.0)
+	await get_tree().create_timer(2.0).timeout
+	await _shot("73_street")
+	rig.rotation_degrees.y = 45.0
+	rig._yaw_target = 45.0
+	EventBus.camera_focus_requested.emit(Vector3(-4, 0, -2), 60.0)
+	TimeManager.set_speed(0)
+	at.call(17.5)
+	await get_tree().create_timer(2.0).timeout
+	await _shot("74_evening")
+	at.call(20.5)
+	await get_tree().create_timer(2.0).timeout
+	await _shot("75_night")
+	at.call(10.0)
+	TimeManager.set_speed(1)
+	sim.state.cash += 1000000000
+	sim.state.company_tier = 4
+	var ids := ["da_nang", "quang_ninh", "binh_duong", "mexico"]
+	for id in ids:
+		var l: LocationDef = sim.content.locations[id]
+		sim.expand(id)
+		sim.advance_ticks(sim.expansion.survey_hours(l) * sim.config.ticks_per_hour + 1)
+		sim.expand(id)
+		sim.advance_ticks(l.build_hours * sim.config.ticks_per_hour + 1)
+		sim.hire_site_head(id)
+		sim.automate_site(id)
+		sim.automate_site(id)
+	sim.state.tick = sim.day() * sim.config.ticks_per_day + (10 - sim.config.day_start_hour) * sim.config.ticks_per_hour
+	for id in ids:
+		EventBus.branch_visit_requested.emit(id)
+		rig.rotation_degrees.y = 45.0
+		rig._yaw_target = 45.0
+		rig._size_target = 70.0
+		await get_tree().create_timer(2.5).timeout
+		_clear_hud(hud)
+		await _shot("76_branch_%s" % id)
+		_stats(id)
+
+
+func _stats(what: String) -> void:
+	print("%s: draw calls %d, objects %d, primitives %d" % [what,
+		RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME),
+		RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_OBJECTS_IN_FRAME),
+		RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME)])

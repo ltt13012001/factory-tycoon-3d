@@ -55,6 +55,7 @@ var _paint: Material
 var _steel: Material
 var _ground: Material
 var _paving: Material
+var _leaf: Material
 
 
 func _ready() -> void:
@@ -75,6 +76,7 @@ func _ready() -> void:
 	_steel = Palette.surface("steel")
 	_ground = Palette.surface("ground")
 	_paving = Palette.surface("paving")
+	_leaf = Palette.surface("foliage")
 	_build_pavements_and_lamps()
 	_build_power_line()
 	_build_gate()
@@ -201,7 +203,7 @@ func _street_tree(p: Vector3, kind: int) -> void:
 		var c: Array = clumps[k]
 		# Flowering trees show green leaves under the blossom.
 		var col := under if kind > 0 and k == 0 else leaf.lightened(0.05 * (k % 2))
-		_b.sphere(c[1], p + Vector3(0, h, 0) + c[0], col, null, Vector3(1.15, 0.6, 1.15), _leaf_segments, _leaf_segments - 4)
+		_b.sphere(c[1], p + Vector3(0, h, 0) + c[0], col, _leaf, Vector3(1.15, 0.6, 1.15), _leaf_segments, _leaf_segments - 4)
 
 
 func _bus_stop(p: Vector3) -> void:
@@ -475,7 +477,7 @@ func _tube_house(p: Vector3, w: float, floors: int, i: int) -> void:
 		_house_front_glass(Vector3(cx + w * 0.27, y + 1.55, zf - 0.03), Vector2(0.9, 1.1), Color("eceff1"))
 		if (i + f) % 2 == 0:
 			_b.cylinder(0.14, 0.25, Vector3(cx + w * 0.3, y + 0.25, zf - 0.6), Color("b07a54"), null, 0.18, Vector3.ZERO, 8)
-			_b.sphere(0.3, Vector3(cx + w * 0.3, y + 0.55, zf - 0.6), Color("4f8a3c"), null, Vector3(1, 1.2, 1), 7, 4)
+			_b.sphere(0.3, Vector3(cx + w * 0.3, y + 0.55, zf - 0.6), Color("4f8a3c"), _leaf, Vector3(1, 1.2, 1), 7, 4)
 		_b.box(Vector3(w, 0.14, 0.1), Vector3(cx, y, zb + 0.05), trim)
 		_house_front_glass(Vector3(cx - w * 0.12, y + 1.5, zb + 0.03), Vector2(1.0, 1.1), Color("eceff1"))
 		if (i + f) % 3 == 0:
@@ -511,7 +513,7 @@ func _tube_house(p: Vector3, w: float, floors: int, i: int) -> void:
 				_b.box(Vector3(0.45, 0.6, 0.03), Vector3(cx - w / 2.0 + 0.8 + k * (w - 1.4) / 3.0, top + 1.2, zf + 3.0), SHIRTS[(k + i) % SHIRTS.size()])
 			for k in 3:
 				_b.cylinder(0.2, 0.35, Vector3(cx - w / 2.0 + 0.5 + k * 0.6, top + 0.18, zf + 0.6), Color("b07a54"), null, 0.25, Vector3.ZERO, 8)
-				_b.sphere(0.32, Vector3(cx - w / 2.0 + 0.5 + k * 0.6, top + 0.6, zf + 0.6), Color("4f8a3c").lightened(k * 0.05), null, Vector3(1, 1.1, 1), 7, 4)
+				_b.sphere(0.32, Vector3(cx - w / 2.0 + 0.5 + k * 0.6, top + 0.6, zf + 0.6), Color("4f8a3c").lightened(k * 0.05), _leaf, Vector3(1, 1.1, 1), 7, 4)
 	if i % 4 == 1:
 		# Solar water heater
 		_b.box(Vector3(1.6, 0.06, 1.2), Vector3(cx - w * 0.15, top + 0.7, zb - 1.6), Color("1d2a3a"), paint, Vector3(0.6, 0, 0))
@@ -653,7 +655,7 @@ func _bamboo(p: Vector3) -> void:
 		# Feathery leaves: thin drooping sprays along the top half
 		for n in 3:
 			var at := mid.lerp(tip, 0.2 + n * 0.35)
-			_b.sphere(0.55 - n * 0.08, at + lean.normalized() * 0.3, Color("6f9f3a").darkened(0.05 * ((k + n) % 3)), null, Vector3(1.4, 0.45, 0.8), 7, 4)
+			_b.sphere(0.55 - n * 0.08, at + lean.normalized() * 0.3, Color("6f9f3a").darkened(0.05 * ((k + n) % 3)), _leaf, Vector3(1.4, 0.45, 0.8), 7, 4)
 
 
 ## A coconut palm: a curved ringed trunk and drooping fronds.
@@ -671,9 +673,9 @@ func _palm(p: Vector3, k: int) -> void:
 		var dir := Vector3(cos(a), 0, sin(a))
 		var mid := prev + dir * 1.3 + Vector3(0, 0.35, 0)
 		var tip := prev + dir * 2.6 + Vector3(0, -0.6, 0)
-		_b.bar(prev, mid, 0.12, Color("4f8a3c"))
-		_b.bar(mid, tip, 0.1, Color("5f9c44"))
-		_b.box(Vector3(0.7, 0.03, 1.5), prev.lerp(tip, 0.55) + Vector3(0, 0.05, 0), Color("5a9a3e"), null, Vector3(0, -a + PI / 2.0, 0.25))
+		_b.bar(prev, mid, 0.12, Color("4f8a3c"), _leaf)
+		_b.bar(mid, tip, 0.1, Color("5f9c44"), _leaf)
+		_b.box(Vector3(0.7, 0.03, 1.5), prev.lerp(tip, 0.55) + Vector3(0, 0.05, 0), Color("5a9a3e"), _leaf, Vector3(0, -a + PI / 2.0, 0.25))
 	for n in 3:
 		_b.sphere(0.18, prev + Vector3(cos(n * 2.1) * 0.25, -0.3, sin(n * 2.1) * 0.25), Color("6b8e23"), null, Vector3.ONE, 6, 4)
 
@@ -683,7 +685,7 @@ func _banana(p: Vector3) -> void:
 	_b.cylinder(0.16, 2.0, p + Vector3(0, 1.0, 0), Color("7a8f4a"), null, 0.12, Vector3.ZERO, 7)
 	for f in 6:
 		var a := f * TAU / 6.0 + 0.3
-		_b.box(Vector3(0.6, 0.03, 1.8), p + Vector3(cos(a) * 0.8, 2.2, sin(a) * 0.8), Color("6fae3f").darkened(0.05 * (f % 2)), null, Vector3(0, -a + PI / 2.0, 0.5))
+		_b.box(Vector3(0.6, 0.03, 1.8), p + Vector3(cos(a) * 0.8, 2.2, sin(a) * 0.8), Color("6fae3f").darkened(0.05 * (f % 2)), _leaf, Vector3(0, -a + PI / 2.0, 0.5))
 
 
 func _tractor(p: Vector3) -> void:
@@ -699,23 +701,43 @@ func _tractor(p: Vector3) -> void:
 		_b.cylinder(0.42, 0.3, p + Vector3(x * 0.85, 0.42, 1.2), Color("1c1d1f"), rubber, -1.0, Vector3(0, 0, PI / 2), 12)
 
 
+## Rolling hills around the flat valley of the factory, the farm and the
+## street (0.14): a height field instead of the round mounds of earlier
+## versions, so the land rises naturally into wooded hills.
+const VALLEY_MIN := Vector2(-98, -48)
+const VALLEY_MAX := Vector2(124, 46)
+static var _relief: FastNoiseLite
+
+
+## Height of the land: 0 in the valley, hills up to about 20 m around it.
+## The road keeps a flat corridor to both edges of the map.
+static func land_height(x: float, z: float) -> float:
+	if not _relief:
+		_relief = FastNoiseLite.new()
+		_relief.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+		_relief.seed = 23
+		_relief.frequency = 0.011
+		_relief.fractal_type = FastNoiseLite.FRACTAL_FBM
+		_relief.fractal_octaves = 4
+	var dx := maxf(VALLEY_MIN.x - x, x - VALLEY_MAX.x)
+	var dz := maxf(VALLEY_MIN.y - z, z - VALLEY_MAX.y)
+	var outside := maxf(dx, dz)
+	if dx > 0.0 and dz > 0.0:
+		outside = Vector2(dx, dz).length()
+	var rise := smoothstep(0.0, 26.0, outside)
+	rise *= smoothstep(9.0, 30.0, absf(z - FactoryLayout.ROAD_Z))
+	if rise <= 0.0:
+		return 0.0
+	var n := _relief.get_noise_2d(x, z) * 0.5 + 0.5
+	return rise * (4.0 + 26.0 * n * n)
+
+
 func _build_hills_and_turbines() -> void:
-	var hills := [[Vector3(-70, 0, -62), 26.0], [Vector3(-25, 0, -76), 32.0], [Vector3(30, 0, -70), 28.0], [Vector3(76, 0, -52), 22.0], [Vector3(-92, 0, 10), 20.0], [Vector3(112, 0, 52), 18.0], [Vector3(-60, 0, 70), 22.0], [Vector3(40, 0, 78), 26.0]]
-	var shades := [Color("5f9148"), Color("6a9c50"), Color("57873f"), Color("729f55")]
-	for i in hills.size():
-		var h: Array = hills[i]
-		var r: float = h[1]
-		_far.sphere(r, h[0], shades[i % shades.size()], _ground, Vector3(1.0, 0.32, 0.8), 20, 8)
-		# A cap of woodland on each hill
-		for k in 9:
-			var a := _rng.randf() * TAU
-			var d := _rng.randf_range(0.0, r * 0.55)
-			var base: Vector3 = h[0] + Vector3(cos(a) * d, 0, sin(a) * d * 0.8)
-			var top := r * 0.32 * sqrt(maxf(0.0, 1.0 - pow(d / r, 2.0)))
-			var s := _rng.randf_range(1.2, 2.2)
-			_far.cylinder(1.4 * s, 3.4 * s, base + Vector3(0, top + 1.2 * s, 0), PINE[k % PINE.size()], null, 0.0, Vector3.ZERO, 7)
+	_build_terrain()
+	_build_forest()
 	# Wind turbines on the far hills
-	for p in [Vector3(-32, 0, -54), Vector3(-15, 0, -58), Vector3(3, 0, -54)]:
+	for q in [Vector3(-32, 0, -58), Vector3(-15, 0, -62), Vector3(3, 0, -58)]:
+		var p: Vector3 = q + Vector3(0, land_height(q.x, q.z) - 0.3, 0)
 		_far.cylinder(0.45, 20, p + Vector3(0, 10, 0), Color("f2f4f5"), _paint, 0.22, Vector3.ZERO, 12)
 		_far.box(Vector3(0.8, 0.8, 1.8), p + Vector3(0, 20.2, 0.2), Color("eef0f1"), _paint)
 		var hub := Node3D.new()
@@ -732,6 +754,126 @@ func _build_hills_and_turbines() -> void:
 		_rotors.append(hub)
 
 
+## The land as one mesh. It stays just under the factory's ground plane in
+## the valley and rises out of it into the hills.
+func _build_terrain() -> void:
+	var ext := 250.0
+	var step := 6.0 if Palette.low_end() else 4.0
+	var n := int(ext * 2.0 / step) + 1
+	var heights := PackedFloat32Array()
+	heights.resize(n * n)
+	for j in n:
+		for i in n:
+			heights[j * n + i] = land_height(-ext + i * step, -ext + j * step)
+	var verts := PackedVector3Array()
+	var normals := PackedVector3Array()
+	var colors := PackedColorArray()
+	verts.resize(n * n)
+	normals.resize(n * n)
+	colors.resize(n * n)
+	var meadow := Palette.GRASS
+	var upland := Color("587f3c")
+	var rock := Color("8c8676")
+	for j in n:
+		for i in n:
+			var x := -ext + i * step
+			var z := -ext + j * step
+			var h := heights[j * n + i]
+			var hl := heights[j * n + maxi(i - 1, 0)]
+			var hr := heights[j * n + mini(i + 1, n - 1)]
+			var hd := heights[maxi(j - 1, 0) * n + i]
+			var hu := heights[mini(j + 1, n - 1) * n + i]
+			var nor := Vector3(hl - hr, 2.0 * step, hd - hu).normalized()
+			verts[j * n + i] = Vector3(x, h - 0.06, z)
+			normals[j * n + i] = nor
+			var c := meadow.lerp(upland, smoothstep(1.0, 12.0, h))
+			c = c.lerp(rock, clampf((0.86 - nor.y) * 4.0, 0.0, 0.7))
+			# Hollows a little darker than ridges.
+			var cavity := clampf((hl + hr + hd + hu) / 4.0 - h, 0.0, 1.5)
+			colors[j * n + i] = c.darkened(cavity * 0.1)
+	var idx := PackedInt32Array()
+	for j in n - 1:
+		for i in n - 1:
+			var a := j * n + i
+			if heights[a] + heights[a + 1] + heights[a + n] + heights[a + n + 1] <= 0.0:
+				continue  # flat valley: the factory's ground plane is there
+			idx.append_array([a, a + 1, a + n, a + 1, a + n + 1, a + n])
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = verts
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	arrays[Mesh.ARRAY_COLOR] = colors
+	arrays[Mesh.ARRAY_INDEX] = idx
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	mesh.surface_set_material(0, _ground)
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(mi)
+
+
+## Woods on the hills: thick in patches, thinning out towards the
+## meadows. Three kinds of tree, each drawn as one MultiMesh, so a forest
+## of hundreds costs three draw calls.
+func _build_forest() -> void:
+	var patches := FastNoiseLite.new()
+	patches.seed = 31
+	patches.frequency = 0.02
+	var kinds: Array[MeshBatch] = [MeshBatch.new(), MeshBatch.new(), MeshBatch.new()]
+	# Broadleaf
+	kinds[0].cylinder(0.26, 2.2, Vector3(0, 1.1, 0), TRUNK, null, 0.16, Vector3.ZERO, 6)
+	for c in [[Vector3(0, 2.9, 0), 1.5], [Vector3(0.8, 2.6, 0.4), 1.05], [Vector3(-0.7, 2.6, -0.35), 1.0], [Vector3(0.1, 3.6, -0.2), 1.0]]:
+		kinds[0].sphere(c[1], c[0], Color("4a7f38"), _leaf, Vector3(1.0, 0.85, 1.0), 7, 4)
+	# Pine
+	kinds[1].cylinder(0.18, 1.6, Vector3(0, 0.8, 0), TRUNK, null, 0.12, Vector3.ZERO, 5)
+	for k in 4:
+		kinds[1].cylinder(1.6 - k * 0.33, 1.9, Vector3(0, 1.8 + k * 1.05, 0), Color("2f5d33").lightened(k * 0.04), _leaf, 0.0, Vector3(0, k * 0.4, 0), 7)
+	# Tall round crown (tropical hardwood)
+	kinds[2].cylinder(0.22, 3.6, Vector3(0, 1.8, 0), Color("7a6a55"), null, 0.15, Vector3.ZERO, 5)
+	kinds[2].sphere(1.7, Vector3(0, 4.6, 0), Color("3f7330"), _leaf, Vector3(1.1, 0.8, 1.1), 8, 5)
+	kinds[2].sphere(1.1, Vector3(0.5, 5.5, 0.3), Color("4b8236"), _leaf, Vector3(1.0, 0.8, 1.0), 7, 4)
+	var meshes: Array[Mesh] = []
+	for k in kinds:
+		meshes.append(k.build_mesh())
+	var target := 450 if Palette.low_end() else 1500
+	var xforms: Array = [[], [], []]
+	var tints: Array = [[], [], []]
+	var tries := 0
+	var placed := 0
+	while placed < target and tries < target * 12:
+		tries += 1
+		var x := _rng.randf_range(-235, 235)
+		var z := _rng.randf_range(-215, 215)
+		var h := land_height(x, z)
+		if h < 1.2:
+			continue
+		var dense := patches.get_noise_2d(x, z) * 0.5 + 0.5
+		if _rng.randf() > smoothstep(0.42, 0.58, dense) * smoothstep(1.2, 5.0, h):
+			continue
+		var kind := 1 if h > 13.0 and _rng.randf() < 0.7 else _rng.randi() % 3
+		var s := _rng.randf_range(0.9, 1.6)
+		xforms[kind].append(Transform3D(Basis(Vector3.UP, _rng.randf() * TAU).scaled(Vector3(s, s * _rng.randf_range(0.85, 1.2), s)), Vector3(x, h - 0.2, z)))
+		var v := _rng.randf_range(0.82, 1.12)
+		tints[kind].append(Color(v * _rng.randf_range(0.95, 1.08), v, v * _rng.randf_range(0.85, 1.0)))
+		placed += 1
+	for k in 3:
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.use_colors = true
+		mm.mesh = meshes[k]
+		mm.instance_count = xforms[k].size()
+		for i in xforms[k].size():
+			mm.set_instance_transform(i, xforms[k][i])
+			mm.set_instance_color(i, tints[k][i])
+		var mmi := MultiMeshInstance3D.new()
+		mmi.multimesh = mm
+		# Far woods only cast shadows where shadows are cheap.
+		if Palette.low_end():
+			mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(mmi)
+
+
 func _build_trees() -> void:
 	var placed := 0
 	var tries := 0
@@ -742,6 +884,7 @@ func _build_trees() -> void:
 		if not _free_spot(p):
 			continue
 		var r := _rng.randi() % 5
+		p.y = land_height(p.x, p.z) - 0.1
 		_tree(p, _rng.randf_range(0.8, 1.5), r <= 1)
 		placed += 1
 		# Most trees grow in small groves
@@ -755,7 +898,7 @@ func _tree(p: Vector3, s: float, pine: bool) -> void:
 		var col: Color = PINE[_rng.randi() % PINE.size()]
 		for k in 4:
 			var r := (1.5 - k * 0.3) * s
-			_b.cylinder(r, 1.7 * s, p + Vector3(0, (1.6 + k * 0.95) * s, 0), col.lightened(k * 0.04), null, 0.0, Vector3(0, k * 0.4, 0), 8)
+			_b.cylinder(r, 1.7 * s, p + Vector3(0, (1.6 + k * 0.95) * s, 0), col.lightened(k * 0.04), _leaf, 0.0, Vector3(0, k * 0.4, 0), 8)
 		return
 	_b.cylinder(0.24 * s, 2.0 * s, p + Vector3(0, 1.0 * s, 0), TRUNK, null, 0.15 * s, Vector3.ZERO, 7)
 	_b.bar(p + Vector3(0, 1.6 * s, 0), p + Vector3(0.6 * s, 2.4 * s, 0.2 * s), 0.12 * s, TRUNK)
@@ -764,13 +907,13 @@ func _tree(p: Vector3, s: float, pine: bool) -> void:
 	for k in clumps.size():
 		var c: Array = clumps[k]
 		var shade := leaf.lightened(0.05) if k == 3 else leaf.darkened(0.04 * (k % 2))
-		_b.sphere(c[1] * s, p + c[0] * s, shade, null, Vector3(1.0, 0.85, 1.0), _leaf_segments, _leaf_segments - 4)
+		_b.sphere(c[1] * s, p + c[0] * s, shade, _leaf, Vector3(1.0, 0.85, 1.0), _leaf_segments, _leaf_segments - 4)
 
 
 func _bush(p: Vector3, s: float) -> void:
 	var col: Color = LEAVES[_rng.randi() % LEAVES.size()]
 	for k in 3:
-		_b.sphere((0.6 - k * 0.1) * s, p + Vector3((k - 1) * 0.45 * s, 0.35 * s, (k % 2) * 0.3 * s), col.darkened(0.08), null, Vector3(1, 0.75, 1), 8, 5)
+		_b.sphere((0.6 - k * 0.1) * s, p + Vector3((k - 1) * 0.45 * s, 0.35 * s, (k % 2) * 0.3 * s), col.darkened(0.08), _leaf, Vector3(1, 0.75, 1), 8, 5)
 
 
 func _build_rocks() -> void:
@@ -779,6 +922,7 @@ func _build_rocks() -> void:
 		var p := Vector3(_rng.randf_range(-100, 100), 0, _rng.randf_range(-65, 70))
 		if not _free_spot(p, 1.0):
 			continue
+		p.y = land_height(p.x, p.z) - 0.05
 		var r := _rng.randf_range(0.3, 0.9)
 		_b.sphere(r, p + Vector3(0, r * 0.2, 0), Color("8f8d86").darkened(_rng.randf() * 0.25), null, Vector3(1.3, 0.6, 1.0), 7, 4)
 		if n % 2 == 0:
@@ -818,6 +962,7 @@ func _build_grass() -> void:
 		if not _free_spot(p, -2.0):
 			continue
 		var s := _rng.randf_range(0.7, 1.6)
+		p.y = land_height(p.x, p.z) - 0.05
 		xforms.append(Transform3D(Basis(Vector3.UP, _rng.randf() * TAU).scaled(Vector3(s, s * _rng.randf_range(0.8, 1.3), s)), p))
 	mm.instance_count = xforms.size()
 	var greens := [Color("6aa04c"), Color("5c9442"), Color("7cab52"), Color("8aa850"), Color("4f8a3c")]

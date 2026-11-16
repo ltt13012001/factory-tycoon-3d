@@ -45,10 +45,17 @@ static func low_end() -> bool:
 ## Shared vertex-coloured materials for MeshBatch geometry:
 ## matte, paint (machines, cars), steel, rubber, ground (grass, soil),
 ## paving (asphalt, concrete), floor (polished hall floors), glass, water,
-## mesh (see-through fence netting) and screen (self-lit displays).
+## mesh (see-through fence netting), screen (self-lit displays) and
+## foliage (tree crowns, hedges).
 static func surface(kind: String) -> Material:
 	if _surfaces.has(kind):
 		return _surfaces[kind]
+	if Landscape.is_landscape(kind):
+		# Grass, soil, leaves and water: natural-looking shaders (Landscape).
+		var lm := Landscape.material(kind)
+		Landscape.style(lm, kind, style_tier)
+		_surfaces[kind] = lm
+		return lm
 	var m := StandardMaterial3D.new()
 	m.vertex_color_use_as_albedo = true
 	m.vertex_color_is_srgb = true
@@ -69,10 +76,6 @@ static func surface(kind: String) -> Material:
 		"rubber":
 			m.roughness = 0.95
 			m.metallic_specular = 0.2
-		"ground":
-			m.roughness = 0.97
-			m.metallic_specular = 0.25
-			_add_grain(m, 0.045)
 		"paving":
 			m.roughness = 0.9
 			m.metallic_specular = 0.35
@@ -98,11 +101,6 @@ static func surface(kind: String) -> Material:
 			m.metallic_specular = 0.9
 		"screen":
 			m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		"water":
-			m.roughness = 0.06
-			m.metallic = 0.35
-			m.metallic_specular = 0.8
-			_add_grain(m, 0.08)
 	_style(m, kind)
 	_surfaces[kind] = m
 	return m
@@ -139,7 +137,10 @@ static func occlusion_texture() -> GradientTexture2D:
 static func set_style(tier: int) -> void:
 	style_tier = tier
 	for kind in _surfaces:
-		_style(_surfaces[kind], kind)
+		if _surfaces[kind] is ShaderMaterial:
+			Landscape.style(_surfaces[kind], kind, tier)
+		else:
+			_style(_surfaces[kind], kind)
 
 
 static func _style(m: StandardMaterial3D, kind: String) -> void:
