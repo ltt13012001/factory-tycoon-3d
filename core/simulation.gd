@@ -18,6 +18,9 @@ var orders: OrderManager
 var employees: EmployeeManager
 var tutorial: Tutorial
 var buildings: BuildingManager
+var expansion: ExpansionManager
+var diamonds: DiamondManager
+var quests: QuestManager
 
 var _tick_remainder := 0.0
 
@@ -32,6 +35,9 @@ func _init(p_content: ContentDB = null) -> void:
 	employees = EmployeeManager.new(self)
 	tutorial = Tutorial.new(self)
 	buildings = BuildingManager.new(self)
+	expansion = ExpansionManager.new(self)
+	diamonds = DiamondManager.new(self)
+	quests = QuestManager.new(self)
 
 
 ## Breaks the reference cycles between the simulation, its managers and
@@ -46,6 +52,9 @@ func dispose() -> void:
 	employees = null
 	tutorial = null
 	buildings = null
+	expansion = null
+	diamonds = null
+	quests = null
 
 
 static func ok(message: String = "") -> Dictionary:
@@ -64,6 +73,7 @@ func new_game(world_seed: int = 12345) -> void:
 	state.cash = cfg.start_cash
 	state.reputation = cfg.start_reputation
 	state.raw = cfg.start_raw_material
+	state.diamonds = DiamondManager.START_DIAMONDS
 	state.raw_value = cfg.start_raw_material * content.material().unit_price
 	state.machines.append(production.make_machine(cfg.start_machine_id, 0))
 	for i in cfg.start_operators:
@@ -109,11 +119,14 @@ func advance_ticks(n: int) -> void:
 func step() -> void:
 	state.tick += 1
 	buildings.tick()
+	expansion.tick()
+	diamonds.tick()
 	inventory.tick()
 	employees.tick()
 	production.tick()
 	orders.tick()
 	if state.tick % config.ticks_per_day == 0:
+		expansion.end_of_day()
 		var report := economy.end_of_day(state.tick / config.ticks_per_day)
 		emit_event(&"day_ended", report)
 		if report.critical:
@@ -123,6 +136,8 @@ func step() -> void:
 
 func emit_event(name: StringName, data: Dictionary) -> void:
 	tutorial.on_event(name)
+	if quests:
+		quests.on_event(name, data)
 	event.emit(name, data)
 
 
@@ -144,8 +159,8 @@ func buy_material(qty: int) -> Dictionary:
 	return inventory.buy_material(qty)
 
 
-func buy_machine(slot: int, def_id: String = "") -> Dictionary:
-	return production.buy_machine(def_id if def_id != "" else config.start_machine_id, slot)
+func buy_machine(slot: int, def_id: String = "", site := "") -> Dictionary:
+	return production.buy_machine(def_id if def_id != "" else config.start_machine_id, slot, site)
 
 
 func sell_machine(id: int) -> Dictionary:
@@ -172,8 +187,100 @@ func set_auto_ship(enabled: bool) -> Dictionary:
 	return orders.set_auto_ship(enabled)
 
 
-func hire(role: String) -> Dictionary:
-	return employees.hire(role)
+func set_auto_accept(enabled: bool) -> Dictionary:
+	return orders.set_auto_accept(enabled)
+
+
+func set_auto_buy_amounts(lot: int, threshold: int) -> Dictionary:
+	return inventory.set_auto_buy_amounts(lot, threshold)
+
+
+func set_shift(hours: int) -> Dictionary:
+	return employees.set_shift(hours)
+
+
+func set_pay(percent: int) -> Dictionary:
+	return employees.set_pay(percent)
+
+
+func upgrade_line_speed() -> Dictionary:
+	return expansion.upgrade_line_speed()
+
+
+func advance_tier() -> Dictionary:
+	return expansion.advance_tier()
+
+
+func expand(location_id: String) -> Dictionary:
+	return expansion.next_step(location_id)
+
+
+func buy_line(location_id: String) -> Dictionary:
+	return expansion.buy_line(location_id)
+
+
+func automate_site(location_id: String) -> Dictionary:
+	return expansion.upgrade_automation(location_id)
+
+
+func hire_branch_workers(location_id: String, count := 1) -> Dictionary:
+	return expansion.hire_workers(location_id, count)
+
+
+func fire_branch_workers(location_id: String, count := 1) -> Dictionary:
+	return expansion.fire_workers(location_id, count)
+
+
+func hire_site_head(location_id: String) -> Dictionary:
+	return expansion.hire_head(location_id)
+
+
+func fire_site_head(location_id: String) -> Dictionary:
+	return expansion.fire_head(location_id)
+
+
+func hire_executive(id: String) -> Dictionary:
+	return expansion.hire_exec(id)
+
+
+func fire_executive(id: String) -> Dictionary:
+	return expansion.fire_exec(id)
+
+
+func recruit_senior(id: String) -> Dictionary:
+	return diamonds.recruit_senior(id)
+
+
+func buy_boost() -> Dictionary:
+	return diamonds.buy_boost()
+
+
+func staff_party() -> Dictionary:
+	return diamonds.party()
+
+
+func instant_repair(machine_id: int) -> Dictionary:
+	return diamonds.instant_repair(machine_id)
+
+
+func rush(kind: String, id: String) -> Dictionary:
+	return diamonds.rush(kind, id)
+
+
+func exchange_diamonds() -> Dictionary:
+	return diamonds.exchange()
+
+
+func claim_daily_quest(index: int) -> Dictionary:
+	return quests.claim_daily(index)
+
+
+func claim_milestone(id: String) -> Dictionary:
+	return quests.claim_milestone(id)
+
+
+func hire(role: String, site := "") -> Dictionary:
+	return employees.hire(role, site)
 
 
 func fire(id: int) -> Dictionary:
@@ -198,6 +305,7 @@ func load_save_dict(data: Dictionary) -> bool:
 	rng.seed = state.world_seed
 	rng.state = state.rng_state.to_int()
 	_tick_remainder = 0.0
+	expansion.convert_old_lines()
 	employees.auto_assign()
 	emit_event(&"game_loaded", {})
 	return true

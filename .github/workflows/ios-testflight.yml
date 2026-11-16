@@ -1,0 +1,150 @@
+# Builds the iOS app on a GitHub-hosted Mac and uploads it to App Store
+# Connect (TestFlight). No local Mac needed. Setup: docs/ios-khong-can-mac.md
+#
+# Run it: push a tag like ios-v0.10.0 (e.g. from GitHub → Releases → Draft a
+# new release), or Actions → "iOS TestFlight" → Run workflow once this file is
+# on the default branch.
+name: iOS TestFlight
+
+on:
+  push:
+    tags: ["ios-v*"]
+  workflow_dispatch:
+    inputs:
+      upload:
+        description: "Upload to App Store Connect (otherwise only build the .ipa)"
+        type: boolean
+        default: true
+
+env:
+  GODOT_VERSION: "4.7.2"
+
+jobs:
+  ios:
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check secrets
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+        run: |
+          missing=""
+          for v in APPLE_TEAM_ID ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_P8; do
+            [ -n "${!v}" ] || missing="$missing $v"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Missing repository secrets:$missing (see docs/ios-khong-can-mac.md)"
+            exit 1
+          fi
+
+      - name: Select newest Xcode
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)
+          sudo xcode-select -s "$XCODE"
+          xcodebuild -version
+
+      - name: Install Godot and the iOS export template
+        run: |
+          set -euo pipefail
+          base="https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}-stable"
+          curl -sSL -o godot.zip "$base/Godot_v${GODOT_VERSION}-stable_macos.universal.zip"
+          unzip -q godot.zip -d "$RUNNER_TEMP"
+          echo "GODOT=$RUNNER_TEMP/Godot.app/Contents/MacOS/Godot" >> "$GITHUB_ENV"
+          curl -sSL -o templates.tpz "$base/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          dest="$HOME/Library/Application Support/Godot/export_templates/${GODOT_VERSION}.stable"
+          mkdir -p "$dest"
+          unzip -q -j templates.tpz templates/ios.zip templates/version.txt -d "$dest"
+          rm godot.zip templates.tpz
+
+      - name: Export the Xcode project from Godot
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          sed -i '' \
+            -e "s/^application\/app_store_team_id=.*/application\/app_store_team_id=\"$APPLE_TEAM_ID\"/" \
+            -e 's/^application\/export_project_only=false/application\/export_project_only=true/' \
+            export_presets.cfg
+          mkdir -p build/ios
+          "$GODOT" --headless --path . --import || true
+          "$GODOT" --headless --path . --export-release "iOS" build/ios/FactoryTycoon3D.ipa
+          test -d build/ios/FactoryTycoon3D.xcodeproj
+
+      - name: Archive and sign
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+        run: |
+          set -euo pipefail
+          KEY="$RUNNER_TEMP/AuthKey.p8"
+          printf '%s\n' "$ASC_KEY_P8" > "$KEY"
+          echo "ASC_KEY_PATH=$KEY" >> "$GITHUB_ENV"
+          # Every upload needs a higher build number than the last one.
+          BUILD_NUMBER=$((100 + GITHUB_RUN_NUMBER))
+          echo "Build number: $BUILD_NUMBER"
+          xcodebuild archive \
+            -project build/ios/FactoryTycoon3D.xcodeproj \
+            -scheme FactoryTycoon3D \
+            -configuration Release \
+            -destination "generic/platform=iOS" \
+            -archivePath build/FactoryTycoon3D.xcarchive \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$KEY" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            CODE_SIGN_STYLE=Automatic \
+            CODE_SIGN_IDENTITY="Apple Development" \
+            CURRENT_PROJECT_VERSION="$BUILD_NUMBER"
+
+      - name: Export the .ipa and upload to App Store Connect
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          UPLOAD: ${{ github.event_name == 'push' || inputs.upload }}
+        run: |
+          set -euo pipefail
+          if [ "$UPLOAD" = "true" ]; then DEST=upload; else DEST=export; fi
+          cat > build/ExportOptions.plist <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>$DEST</string>
+            <key>teamID</key><string>$APPLE_TEAM_ID</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>uploadSymbols</key><true/>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+          </dict>
+          </plist>
+          EOF
+          xcodebuild -exportArchive \
+            -archivePath build/FactoryTycoon3D.xcarchive \
+            -exportOptionsPlist build/ExportOptions.plist \
+            -exportPath build/export \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$ASC_KEY_PATH" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+          echo "Done. Uploaded: $UPLOAD"
+
+      - name: Keep the .ipa
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: FactoryTycoon3D-ios
+          path: build/export/*.ipa
+          if-no-files-found: ignore
+
+      - name: Remove the API key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/AuthKey.p8"

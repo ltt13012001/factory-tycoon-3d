@@ -4,7 +4,7 @@
 class_name SaveMigrations
 extends RefCounted
 
-const CURRENT_VERSION := 2
+const CURRENT_VERSION := 7
 
 
 static func migrate(data: Dictionary) -> Dictionary:
@@ -18,6 +18,16 @@ static func migrate(data: Dictionary) -> Dictionary:
 				data = _from_0(data)
 			1:
 				data = _from_1(data)
+			2:
+				data = _from_2(data)
+			3:
+				data = _from_3(data)
+			4:
+				data = _from_4(data)
+			5:
+				data = _from_5(data)
+			6:
+				data = _from_6(data)
 		version += 1
 		data.save_version = version
 	return data
@@ -41,4 +51,63 @@ static func _from_1(data: Dictionary) -> Dictionary:
 			e.job.merge({"product_id": "plastic_box" if e.job.kind == "haul" else ""})
 	data.order_spawn = {"small_customer": int(data.get("order_spawn_acc", 0))}
 	data.merge({"buildings": {}, "construction": {}, "settings": {"auto_buy": false, "auto_ship": false}})
+	return data
+
+
+## 0.3 -> 0.4: line speed, more factories and branches, company stages.
+static func _from_2(data: Dictionary) -> Dictionary:
+	data.merge({"line_speed_level": 0, "company_tier": 0, "sites": [], "executives": {}})
+	return data
+
+
+## 0.4 rebalance: games started on the old, tighter economy get their cash
+## topped up to the new starting amount so they are not stuck in debt.
+static func _from_3(data: Dictionary) -> Dictionary:
+	const NEW_START_CASH := 300000
+	var cash := int(data.get("cash", 0))
+	if cash < NEW_START_CASH:
+		var gift := NEW_START_CASH - cash
+		data.cash = NEW_START_CASH
+		data.day_start_cash = int(data.get("day_start_cash", cash)) + gift
+	return data
+
+
+## 0.5: shifts and overtime, pay level, staff mood, rest and strikes.
+## Machine cycles in progress keep their remaining time (now counted down
+## faster), which only shortens them a little.
+static func _from_4(data: Dictionary) -> Dictionary:
+	for e in data.get("employees", []):
+		e.merge({"mood": 70, "rest": false, "away": 0, "idle": 0, "off": false})
+	var settings: Dictionary = data.get("settings", {})
+	settings.merge({"auto_accept": false, "shift_hours": 8, "pay_percent": 100})
+	data.settings = settings
+	data.merge({"strike": {}})
+	return data
+
+
+## 0.9: the factories next door run machine by machine. Machines and staff
+## belong to a factory ("" = the first). The old production lines of those
+## factories become real machines with operators when the game loads (see
+## ExpansionManager.convert_old_lines), so mark them here.
+static func _from_5(data: Dictionary) -> Dictionary:
+	for m in data.get("machines", []):
+		m.merge({"site": ""})
+	for e in data.get("employees", []):
+		e.merge({"site": ""})
+	for s in data.get("sites", []):
+		if str(s.get("id", "")).begins_with("lot_") and int(s.get("lines", 0)) > 0:
+			s.convert_lines = true
+	return data
+
+
+## 0.11: diamonds, quests, senior managers, boosts, rewarded ads and
+## in-app purchases. Players from earlier versions get the starting
+## diamonds too, and orders they already delivered count towards the
+## achievements (as far as the kept reports go back).
+static func _from_6(data: Dictionary) -> Dictionary:
+	var shipped := 0
+	for r in data.get("reports", []):
+		shipped += int(r.get("stats", {}).get("orders_delivered", 0))
+	data.merge({"diamonds": DiamondManager.START_DIAMONDS, "diamond_stats": {}, "seniors": {},
+		"quests": {"shipped": shipped}, "boost": {}, "ads": {}, "iap_log": []})
 	return data

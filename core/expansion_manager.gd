@@ -1,0 +1,657 @@
+## Growing the business beyond the first hall: production line speed-ups,
+## more factories on the land next door, branches in other provinces and
+## abroad, company stages (workshop -> company -> corporation -> group ->
+## multinational group) and the executives each stage can appoint.
+##
+## The factories next door (lot_2 ...) run like the first one: real
+## machines, operators, warehouse staff and technicians, sharing the company
+## store and the orders; their head is the factory manager. Branches in
+## other provinces and abroad are run by their director and earn a daily
+## profit from their production lines, booked at the end of the day. A
+## branch line runs on its machines alone, or with a crew of the branch's
+## own factory workers, who make it produce more (see CREW_PROFIT_PERCENT).
+class_name ExpansionManager
+extends RefCounted
+
+const LOCAL := "local"
+const DOMESTIC := "domestic"
+const ABROAD := "abroad"
+
+# Site status
+const SURVEYING := "surveying"
+const SURVEYED := "surveyed"
+const LAND := "land"
+const BUILDING := "building"
+const READY := "ready"
+
+const TIER_NAMES := ["Xưởng sản xuất", "Công ty TNHH", "Tổng công ty", "Tập đoàn", "Tập đoàn đa quốc gia"]
+const OWNER_TITLES := ["Chủ xưởng", "Giám đốc công ty", "Tổng giám đốc", "Chủ tịch tập đoàn", "Chủ tịch tập đoàn đa quốc gia"]
+## Registration fee for reaching each stage (index = stage).
+const TIER_FEES := [0, 1000000, 5000000, 20000000, 50000000]
+const HEAD_TITLES := {LOCAL: "Xưởng trưởng", DOMESTIC: "Giám đốc chi nhánh", ABROAD: "Giám đốc chi nhánh"}
+const REGION_NAMES := {LOCAL: "Nhà xưởng mới", DOMESTIC: "Chi nhánh trong nước", ABROAD: "Chi nhánh nước ngoài"}
+
+## "Production line improvements": each level makes every machine in the
+## first factory and the factories next door this many percent faster.
+const LINE_SPEED_COSTS := [150000, 300000, 600000, 1200000, 2400000]
+const LINE_SPEED_PERCENT := 10
+## A factory manager speeds every machine of their factory up.
+const MANAGER_SPEED_PERCENT := 15
+## Each automation level of a branch adds this much to its profit; in a
+## factory next door it makes the machines this much faster.
+const AUTOMATION_PERCENT := 20
+const AUTOMATION_SPEED_PERCENT := 10
+const MAX_AUTOMATION := 3
+## Factory workers of a branch: a line with its full crew earns this many
+## percent more than a line running on its machines alone. A crew is
+## CREW_PER_LINE workers, one less from automation level CREW_SMALL_FROM.
+const CREW_PROFIT_PERCENT := 50
+const CREW_PER_LINE := 2
+const CREW_SMALL_FROM := 2
+## A branch worker's daily wage is the standard wage times this factor.
+const BRANCH_WAGE_FACTOR := {DOMESTIC: 1, ABROAD: 3}
+## Every finished factory next door has its own store, added to the company's.
+const FACTORY_RAW_CAPACITY := 300
+const FACTORY_FINISHED_CAPACITY := 200
+
+## Company-wide positions. speed: % faster machines in the first factory;
+## profit: % more profit at every other site; domestic / abroad: extra % for
+## branches in that region; upkeep: % less site upkeep; price: % higher
+## order prices; interest: % less overdraft interest; survey: % shorter surveys.
+const EXECUTIVES := {
+	"production_director": {"name": "Giám đốc sản xuất", "tier": 1, "wage": 30000,
+		"speed": 10, "profit": 10, "text": "Máy ở xưởng chính chạy nhanh hơn 10%, mọi xưởng và chi nhánh lãi thêm 10%."},
+	"chief_accountant": {"name": "Kế toán trưởng", "tier": 1, "wage": 20000,
+		"upkeep": 20, "interest": 50, "text": "Chi phí duy trì các xưởng, chi nhánh giảm 20%, lãi thấu chi giảm một nửa."},
+	"sales_director": {"name": "Giám đốc kinh doanh", "tier": 2, "wage": 50000,
+		"price": 10, "domestic": 10, "text": "Đơn hàng mới trả giá cao hơn 10%, chi nhánh trong nước lãi thêm 10%."},
+	"hr_director": {"name": "Giám đốc nhân sự", "tier": 2, "wage": 40000,
+		"head_wage": 20, "text": "Lương xưởng trưởng và giám đốc chi nhánh giảm 20%."},
+	"cfo": {"name": "Giám đốc tài chính (CFO)", "tier": 3, "wage": 80000,
+		"profit": 10, "interest": 50, "text": "Mọi xưởng và chi nhánh lãi thêm 10%, lãi thấu chi giảm thêm một nửa."},
+	"intl_director": {"name": "Giám đốc khu vực quốc tế", "tier": 3, "wage": 100000,
+		"abroad": 20, "survey": 50, "text": "Chi nhánh nước ngoài lãi thêm 20%, khảo sát nhanh gấp đôi."},
+	"ceo": {"name": "Tổng giám đốc điều hành (CEO)", "tier": 4, "wage": 200000,
+		"speed": 15, "profit": 15, "text": "Toàn tập đoàn: máy nhanh hơn 15%, mọi xưởng và chi nhánh lãi thêm 15%."},
+}
+const EXECUTIVE_ORDER := ["production_director", "chief_accountant", "sales_director", "hr_director", "cfo", "intl_director", "ceo"]
+## Executives who can accept customer orders on their own.
+const DIRECTORS := ["production_director", "sales_director", "hr_director", "cfo", "intl_director", "ceo"]
+## Hiring fee = this many days of wages.
+const HIRE_FEE_DAYS := 3
+
+var sim: Simulation
+
+
+func _init(p_sim: Simulation) -> void:
+	sim = p_sim
+
+
+func loc(id: String) -> LocationDef:
+	return sim.content.locations.get(id)
+
+
+func site(id: String) -> Dictionary:
+	for s in sim.state.sites:
+		if s.id == id:
+			return s
+	return {}
+
+
+func is_ready(id: String) -> bool:
+	return site(id).get("status", "") == READY
+
+
+## True for the plots next door, whose factories run machine by machine.
+func is_factory(id: String) -> bool:
+	var l := loc(id)
+	return l != null and l.region == LOCAL
+
+
+## Location ids of the finished factories next door, in order.
+func factory_ids() -> Array:
+	var ids := []
+	for s in sim.state.sites:
+		if s.status == READY and is_factory(s.id):
+			ids.append(s.id)
+	ids.sort_custom(func(a, b): return loc(a).order < loc(b).order)
+	return ids
+
+
+## Machine places in a factory next door (0 until it is built).
+func machine_slots(id: String) -> int:
+	return loc(id).max_lines if is_factory(id) and is_ready(id) else 0
+
+
+## "Xưởng chính" for the first factory, else the location's name.
+func factory_name(id: String) -> String:
+	return tr("Xưởng chính") if id == "" else loc(id).display_name
+
+
+func extra_raw_capacity() -> int:
+	return factory_ids().size() * FACTORY_RAW_CAPACITY
+
+
+func extra_finished_capacity() -> int:
+	return factory_ids().size() * FACTORY_FINISHED_CAPACITY
+
+
+# --- Company stage -------------------------------------------------------------
+
+func tier() -> int:
+	return int(sim.state.company_tier)
+
+
+func tier_name() -> String:
+	return tr(TIER_NAMES[tier()])
+
+
+func owner_title() -> String:
+	return tr(OWNER_TITLES[tier()])
+
+
+## Factories that are producing: the first one, every factory next door
+## with a machine and every branch with a director.
+func factories_operating() -> int:
+	var n := 1
+	for s in sim.state.sites:
+		if s.status != READY:
+			continue
+		if is_factory(s.id):
+			if not sim.production.machines_at(s.id).is_empty():
+				n += 1
+		elif s.head != "":
+			n += 1
+	return n
+
+
+func ready_count(region: String) -> int:
+	var n := 0
+	for s in sim.state.sites:
+		if s.status == READY and loc(s.id).region == region:
+			n += 1
+	return n
+
+
+func countries_abroad() -> Array:
+	var list := []
+	for s in sim.state.sites:
+		if s.status == READY and loc(s.id).region == ABROAD and not list.has(loc(s.id).country):
+			list.append(loc(s.id).country)
+	return list
+
+
+## What the next stage needs: {text, met, fee}; text is "" at the last stage.
+func next_tier_requirement() -> Dictionary:
+	var t := tier() + 1
+	match t:
+		1:
+			return {"text": tr("Có ít nhất 2 nhà xưởng đang chạy (xây Xưởng 2 và đặt máy)"), "met": factories_operating() >= 2, "fee": TIER_FEES[t]}
+		2:
+			return {"text": tr("Có ít nhất 2 chi nhánh trong nước đã hoạt động (đang có %d)") % ready_count(DOMESTIC), "met": ready_count(DOMESTIC) >= 2, "fee": TIER_FEES[t]}
+		3:
+			return {"text": tr("Có ít nhất 1 chi nhánh ở nước ngoài đã hoạt động"), "met": ready_count(ABROAD) >= 1, "fee": TIER_FEES[t]}
+		4:
+			return {"text": tr("Có chi nhánh hoạt động ở ít nhất 3 nước ngoài (đang có %d)") % countries_abroad().size(), "met": countries_abroad().size() >= 3, "fee": TIER_FEES[t]}
+	return {"text": "", "met": false, "fee": 0}
+
+
+func advance_tier() -> Dictionary:
+	var req := next_tier_requirement()
+	if req.text == "":
+		return Simulation.fail(tr("Đã là tập đoàn đa quốc gia."))
+	if not req.met:
+		return Simulation.fail(tr("Chưa đủ điều kiện: %s.") % req.text)
+	if not sim.economy.can_afford(req.fee):
+		return Simulation.fail(tr("Không đủ tiền đăng ký (%s).") % Fmt.money(req.fee))
+	sim.economy.book("expansion", -req.fee, tr("Đăng ký %s") % (tr(TIER_NAMES[tier() + 1])))
+	sim.state.company_tier = tier() + 1
+	sim.emit_event(&"tier_changed", {"tier": tier()})
+	return Simulation.ok(tr("Chúc mừng! Bạn đã thành lập %s. Chức danh mới: %s.") % [tier_name(), owner_title()])
+
+
+# --- Line speed (first factory) ------------------------------------------------
+
+func line_speed_level() -> int:
+	return int(sim.state.line_speed_level)
+
+
+func line_speed_cost() -> int:
+	var lvl := line_speed_level()
+	return LINE_SPEED_COSTS[lvl] if lvl < LINE_SPEED_COSTS.size() else -1
+
+
+func upgrade_line_speed() -> Dictionary:
+	var cost := line_speed_cost()
+	if cost < 0:
+		return Simulation.fail(tr("Dây chuyền đã cải tiến tối đa."))
+	if not sim.economy.can_afford(cost):
+		return Simulation.fail(tr("Không đủ tiền (%s).") % Fmt.money(cost))
+	sim.economy.book("upgrade", -cost, tr("Cải tiến dây chuyền"))
+	sim.state.line_speed_level = line_speed_level() + 1
+	sim.emit_event(&"expansion_changed", {})
+	return Simulation.ok(tr("Dây chuyền cấp %d: máy nhanh hơn %d%%.") % [line_speed_level(), line_speed_level() * LINE_SPEED_PERCENT])
+
+
+## Total speed bonus (percent) for every machine in a factory ("" = the first).
+func speed_bonus_percent(site_id := "") -> int:
+	var total := line_speed_level() * LINE_SPEED_PERCENT + _exec_sum("speed") + sim.diamonds.bonus("speed") + sim.diamonds.boost_percent()
+	if site_id == "":
+		if sim.employees.count(EmployeeManager.MANAGER, "") > 0:
+			total += MANAGER_SPEED_PERCENT
+		return total
+	var s := site(site_id)
+	if s.get("head", "") != "":
+		total += MANAGER_SPEED_PERCENT
+	return total + int(s.get("automation", 0)) * AUTOMATION_SPEED_PERCENT
+
+
+# --- Executives ----------------------------------------------------------------
+
+func has_exec(id: String) -> bool:
+	return sim.state.executives.has(id)
+
+
+func has_director() -> bool:
+	for id in DIRECTORS:
+		if has_exec(id):
+			return true
+	return false
+
+
+func _exec_sum(field: String) -> int:
+	var total := 0
+	for id in sim.state.executives:
+		total += int(EXECUTIVES[id].get(field, 0))
+	return total
+
+
+func exec_hire_fee(id: String) -> int:
+	return int(EXECUTIVES[id].wage) * HIRE_FEE_DAYS
+
+
+func hire_exec(id: String) -> Dictionary:
+	if not EXECUTIVES.has(id):
+		return Simulation.fail(tr("Không có chức vụ này."))
+	var e: Dictionary = EXECUTIVES[id]
+	if has_exec(id):
+		return Simulation.fail(tr("Đã có %s.") % tr(e.name))
+	if tier() < int(e.tier):
+		return Simulation.fail(tr("Cần trở thành %s trước.") % tr(TIER_NAMES[e.tier]))
+	var fee := exec_hire_fee(id)
+	if not sim.economy.can_afford(fee):
+		return Simulation.fail(tr("Không đủ tiền tuyển (%s).") % Fmt.money(fee))
+	var person := sim.employees.next_name()
+	var first_director := DIRECTORS.has(id) and not has_director()
+	sim.economy.book("hire", -fee, tr("Bổ nhiệm %s") % tr(e.name))
+	sim.state.executives[id] = person
+	sim.emit_event(&"expansion_changed", {})
+	if first_director:
+		# The first director takes over accepting orders (can be turned off).
+		sim.state.settings.auto_accept = true
+		return Simulation.ok(tr("%s được bổ nhiệm làm %s và sẽ tự nhận đơn hàng.") % [person, tr(e.name)])
+	return Simulation.ok(tr("%s được bổ nhiệm làm %s.") % [person, tr(e.name)])
+
+
+func fire_exec(id: String) -> Dictionary:
+	if not has_exec(id):
+		return Simulation.fail(tr("Chức vụ này đang trống."))
+	var person: String = sim.state.executives[id]
+	sim.state.executives.erase(id)
+	sim.emit_event(&"expansion_changed", {})
+	return Simulation.ok(tr("%s đã thôi giữ chức %s.") % [person, tr(EXECUTIVES[id].name)])
+
+
+func exec_wages() -> int:
+	var total := 0
+	for id in sim.state.executives:
+		total += int(EXECUTIVES[id].wage)
+	return total
+
+
+## Percent multiplier for new order prices.
+func order_price_percent() -> int:
+	return 100 + _exec_sum("price") + sim.diamonds.bonus("price")
+
+
+## Percent of overdraft interest still charged.
+func interest_percent() -> int:
+	var pct := 100
+	for id in sim.state.executives:
+		pct = pct * (100 - int(EXECUTIVES[id].get("interest", 0))) / 100
+	return pct
+
+
+# --- Sites ---------------------------------------------------------------------
+
+func head_title(l: LocationDef) -> String:
+	return tr(HEAD_TITLES[l.region])
+
+
+func head_wage(l: LocationDef) -> int:
+	return l.head_wage_per_day * (100 - _exec_sum("head_wage")) / 100
+
+
+func head_hire_fee(l: LocationDef) -> int:
+	return l.head_wage_per_day * 2
+
+
+func survey_hours(l: LocationDef) -> int:
+	return maxi(1, l.survey_hours * (100 - _exec_sum("survey")) / 100)
+
+
+func automation_cost(s: Dictionary) -> int:
+	var lvl := int(s.automation)
+	return -1 if lvl >= MAX_AUTOMATION else loc(s.id).line_cost * 3 * (lvl + 1)
+
+
+## True when the factory before this plot has every machine place filled
+## (plots open one after the other).
+func previous_full(l: LocationDef) -> bool:
+	if l.region != LOCAL:
+		return true
+	var prev := "lot_%d" % (l.order - 1)
+	if l.order <= 2 or not sim.content.locations.has(prev):
+		return sim.state.machines.size() >= sim.buildings.machine_slots()
+	var p := site(prev)
+	return not p.is_empty() and p.status == READY and sim.production.machines_at(prev).size() >= loc(prev).max_lines
+
+
+## Why the next step at this location cannot be taken, or "" when it can.
+func block_reason(id: String) -> String:
+	var l := loc(id)
+	if l == null:
+		return tr("Không có địa điểm này")
+	if tier() < l.min_tier:
+		return tr("Cần trở thành %s") % tr(TIER_NAMES[l.min_tier])
+	var s := site(id)
+	var cost := next_step_cost(id)
+	if s.is_empty():
+		if l.region == LOCAL and not previous_full(l):
+			return tr("Cần đặt đủ máy ở xưởng trước") if l.order <= 2 else tr("Cần đặt đủ %d máy ở %s") % [loc("lot_%d" % (l.order - 1)).max_lines, loc("lot_%d" % (l.order - 1)).display_name]
+	elif s.status == SURVEYING or s.status == BUILDING or s.status == READY:
+		return tr("Đang thực hiện") if s.status != READY else tr("Đã hoạt động")
+	if not sim.economy.can_afford(cost):
+		return tr("Không đủ tiền")
+	return ""
+
+
+## Cost of the next step (survey, land, construction), -1 if none.
+func next_step_cost(id: String) -> int:
+	var l := loc(id)
+	var s := site(id)
+	if s.is_empty():
+		if l.region == LOCAL:
+			return l.land_cost
+		return l.survey_cost
+	match s.status:
+		LAND:
+			return l.build_cost
+		SURVEYED:
+			return l.land_cost + l.build_cost
+	return -1
+
+
+## Takes the next step at a location: survey -> open branch for provinces and
+## abroad, buy land -> build the hall for the plots next door.
+func next_step(id: String) -> Dictionary:
+	var reason := block_reason(id)
+	if reason != "":
+		return Simulation.fail(reason + ".")
+	var l := loc(id)
+	var s := site(id)
+	var cost := next_step_cost(id)
+	if s.is_empty():
+		s = {"id": id, "status": LAND, "ticks_left": 0, "total_ticks": 0, "lines": 0, "automation": 0, "head": "", "market": 100, "workers": 0}
+		sim.state.sites.append(s)
+		if l.region == LOCAL:
+			sim.economy.book("expansion", -cost, tr("Mua đất %s") % l.display_name)
+			sim.emit_event(&"expansion_changed", {"id": id})
+			return Simulation.ok(tr("Đã mua đất cho %s. Giờ có thể xây nhà xưởng.") % l.display_name)
+		sim.economy.book("expansion", -cost, tr("Khảo sát %s") % l.display_name)
+		_start(s, SURVEYING, survey_hours(l))
+		return Simulation.ok(tr("Đang khảo sát %s, có kết quả sau %d giờ.") % [l.display_name, survey_hours(l)])
+	sim.economy.book("expansion", -cost, (tr("Xây %s") if l.region == LOCAL else tr("Mở %s")) % l.display_name)
+	_start(s, BUILDING, l.build_hours)
+	return Simulation.ok(tr("Bắt đầu xây %s, xong sau %d giờ.") % [l.display_name, l.build_hours])
+
+
+func _start(s: Dictionary, status: String, hours: int) -> void:
+	s.status = status
+	s.total_ticks = hours * sim.config.ticks_per_hour
+	s.ticks_left = s.total_ticks
+	sim.emit_event(&"expansion_changed", {"id": s.id})
+
+
+func buy_line(id: String) -> Dictionary:
+	var s := site(id)
+	if s.is_empty() or s.status != READY:
+		return Simulation.fail(tr("Nhà xưởng chưa xây xong."))
+	var l := loc(id)
+	if is_factory(id):
+		return Simulation.fail(tr("%s đặt máy thật: vào Xây dựng để mua máy cho xưởng này.") % l.display_name)
+	if int(s.lines) >= l.max_lines:
+		return Simulation.fail(tr("Đã đủ %d dây chuyền.") % l.max_lines)
+	if not sim.economy.can_afford(l.line_cost):
+		return Simulation.fail(tr("Không đủ tiền (%s).") % Fmt.money(l.line_cost))
+	sim.economy.book("machine", -l.line_cost, tr("Dây chuyền cho %s") % l.display_name)
+	s.lines = int(s.lines) + 1
+	sim.emit_event(&"expansion_changed", {"id": id})
+	return Simulation.ok(tr("%s có %d dây chuyền.") % [l.display_name, s.lines])
+
+
+func upgrade_automation(id: String) -> Dictionary:
+	var s := site(id)
+	if s.is_empty() or s.status != READY:
+		return Simulation.fail(tr("Nhà xưởng chưa xây xong."))
+	var cost := automation_cost(s)
+	if cost < 0:
+		return Simulation.fail(tr("Đã tự động hoá tối đa."))
+	if not sim.economy.can_afford(cost):
+		return Simulation.fail(tr("Không đủ tiền (%s).") % Fmt.money(cost))
+	sim.economy.book("upgrade", -cost, tr("Tự động hoá %s") % loc(id).display_name)
+	s.automation = int(s.automation) + 1
+	sim.emit_event(&"expansion_changed", {"id": id})
+	if is_factory(id):
+		return Simulation.ok(tr("%s tự động hoá cấp %d: máy nhanh hơn %d%%.") % [loc(id).display_name, s.automation, int(s.automation) * AUTOMATION_SPEED_PERCENT])
+	return Simulation.ok(tr("%s tự động hoá cấp %d: lãi thêm %d%%.") % [loc(id).display_name, s.automation, int(s.automation) * AUTOMATION_PERCENT])
+
+
+func hire_head(id: String) -> Dictionary:
+	var s := site(id)
+	var l := loc(id)
+	if s.is_empty() or not (s.status == READY or s.status == BUILDING):
+		return Simulation.fail(tr("Hãy xây nhà xưởng trước."))
+	if s.head != "":
+		return Simulation.fail(tr("%s đã có %s.") % [l.display_name, head_title(l).to_lower()])
+	var fee := head_hire_fee(l)
+	if not sim.economy.can_afford(fee):
+		return Simulation.fail(tr("Không đủ tiền tuyển (%s).") % Fmt.money(fee))
+	var person := sim.employees.next_name()
+	sim.economy.book("hire", -fee, tr("Tuyển %s %s") % [head_title(l).to_lower(), l.display_name])
+	s.head = person
+	sim.emit_event(&"expansion_changed", {"id": id})
+	return Simulation.ok(tr("%s làm %s %s.") % [person, head_title(l).to_lower(), l.display_name])
+
+
+func fire_head(id: String) -> Dictionary:
+	var s := site(id)
+	if s.is_empty() or s.head == "":
+		return Simulation.fail(tr("Chưa có người quản lý."))
+	var person: String = s.head
+	s.head = ""
+	sim.emit_event(&"expansion_changed", {"id": id})
+	if is_factory(id):
+		return Simulation.ok(tr("%s đã nghỉ. Máy ở %s chạy chậm hơn và không ai gọi thợ khi máy hỏng.") % [person, loc(id).display_name])
+	return Simulation.ok(tr("%s đã nghỉ. Xưởng sẽ dừng cho tới khi có người mới.") % person)
+
+
+# --- Branch factory workers --------------------------------------------------------
+
+## Workers one line of a branch needs to run with a full crew.
+func crew_per_line(s: Dictionary) -> int:
+	return CREW_PER_LINE - (1 if int(s.get("automation", 0)) >= CREW_SMALL_FROM else 0)
+
+
+func workers(s: Dictionary) -> int:
+	return int(s.get("workers", 0))
+
+
+## Workers needed for every line bought so far.
+func workers_needed(s: Dictionary) -> int:
+	return int(s.get("lines", 0)) * crew_per_line(s)
+
+
+## Lines with their full crew; the others run on their machines alone.
+func staffed_lines(s: Dictionary) -> int:
+	return mini(int(s.get("lines", 0)), workers(s) / crew_per_line(s))
+
+
+func worker_wage(l: LocationDef) -> int:
+	return sim.config.wage_per_day * int(BRANCH_WAGE_FACTOR.get(l.region, 1))
+
+
+func worker_hire_fee(l: LocationDef) -> int:
+	return sim.config.hire_fee * int(BRANCH_WAGE_FACTOR.get(l.region, 1))
+
+
+## Hires factory workers for a branch: count of them, or (count 0) as many
+## as its lines still need.
+func hire_workers(id: String, count := 1) -> Dictionary:
+	var s := site(id)
+	var l := loc(id)
+	if l == null or is_factory(id):
+		return Simulation.fail(tr("Xưởng này tuyển nhân viên ở bảng Nhân sự."))
+	if s.is_empty() or s.status != READY:
+		return Simulation.fail(tr("Chi nhánh chưa xây xong."))
+	var missing := workers_needed(s) - workers(s)
+	if int(s.lines) == 0:
+		return Simulation.fail(tr("Mua dây chuyền trước rồi mới tuyển công nhân."))
+	if missing <= 0:
+		return Simulation.fail(tr("Mọi dây chuyền đã đủ công nhân."))
+	var n := missing if count <= 0 else mini(count, missing)
+	var fee := worker_hire_fee(l)
+	# Hire as many as the money allows.
+	while n > 0 and not sim.economy.can_afford(fee * n):
+		n -= 1
+	if n <= 0:
+		return Simulation.fail(tr("Không đủ tiền tuyển (%s mỗi người).") % Fmt.money(fee))
+	sim.economy.book("hire", -fee * n, tr("Tuyển %d công nhân %s") % [n, l.display_name])
+	s.workers = workers(s) + n
+	sim.emit_event(&"expansion_changed", {"id": id})
+	return Simulation.ok(tr("%s có %d công nhân, %d/%d dây chuyền đủ người.") % [l.display_name, workers(s), staffed_lines(s), int(s.lines)])
+
+
+## Lets count factory workers of a branch go (count 0: those no line needs).
+func fire_workers(id: String, count := 1) -> Dictionary:
+	var s := site(id)
+	if s.is_empty() or is_factory(id) or workers(s) == 0:
+		return Simulation.fail(tr("Chi nhánh không có công nhân."))
+	var n := maxi(0, workers(s) - workers_needed(s)) if count <= 0 else mini(count, workers(s))
+	if n <= 0:
+		return Simulation.fail(tr("Không có công nhân thừa."))
+	s.workers = workers(s) - n
+	sim.emit_event(&"expansion_changed", {"id": id})
+	return Simulation.ok(tr("%d công nhân %s đã nghỉ việc.") % [n, loc(id).display_name])
+
+
+## Saves from before 0.9: each production line of a factory next door
+## becomes a machine of the starting type with an operator, plus one
+## warehouse worker for every three; the difference to the line price is
+## paid back.
+func convert_old_lines() -> void:
+	var refund := 0
+	for s in sim.state.sites:
+		if not s.get("convert_lines", false):
+			continue
+		s.erase("convert_lines")
+		var lines := int(s.lines)
+		s.lines = 0
+		var d: MachineDef = sim.content.machines[sim.config.start_machine_id]
+		for i in mini(lines, loc(s.id).max_lines):
+			sim.state.machines.append(sim.production.make_machine(d.id, i, s.id))
+			sim.state.employees.append(sim.employees.make_employee(EmployeeManager.OPERATOR, s.id))
+			if i % 3 == 0:
+				sim.state.employees.append(sim.employees.make_employee(EmployeeManager.WAREHOUSE, s.id))
+		refund += maxi(0, loc(s.id).line_cost - d.price) * lines
+	if refund > 0:
+		sim.economy.book("machine_sale", refund, tr("Đổi dây chuyền cũ sang máy"))
+
+
+## Profit bonus (percent) for a site, before its market factor.
+func profit_bonus_percent(s: Dictionary) -> int:
+	var l := loc(s.id)
+	var bonus := int(s.automation) * AUTOMATION_PERCENT + _exec_sum("profit") + sim.diamonds.bonus("profit")
+	if l.region == DOMESTIC:
+		bonus += _exec_sum("domestic")
+	elif l.region == ABROAD:
+		bonus += _exec_sum("abroad")
+	return bonus
+
+
+## Daily earnings of a branch's lines; nothing without a head. Factories
+## next door earn by selling what their machines make, like the first one.
+func daily_income(s: Dictionary) -> int:
+	if s.status != READY or s.head == "" or is_factory(s.id):
+		return 0
+	var l := loc(s.id)
+	var base := int(s.lines) * l.line_profit_per_day + staffed_lines(s) * l.line_profit_per_day * CREW_PROFIT_PERCENT / 100
+	return base * (100 + profit_bonus_percent(s)) / 100 * int(s.market) / 100
+
+
+## Daily costs of a site once built: upkeep, the head's wage and the wages
+## of a branch's factory workers.
+func daily_cost(s: Dictionary) -> int:
+	if s.status != READY and s.status != BUILDING:
+		return 0
+	var l := loc(s.id)
+	var cost := l.upkeep_per_day * (100 - _exec_sum("upkeep")) / 100 if s.status == READY else 0
+	cost += workers(s) * worker_wage(l)
+	if s.head != "":
+		cost += head_wage(l)
+	return cost
+
+
+## Net result per day of everything outside the first factory (executives included).
+func daily_net() -> int:
+	var total := -exec_wages()
+	for s in sim.state.sites:
+		total += daily_income(s) - daily_cost(s)
+	return total
+
+
+func tick() -> void:
+	for s in sim.state.sites:
+		if s.status != SURVEYING and s.status != BUILDING:
+			continue
+		s.ticks_left = int(s.ticks_left) - 1
+		if s.ticks_left > 0:
+			continue
+		var l := loc(s.id)
+		if s.status == SURVEYING:
+			s.status = SURVEYED
+			s.market = sim.rng.randi_range(85, 125)
+			sim.emit_event(&"expansion_changed", {"id": s.id})
+			sim.emit_event(&"site_surveyed", {"id": s.id, "market": s.market})
+		else:
+			s.status = READY
+			sim.emit_event(&"expansion_changed", {"id": s.id})
+			sim.emit_event(&"site_opened", {"id": s.id, "name": l.display_name})
+
+
+## Books the day's income and costs of every site and the executives' wages.
+func end_of_day() -> void:
+	for s in sim.state.sites:
+		var l := loc(s.id)
+		var income := daily_income(s)
+		if income > 0:
+			sim.economy.book("branch_income", income, l.display_name)
+			sim.economy.add_stat("branch_income", income)
+		var cost := daily_cost(s)
+		if cost > 0:
+			sim.economy.book("branch_cost", -cost, l.display_name)
+			sim.economy.add_stat("branch_costs", cost)
+	var wages := exec_wages()
+	if wages > 0:
+		sim.economy.book("executives", -wages, tr("Ban lãnh đạo"))
+		sim.economy.add_stat("exec_wages", wages)

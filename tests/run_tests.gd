@@ -9,6 +9,13 @@ const SUITES := [
 	"res://tests/test_orders.gd",
 	"res://tests/test_machines.gd",
 	"res://tests/test_save.gd",
+	"res://tests/test_save_late.gd",
+	"res://tests/test_branches.gd",
+	"res://tests/test_expansion.gd",
+	"res://tests/test_staff.gd",
+	"res://tests/test_diamonds.gd",
+	"res://tests/test_graphics.gd",
+	"res://tests/test_walk_grid.gd",
 	"res://tests/test_full_loop.gd",
 ]
 
@@ -17,6 +24,8 @@ var _exit_code := 0
 
 
 func _initialize() -> void:
+	# Tests check the Vietnamese texts and number format.
+	TranslationServer.set_locale("vi")
 	_exit_code = _run_all()
 
 

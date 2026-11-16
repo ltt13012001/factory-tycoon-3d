@@ -10,6 +10,7 @@ var products: Dictionary = {}
 var machines: Dictionary = {}
 var order_templates: Dictionary = {}
 var constructions: Dictionary = {}
+var locations: Dictionary = {}
 
 
 static func load_default() -> ContentDB:
@@ -40,6 +41,8 @@ func _add(res: Resource) -> void:
 		order_templates[res.id] = res
 	elif res is ConstructionDef:
 		constructions[res.id] = res
+	elif res is LocationDef:
+		locations[res.id] = res
 	else:
 		push_error("ContentDB: unknown resource %s" % res)
 
@@ -58,4 +61,14 @@ func machine_list() -> Array:
 func construction_list() -> Array:
 	var list := constructions.values()
 	list.sort_custom(func(a, b): return a.level_costs[0] < b.level_costs[0])
+	return list
+
+
+## Locations of one region ("local", "domestic", "abroad") in display order.
+func location_list(region: String) -> Array:
+	var list := []
+	for l in locations.values():
+		if l.region == region:
+			list.append(l)
+	list.sort_custom(func(a, b): return a.order < b.order)
 	return list

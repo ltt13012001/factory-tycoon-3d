@@ -2,8 +2,12 @@ class_name MachineDef
 extends Resource
 
 @export var id: String = ""
-@export var display_name: String = ""
-@export_multiline var description: String = ""
+@export var display_name: String = "":
+	get:
+		return TranslationServer.translate(display_name)
+@export_multiline var description: String = "":
+	get:
+		return TranslationServer.translate(description)
 @export var price: int = 0
 @export var cycle_ticks: int = 24
 @export var output_product_id: String = ""
@@ -14,14 +18,14 @@ extends Resource
 ## 0 means the machine runs by itself (automated).
 @export var operators_required: int = 1
 ## Units the pallet next to the machine can hold before the machine stops.
-@export var output_buffer_capacity: int = 20
+@export var output_buffer_capacity: int = 40
 
 @export_group("Unlock")
 @export var min_reputation: int = 0
 @export var min_day: int = 1
 
 @export_group("Upgrades")
-@export var max_level: int = 3
+@export var max_level: int = 5
 ## Each level above 1 makes the cycle this many percent shorter.
 @export var upgrade_speed_percent: int = 15
 ## Upgrade to level L costs price * percent / 100 * (L - 1).

@@ -1,13 +1,20 @@
 # Factory Tycoon 3D (Quản Lý Nhà Máy)
 
 Game 3D Idle Tycoon về quản lý nhà máy, viết bằng **Godot 4.7.2 + GDScript**.
-Đây là **bản 0.2**: một xưởng nhựa làm hộp, bình nước và kệ lưu trữ với 5 loại
-máy, nâng cấp và sửa máy, kỹ thuật viên, 5 công trình mở rộng, chu kỳ ngày đêm
-và khu phố xung quanh. Xem thay đổi trong `docs/changelog.md`.
+Đây là **bản 0.13**, chơi được trên Windows, Android, iOS và trình duyệt: một xưởng nhựa làm hộp, bình nước và kệ lưu trữ với 5 loại
+máy, nâng cấp và sửa máy, kỹ thuật viên, 5 công trình mở rộng, chu kỳ ngày đêm,
+ca làm và tăng ca, tâm trạng và đình công, thêm nhà xưởng chạy y như xưởng chính,
+mở rộng thành tập đoàn đa quốc gia,
+kim cương (nhiệm vụ, quảng cáo có thưởng, nạp tiền) để chiêu mộ quản lý cấp cao,
+và khu phố xung quanh. Chơi được bằng 6 ngôn ngữ: tiếng Việt, English, 简体中文, 日本語, 한국어, हिन्दी (Cài đặt → Ngôn ngữ, hoặc ngay ở màn hình mở đầu; thêm ngôn ngữ: xem `data/i18n/README.md`). Quảng cáo và nạp tiền: xem `docs/monetization.md`. Xem thay đổi trong `docs/changelog.md`.
 
 ## Chơi thử
 
 - **Windows:** chạy `FactoryTycoon3D.exe` (bản xuất sẵn, không cần cài gì).
+- **Android:** cài file `.apk`. **iOS:** cần máy Mac và Xcode. Xem
+  `docs/mobile.md` (điều khiển cảm ứng, cách cài và cách tự build).
+- **Trình duyệt:** mở link game; xem `docs/web.md` (máy nào chạy được, chế độ
+  nhẹ, cách tự build trang web).
 - **Từ mã nguồn:** mở thư mục này bằng Godot 4.7.2 rồi bấm Play (F5).
 
 Điều khiển:
@@ -18,11 +25,13 @@ và khu phố xung quanh. Xem thay đổi trong `docs/changelog.md`.
 | Phóng to, thu nhỏ | Lăn chuột |
 | Di chuyển camera | Kéo chuột phải hoặc chuột giữa, WASD, phím mũi tên |
 | Chọn máy hoặc công nhân | Bấm chuột trái |
-| Phóng to / thu nhỏ giao diện | Menu → A+ / A− |
+| Phóng to / thu nhỏ giao diện | Cài đặt → Cỡ chữ và nút |
+| Đồ họa Tự động / Thấp / Vừa / Cao | Cài đặt → Đồ họa |
+| Đổi ngôn ngữ | Cài đặt → Ngôn ngữ · Language, hoặc ở màn hình mở đầu |
 | Tạm dừng / tiếp tục | Space |
 | Hủy chế độ xây / bỏ chọn | Esc |
 
-Game tự lưu mỗi 60 giây và khi thoát, vào `user://saves/slot_1.json`
+Game tự lưu mỗi 30 giây, cuối mỗi ngày game và khi thoát hoặc chuyển ứng dụng, vào `user://saves/slot_1.json` (kèm bản dự phòng `slot_1.bak.json`; bản web lưu thêm vào bộ nhớ trình duyệt). Cài đặt → Sao lưu / chuyển máy khác cho mã lưu để chơi tiếp ở máy khác
 (trên Windows: `%APPDATA%\Godot\app_userdata\Factory Tycoon 3D\saves\`).
 
 ## Kiểm thử
@@ -39,7 +48,7 @@ godot --path . -- --screenshot=/tmp/shots
 ```
 
 Xuất bản: `godot --headless --path . --export-release "Windows Desktop" build/windows/FactoryTycoon3D.exe`
-(cần export templates 4.7.2).
+(cần export templates 4.7.2). Android và iOS: xem `docs/mobile.md`.
 
 ## Kiến trúc
 
@@ -59,7 +68,8 @@ scripts/view/  Thế giới 3D: camera, nhà xưởng, máy, công nhân, xe t�
                cảnh quan, ngày đêm
 scripts/ui/    Giao diện: thanh thông tin, 5 bảng quản lý, báo cáo ngày
 tests/         Trình chạy test, các bộ test, người chơi tự động, smoke test
-assets/fonts/  Be Vietnam Pro (SIL OFL 1.1)
+data/i18n/     Bản dịch: mỗi ngôn ngữ một file JSON (câu tiếng Việt → bản dịch)
+assets/fonts/  Be Vietnam Pro, Noto Sans SC/JP/KR/Devanagari thu gọn (SIL OFL 1.1)
 ```
 
 Tài liệu thiết kế: xem `docs/design.md`.

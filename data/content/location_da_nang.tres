@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="LocationDef" format=3]
+
+[ext_resource type="Script" path="res://data/defs/location_def.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+region = "domestic"
+id = "da_nang"
+display_name = "Chi nhánh Đà Nẵng"
+country = "Việt Nam"
+description = "Miền Trung, ít đối thủ cạnh tranh."
+order = 4
+min_tier = 1
+survey_cost = 120000
+survey_hours = 10
+land_cost = 2400000
+build_cost = 2200000
+build_hours = 30
+upkeep_per_day = 26000
+line_cost = 240000
+line_profit_per_day = 67500
+max_lines = 12
+head_wage_per_day = 25000

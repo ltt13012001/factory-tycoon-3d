@@ -8,16 +8,26 @@ const PANELS := [
 	["purchase", "Mua hàng", preload("res://scripts/ui/purchase_panel.gd")],
 	["build", "Xây dựng", preload("res://scripts/ui/build_panel.gd")],
 	["staff", "Nhân sự", preload("res://scripts/ui/staff_panel.gd")],
+	["expansion", "Mở rộng", preload("res://scripts/ui/expansion_panel.gd")],
+	["quests", "Nhiệm vụ", preload("res://scripts/ui/quests_panel.gd")],
+	["diamonds", "Kim cương", preload("res://scripts/ui/diamond_panel.gd")],
 ]
 
 var _cash: Label
+var _gems: Button
+var _boost_status: Label
+var _tier: Label
 var _rep: Label
 var _clock: Label
 var _raw: Label
 var _finished: Label
 var _alert: Button
+var _strike_alert: Button
 var _build_status: Label
-var _menu: MenuButton
+var _settings_button: Button
+var _settings: SettingsPanel
+var _title: TitleScreen
+var _load_reported := false
 var _ui_scale := 1.0
 var _speed_buttons: Array[Button] = []
 var _nav_buttons := {}
@@ -28,13 +38,28 @@ var _build_banner: PanelContainer
 var _banner_label: Label
 var _toasts: VBoxContainer
 var _confirm: ConfirmationDialog
+var _save_dialog: SaveDialog
 var _current := ""
+var _top_bar: HBoxContainer
+var _nav: VBoxContainer
+var _report: PanelContainer
+var _selection: SelectionPanel
+var _help: Label
+var _compact := false
+var _refresh_wait := 0.0
+
+const REFRESH_INTERVAL := 0.1
+const TOP_BAR_PADDING := 10
+var _pad: Control
+var _bar: PanelContainer
+var _touch: Control
 
 const SETTINGS_PATH := "user://settings.cfg"
 
 
 func _ready() -> void:
 	theme = UiTheme.build()
+	add_to_group("hud")
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_build_top_bar()
@@ -43,8 +68,25 @@ func _ready() -> void:
 	_build_toasts()
 	_build_corner_panels()
 	_build_help()
+	if UiTheme.is_mobile():
+		_build_touch_buttons()
 	_load_ui_scale()
+	get_viewport().size_changed.connect(_relayout)
+	_relayout.call_deferred()
 	EventBus.toast.connect(show_toast)
+	_settings = SettingsPanel.new(self)
+	add_child(_settings)
+	_title = TitleScreen.new(self)
+	add_child(_title)
+	if _wants_title():
+		_title.open()
+		move_child(_toasts, -1)
+		_update_help.call_deferred()
+	else:
+		_report_load.call_deferred()
+	EventBus.branch_visit_requested.connect(func(_id):
+		if _current != "":
+			toggle_panel(_current))
 	EventBus.speed_changed.connect(func(_s): _update_speed_buttons())
 	EventBus.build_mode_changed.connect(func(active):
 		_build_banner.visible = active
@@ -52,42 +94,67 @@ func _ready() -> void:
 			if _current != "":
 				toggle_panel(_current)  # get the panel out of the way of the hall
 			var d: MachineDef = GameManager.sim.content.machines[GameManager.pending_machine_id]
-			_banner_label.text = "Bấm vào ô xanh trong xưởng để đặt %s (%s)." % [d.display_name, Fmt.money(d.price)])
-	EventBus.order_offered.connect(func(_d): show_toast("Có đơn hàng mới!", true))
-	EventBus.order_expired.connect(func(d): show_toast("Đơn của %s đã hết hạn." % d.customer, false))
-	EventBus.material_arrived.connect(func(d): show_toast("Xe chở %d hạt nhựa đã đến bãi." % d.qty, true))
+			_banner_label.text = tr("Bấm vào ô xanh trong xưởng để đặt %s (%s).") % [d.display_name, Fmt.money(d.price)])
+	EventBus.order_offered.connect(func(_d): show_toast(tr("Có đơn hàng mới!"), true))
+	EventBus.order_expired.connect(func(d): show_toast(tr("Đơn của %s đã hết hạn.") % d.customer, false))
+	EventBus.material_arrived.connect(func(d): show_toast(tr("Xe chở %d hạt nhựa đã đến bãi.") % d.qty, true))
 	EventBus.order_completed.connect(_on_order_completed)
-	EventBus.cash_critical.connect(func(_d): show_toast("Tiền mặt vượt hạn mức thấu chi!", false))
-	EventBus.machine_broken.connect(func(_d): show_toast("Một máy vừa hỏng! Bấm vào máy để sửa hoặc tuyển kỹ thuật viên.", false))
-	EventBus.machine_repaired.connect(func(_d): show_toast("Máy đã sửa xong.", true))
-	EventBus.machine_upgraded.connect(func(_d): show_toast("Đã nâng cấp máy.", true))
-	EventBus.construction_finished.connect(func(d): show_toast("Đã xây xong %s!" % GameManager.sim.content.constructions[d.id].display_name, true))
+	EventBus.cash_critical.connect(func(_d): show_toast(tr("Tiền mặt vượt hạn mức thấu chi!"), false))
+	EventBus.machine_broken.connect(func(_d): show_toast(tr("Một máy vừa hỏng! Bấm vào máy để sửa hoặc tuyển kỹ thuật viên."), false))
+	EventBus.machine_repaired.connect(func(_d): show_toast(tr("Máy đã sửa xong."), true))
+	EventBus.machine_upgraded.connect(func(_d): show_toast(tr("Đã nâng cấp máy."), true))
+	EventBus.construction_finished.connect(func(d): show_toast(tr("Đã xây xong %s!") % GameManager.sim.content.constructions[d.id].display_name, true))
+	EventBus.site_opened.connect(func(d): show_toast((tr("%s đã xây xong! Vào Xây dựng để đặt máy, Nhân sự để tuyển công nhân cho xưởng.") if str(d.id).begins_with("lot_") else tr("%s đã xây xong! Nhớ tuyển người quản lý và mua dây chuyền.")) % d.name, true))
+	EventBus.site_surveyed.connect(func(d): show_toast(tr("Khảo sát %s xong: sức mua %d%%.") % [GameManager.sim.content.locations[d.id].display_name, d.market], true))
+	EventBus.strike_started.connect(func(_d): show_toast(tr("Công nhân đình công vì lương thấp! Vào Nhân sự để tăng lương hoặc bớt tăng ca."), false))
+	EventBus.quest_completed.connect(func(d): show_toast(tr("Xong nhiệm vụ: %s. Vào Nhiệm vụ để nhận kim cương.") % d.text, true))
+	EventBus.boost_ended.connect(func(_d): show_toast(tr("Hết thời gian tăng tốc sản xuất."), true))
+	EventBus.strike_ended.connect(func(_d): show_toast(tr("Công nhân đã quay lại làm việc."), true))
+	EventBus.staff_unhappy.connect(func(_d): show_toast(tr("Công nhân đang bất mãn với lương và giờ làm. Coi chừng đình công!"), false))
+	EventBus.panel_requested.connect(func(id):
+		if _current != id:
+			toggle_panel(id))
+	EventBus.site_selected.connect(func(_id):
+		if _current != "expansion":
+			toggle_panel("expansion"))
 	_update_speed_buttons()
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	var sim := GameManager.sim
 	if sim == null:
 		return
+	# The simulation moves in 0.25 s ticks, so refreshing the texts ten times
+	# a second looks the same as every frame and lays out far less often.
+	_refresh_wait -= delta
+	if _refresh_wait > 0.0:
+		return
+	_refresh_wait = REFRESH_INTERVAL
 	var s := sim.state
-	_cash.text = Fmt.money(s.cash)
+	_cash.text = Fmt.money_short(s.cash)
+	_cash.tooltip_text = Fmt.money(s.cash)
 	_cash.add_theme_color_override("font_color", UiTheme.GOOD if s.cash >= 0 else UiTheme.BAD)
-	_rep.text = "Uy tín %d" % s.reputation
+	_rep.text = tr("Uy tín %d") % s.reputation
+	_tier.text = sim.expansion.tier_name()
 	_clock.text = TimeManager.clock_text()
 	var incoming := sim.inventory.pending_material() + s.dock
-	_raw.text = "Hạt nhựa %d/%d%s" % [s.raw, sim.buildings.raw_capacity(), (" (+%d)" % incoming) if incoming > 0 else ""]
+	if _compact:
+		_raw.text = tr("Nhựa %d/%d") % [s.raw, sim.buildings.raw_capacity()]
+	else:
+		_raw.text = tr("Hạt nhựa %d/%d%s") % [s.raw, sim.buildings.raw_capacity(), (" (+%d)" % incoming) if incoming > 0 else ""]
 	_raw.add_theme_color_override("font_color", UiTheme.BAD if s.raw < 20 else UiTheme.TEXT)
-	_finished.text = "Kho %d/%d" % [s.finished_total(), sim.buildings.finished_capacity()]
+	_finished.text = tr("Kho %d/%d") % [s.finished_total(), sim.buildings.finished_capacity()]
 	var broken := 0
 	for m in s.machines:
 		if m.broken:
 			broken += 1
 	_alert.visible = broken > 0
-	_alert.text = "⚠ %d máy hỏng!" % broken
+	_alert.text = tr("⚠ %d máy hỏng!") % broken
+	_strike_alert.visible = sim.employees.on_strike()
 	var c: Dictionary = s.construction
 	_build_status.visible = not c.is_empty()
 	if not c.is_empty():
-		_build_status.text = "Đang xây %s: %d%%" % [sim.content.constructions[c.id].display_name, 100 - int(c.ticks_left) * 100 / maxi(1, int(c.total_ticks))]
+		_build_status.text = tr("Đang xây %s: %d%%") % [sim.content.constructions[c.id].display_name, 100 - int(c.ticks_left) * 100 / maxi(1, int(c.total_ticks))]
 	var offers := sim.orders.with_status(OrderManager.OFFERED).size()
 	var ready := 0
 	for o in sim.orders.with_status(OrderManager.ACCEPTED):
@@ -95,32 +162,78 @@ func _process(_delta: float) -> void:
 			ready += 1
 	var badge := ""
 	if offers > 0:
-		badge += "  %d mới" % offers
+		badge += tr("  %d mới") % offers
 	if ready > 0:
-		badge += "  %d giao được" % ready
-	_nav_buttons["orders"].text = "Đơn hàng" + badge
+		badge += tr("  %d giao được") % ready
+	_nav_buttons["orders"].text = tr("Đơn hàng") + badge
+	var claim := sim.quests.claimable()
+	_gems.text = Fmt.group(sim.diamonds.balance())
+	if claim > 0 and UiTheme.is_mobile():
+		_gems.text += "  %d ✓" % claim
+	_nav_buttons["quests"].text = tr("Nhiệm vụ") + ("  %d ✓" % claim if claim > 0 else "")
+	_nav_buttons["quests"].add_theme_color_override("font_color", UiTheme.GOOD if claim > 0 else UiTheme.TEXT)
+	var boost := sim.diamonds.boost_ticks_left()
+	_boost_status.visible = boost > 0 and not UiTheme.is_mobile()
+	if boost > 0:
+		_boost_status.text = tr("Tăng tốc +%d%%: còn %d giờ") % [DiamondManager.BOOST_PERCENT, ceili(float(boost) / sim.config.ticks_per_hour)]
 	var text := sim.tutorial.current_text()
 	_tutorial.visible = text != ""
 	_tutorial_label.text = text
+	_fit_top_bar()
+
+
+## Hides the least important figures, one at a time, when the top bar would
+## run off the screen (a narrow phone, big text, a long company name), so
+## the speed buttons and Cài đặt always stay on screen.
+func _fit_top_bar() -> void:
+	var optional: Array[Label] = [_raw, _finished, _rep, _tier]  # most important first
+	for l in optional:
+		l.visible = true
+	var room := size.x - 2 * TOP_BAR_PADDING
+	var sep := _top_bar.get_theme_constant("separation")
+	var used := 0.0
+	for c in _top_bar.get_children():
+		var ctl := c as Control
+		if ctl.visible:
+			used += ctl.get_combined_minimum_size().x + sep
+	var i := optional.size() - 1
+	while used > room and i >= 0:
+		used -= optional[i].get_combined_minimum_size().x + sep
+		optional[i].visible = false
+		i -= 1
+	if used > room:
+		_clock.text = TimeManager.clock_text(true)
 
 
 # --- Layout ------------------------------------------------------------------
 
 func _build_top_bar() -> void:
 	var bar := PanelContainer.new()
+	_bar = bar
 	bar.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	bar.add_theme_stylebox_override("panel", UiTheme.panel_style(UiTheme.BG, 0, 10))
+	bar.add_theme_stylebox_override("panel", UiTheme.panel_style(UiTheme.BG, 0, TOP_BAR_PADDING))
 	add_child(bar)
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", 18)
 	bar.add_child(h)
+	_top_bar = h
 	_cash = UiTheme.label("", 18, UiTheme.GOOD, true)
+	_tier = UiTheme.label("", 16, UiTheme.WARN, true)
 	_rep = UiTheme.label("", 16)
 	_clock = UiTheme.label("", 16)
 	_raw = UiTheme.label("", 16)
 	_finished = UiTheme.label("", 16)
-	for l in [_cash, _rep, _clock, _raw, _finished]:
+	_gems = UiTheme.diamond_button("0", func():
+		if _current != "diamonds":
+			toggle_panel("diamonds"))
+	_gems.tooltip_text = tr("Kim cương: nhận từ nhiệm vụ, quảng cáo hoặc nạp")
+	_gems.add_theme_color_override("font_color", UiTheme.DIAMOND)
+	_gems.add_theme_font_override("font", UiTheme.font(600))
+	h.add_child(_cash)
+	h.add_child(_gems)
+	for l in [_tier, _rep, _clock, _raw, _finished]:
 		h.add_child(l)
+	_cash.mouse_filter = Control.MOUSE_FILTER_PASS  # exact amount in the tooltip
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -132,62 +245,143 @@ func _build_top_bar() -> void:
 		var b := UiTheme.button("||" if sp == 0 else "x%d" % sp, func(): TimeManager.set_speed(sp))
 		b.toggle_mode = true
 		b.custom_minimum_size.x = 46
-		b.tooltip_text = "Tạm dừng (Space)" if sp == 0 else "Tốc độ x%d" % sp
+		b.tooltip_text = tr("Tạm dừng (Space)") if sp == 0 else tr("Tốc độ x%d") % sp
 		speeds.add_child(b)
 		_speed_buttons.append(b)
-	_menu = MenuButton.new()
-	_menu.text = "Menu"
-	_menu.flat = false
-	_menu.focus_mode = Control.FOCUS_NONE
-	var pm := _menu.get_popup()
-	pm.add_theme_font_size_override("font_size", 18)
-	pm.add_item("Chữ to hơn (A+)", 0)
-	pm.add_item("Chữ nhỏ hơn (A−)", 1)
-	pm.add_separator()
-	pm.add_item("Lưu game", 2)
-	pm.add_item("Chơi lại từ đầu", 3)
-	pm.id_pressed.connect(_on_menu)
-	h.add_child(_menu)
+	_settings_button = UiTheme.button(tr("Cài đặt"), func(): open_settings())
+	_settings_button.tooltip_text = tr("Ngôn ngữ, đồ họa, cỡ chữ, lưu game")
+	h.add_child(_settings_button)
 	_confirm = ConfirmationDialog.new()
-	_confirm.title = "Chơi lại từ đầu?"
-	_confirm.dialog_text = "Tiến trình hiện tại sẽ bị xóa."
-	_confirm.ok_button_text = "Chơi lại"
-	_confirm.cancel_button_text = "Hủy"
+	_confirm.title = tr("Chơi lại từ đầu?")
+	_confirm.dialog_text = tr("Tiến trình hiện tại sẽ bị xóa. Kim cương và quản lý cấp cao được giữ lại.")
+	_confirm.ok_button_text = tr("Chơi lại")
+	_confirm.cancel_button_text = tr("Hủy")
 	_confirm.confirmed.connect(func():
 		GameManager.new_game()
 		EventBus.selection_changed.emit("", 0)
-		show_toast("Bắt đầu game mới.", true))
+		show_toast(tr("Bắt đầu game mới."), true))
 	add_child(_confirm)
+	_save_dialog = SaveDialog.new()
+	add_child(_save_dialog)
 
 
-func _on_menu(id: int) -> void:
-	match id:
-		0:
-			set_ui_scale(_ui_scale + 0.1)
-		1:
-			set_ui_scale(_ui_scale - 0.1)
-		2:
-			show_toast("Đã lưu game." if SaveManager.save_game() else "Không lưu được!", true)
-		3:
-			_confirm.popup_centered()
+## Saves, switches language and rebuilds the scene so every text, panel and
+## 3D sign comes back in the new language. The game carries on where it was.
+func _change_language(code: String) -> void:
+	if code == I18n.current():
+		return
+	SaveManager.save_game()
+	I18n.set_language(code)
+	EventBus.selection_changed.emit("", 0)
+	get_tree().reload_current_scene.call_deferred()
+
+
+## Cài đặt, from the top bar or (from_title) over the title screen.
+func open_settings(from_title := false) -> void:
+	_settings.open(from_title)
+	move_child(_settings, -1)
+	move_child(_toasts, -1)
+
+
+## Back to the title screen (Cài đặt → Màn hình chính).
+func show_title() -> void:
+	if _current != "":
+		toggle_panel(_current)
+	EventBus.selection_changed.emit("", 0)
+	_title.open()
+	move_child(_title, -1)
+	move_child(_toasts, -1)
+	_update_help()
+
+
+## Called by the title screen when the player goes into the game: the
+## notes about how the save loaded are shown once, the first time.
+func title_closed(new_game: bool) -> void:
+	_update_help()
+	if not _load_reported:
+		_load_reported = true
+		if new_game:
+			SaveManager.load_note = ""
+		_report_load()
+
+
+## The title screen shows when the game opens, not after a language change
+## mid-game, and never in the automated tests and screenshots.
+func _wants_title() -> bool:
+	if TitleScreen.dismissed:
+		return false
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--smoke-test") or a.begins_with("--screenshot"):
+			return false
+	return true
+
+
+## Tells the player how the game started from the save, once the HUD is up.
+func _report_load() -> void:
+	match SaveManager.load_note:
+		"loaded":
+			show_toast(tr("Đã tải tiến trình đã lưu: ngày %d.") % GameManager.sim.day(), true)
+		"backup":
+			show_toast(tr("File lưu chính bị hỏng, đã tải bản dự phòng gần nhất (ngày %d).") % GameManager.sim.day(), false)
+		"broken":
+			show_toast(tr("Không đọc được file lưu cũ nên bắt đầu game mới. File cũ được giữ lại trong thư mục saves."), false)
+		"newer":
+			show_toast(tr("File lưu đến từ bản game mới hơn nên không mở được. Hãy cập nhật game; file cũ vẫn được giữ."), false)
+	if not SaveManager.storage_is_persistent():
+		show_toast(tr("Trình duyệt này không giữ dữ liệu sau khi đóng trang. Vào Cài đặt → Sao lưu để giữ mã lưu."), false)
 
 
 ## Scales the whole interface (and the 3D labels stay as they are).
 func set_ui_scale(value: float) -> void:
-	_ui_scale = clampf(snappedf(value, 0.1), 0.8, 1.8)
+	_ui_scale = clampf(snappedf(value, 0.1), 0.8, 2.2)
 	get_tree().root.content_scale_factor = _ui_scale
 	var cfg := ConfigFile.new()
 	cfg.load(SETTINGS_PATH)
 	cfg.set_value("ui", "scale", _ui_scale)
 	cfg.save(SETTINGS_PATH)
-	show_toast("Cỡ giao diện %d%%" % roundi(_ui_scale * 100), true)
+	show_toast(tr("Cỡ giao diện %d%%") % roundi(_ui_scale * 100), true)
 
 
 func _load_ui_scale() -> void:
+	_ui_scale = UiTheme.auto_ui_scale()
 	var cfg := ConfigFile.new()
 	if cfg.load(SETTINGS_PATH) == OK:
-		_ui_scale = float(cfg.get_value("ui", "scale", 1.0))
-		get_tree().root.content_scale_factor = _ui_scale
+		_ui_scale = float(cfg.get_value("ui", "scale", _ui_scale))
+	get_tree().root.content_scale_factor = _ui_scale
+
+
+## Fits the layout to the current logical screen size: keeps clear of notches
+## and rounded corners on phones, narrows the side panels and shortens the
+## top bar when space runs out.
+func _relayout() -> void:
+	var vp := get_viewport_rect().size
+	if OS.has_feature("mobile"):
+		var win := Vector2(DisplayServer.window_get_size())
+		var safe := Rect2(DisplayServer.get_display_safe_area())
+		if win.x > 0 and win.y > 0 and safe.size.x > 0:
+			var k := vp / win
+			offset_left = safe.position.x * k.x
+			offset_top = safe.position.y * k.y
+			offset_right = -(win.x - safe.end.x) * k.x
+			offset_bottom = -(win.y - safe.end.y) * k.y
+	var w := size.x
+	var panel_w := clampf(w - 192 - 16, 300, 480)
+	for k in _panels:
+		_panels[k].offset_right = 192 + panel_w
+	# Narrow screens (most phones): smaller top bar text and shorter labels.
+	_compact = w < 1000
+	_top_bar.add_theme_constant_override("separation", 10 if _compact else 18)
+	_cash.add_theme_font_size_override("font_size", roundi((15 if _compact else 18) * UiTheme.TEXT_SCALE))
+	_gems.add_theme_font_size_override("font_size", roundi((14 if _compact else 16) * UiTheme.TEXT_SCALE))
+	for l in [_tier, _rep, _clock, _raw, _finished]:
+		l.add_theme_font_size_override("font_size", roundi((13 if _compact else 16) * UiTheme.TEXT_SCALE))
+	for b in _speed_buttons:
+		b.custom_minimum_size.x = 38 if _compact else 46
+	_report.max_height = size.y - 24
+	_refresh_wait = 0.0
+	if _pad:
+		# Short screens: the pad would cover the navigation buttons.
+		_pad.visible = size.y - 230 > 72 + _nav.get_combined_minimum_size().y
 
 
 func _update_speed_buttons() -> void:
@@ -198,18 +392,23 @@ func _update_speed_buttons() -> void:
 
 func _build_nav() -> void:
 	var nav := VBoxContainer.new()
+	_nav = nav
 	nav.position = Vector2(12, 72)
-	nav.add_theme_constant_override("separation", 6)
+	nav.add_theme_constant_override("separation", 4 if UiTheme.is_mobile() else 6)
 	nav.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(nav)
 	for p in PANELS:
 		var id: String = p[0]
-		var b := UiTheme.button(p[1], func(): toggle_panel(id))
+		var b := UiTheme.button(tr(p[1]), func(): toggle_panel(id))
 		b.toggle_mode = true
-		b.custom_minimum_size = Vector2(170, 46)
+		b.custom_minimum_size = Vector2(170, 42 if UiTheme.is_mobile() else 46)
 		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		nav.add_child(b)
 		_nav_buttons[id] = b
+		# Phones have no room for more buttons on the left: the gem in the
+		# top bar opens Kim cương, which links to Nhiệm vụ.
+		if UiTheme.is_mobile() and id in ["quests", "diamonds"]:
+			b.visible = false
 		var panel: SidePanel = p[2].new()
 		panel.anchor_top = 0
 		panel.anchor_bottom = 1
@@ -227,21 +426,37 @@ func _build_nav() -> void:
 	_alert.add_theme_color_override("font_color", Color.WHITE)
 	for st in ["normal", "hover", "pressed"]:
 		_alert.add_theme_stylebox_override(st, UiTheme.panel_style(UiTheme.BAD.darkened(0.25 if st == "normal" else 0.1), 8, 8))
-	_alert.tooltip_text = "Bấm để chọn máy hỏng"
+	_alert.tooltip_text = tr("Bấm để chọn máy hỏng")
 	_alert.visible = false
 	nav.add_child(_alert)
+	_strike_alert = UiTheme.button(tr("⚠ Đình công!"), func():
+		if _current != "staff":
+			toggle_panel("staff"))
+	_strike_alert.custom_minimum_size = Vector2(170, 46)
+	_strike_alert.add_theme_color_override("font_color", Color.WHITE)
+	for st in ["normal", "hover", "pressed"]:
+		_strike_alert.add_theme_stylebox_override(st, UiTheme.panel_style(UiTheme.BAD.darkened(0.25 if st == "normal" else 0.1), 8, 8))
+	_strike_alert.visible = false
+	nav.add_child(_strike_alert)
 	_build_status = UiTheme.label("", 15, UiTheme.WARN)
 	_build_status.custom_minimum_size.x = 170
 	_build_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_build_status.add_theme_stylebox_override("normal", UiTheme.panel_style(UiTheme.BG, 8, 8))
 	_build_status.visible = false
 	nav.add_child(_build_status)
+	_boost_status = UiTheme.label("", 15, UiTheme.DIAMOND)
+	_boost_status.custom_minimum_size.x = 170
+	_boost_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_boost_status.add_theme_stylebox_override("normal", UiTheme.panel_style(UiTheme.BG, 8, 8))
+	_boost_status.visible = false
+	nav.add_child(_boost_status)
 
 
 func _select_broken_machine() -> void:
 	for m in GameManager.sim.state.machines:
 		if m.broken:
 			EventBus.selection_changed.emit("machine", m.id)
+			EventBus.camera_focus_requested.emit(FactoryLayout.machine_position(m), 30.0)
 			return
 
 
@@ -250,6 +465,12 @@ func toggle_panel(id: String) -> void:
 	for k in _panels:
 		_panels[k].visible = k == _current
 		_nav_buttons[k].set_pressed_no_signal(k == _current)
+	_update_help()
+
+
+func _update_help() -> void:
+	if _help:
+		_help.visible = _current == "" and not _selection.visible and not (_title and _title.visible)
 
 
 func _build_tutorial() -> void:
@@ -274,9 +495,12 @@ func _build_tutorial() -> void:
 	_build_banner.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	var bh := HBoxContainer.new()
 	bh.add_theme_constant_override("separation", 12)
-	_banner_label = UiTheme.label("Bấm vào ô xanh trong xưởng để đặt máy.", 16, Color.WHITE, true)
+	_banner_label = UiTheme.label(tr("Bấm vào ô xanh trong xưởng để đặt máy."), 16, Color.WHITE, true)
+	if UiTheme.is_mobile():
+		_banner_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_banner_label.custom_minimum_size.x = 420
 	bh.add_child(_banner_label)
-	bh.add_child(UiTheme.button("Hủy (Esc)", func(): EventBus.build_mode_changed.emit(false)))
+	bh.add_child(UiTheme.button(tr("Hủy") if UiTheme.is_mobile() else tr("Hủy (Esc)"), func(): EventBus.build_mode_changed.emit(false)))
 	_build_banner.add_child(bh)
 	_build_banner.visible = false
 	add_child(_build_banner)
@@ -301,10 +525,10 @@ func show_toast(text: String, good: bool = true) -> void:
 	pc.add_theme_stylebox_override("panel", UiTheme.panel_style(color, 8, 10))
 	var l := UiTheme.label(text, 15, Color.WHITE)
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	l.custom_minimum_size.x = 330
+	l.custom_minimum_size.x = 280 if UiTheme.is_mobile() else 330
 	pc.add_child(l)
 	_toasts.add_child(pc)
-	while _toasts.get_child_count() > 5:
+	while _toasts.get_child_count() > (3 if UiTheme.is_mobile() else 5):
 		var old := _toasts.get_child(0)
 		_toasts.remove_child(old)
 		old.queue_free()
@@ -316,6 +540,8 @@ func show_toast(text: String, good: bool = true) -> void:
 
 func _build_corner_panels() -> void:
 	var sel := SelectionPanel.new()
+	_selection = sel
+	sel.visibility_changed.connect(_update_help)
 	sel.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
 	sel.offset_right = -16
 	sel.offset_bottom = -16
@@ -324,6 +550,7 @@ func _build_corner_panels() -> void:
 	add_child(sel)
 	var report: PanelContainer = preload("res://scripts/ui/daily_report.gd").new()
 	report.name = "DailyReport"
+	_report = report
 	report.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
 	report.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	report.grow_vertical = Control.GROW_DIRECTION_BOTH
@@ -331,18 +558,124 @@ func _build_corner_panels() -> void:
 
 
 func _build_help() -> void:
-	var l := UiTheme.label("Q / E xoay · Lăn chuột phóng to · Chuột phải kéo hoặc WASD di chuyển · Bấm vào máy để xem và sửa · Space tạm dừng", 13, Color(1, 1, 1, 0.85))
+	var text := tr("Q / E xoay · Lăn chuột phóng to · Kéo chuột hoặc WASD di chuyển · Bấm vào máy để xem và sửa · Space tạm dừng")
+	var l := UiTheme.label(text, 13, Color(1, 1, 1, 0.85))
 	l.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
 	l.offset_left = 14
 	l.offset_top = -30
+	if UiTheme.is_mobile():
+		# Next to the rotate buttons, wrapping onto two lines if needed.
+		l.text = tr("Kéo để di chuyển (vuốt nhanh để lướt) · Chụm hai ngón để phóng to · Xoay hai ngón để xoay tự do · Chạm vào máy để xem")
+		l.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+		l.offset_left = 224
+		l.offset_right = -16
+		l.offset_top = -62
+		l.offset_bottom = -10
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	l.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.7))
 	l.add_theme_constant_override("outline_size", 4)
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(l)
+	_help = l
+
+
+## Phones and tablets have no keyboard: rotate buttons in the bottom-left
+## corner and, above them, a pad that pans (hold), zooms and jumps home.
+func _build_touch_buttons() -> void:
+	var h := HBoxContainer.new()
+	h.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
+	h.offset_left = 12
+	h.offset_top = -62
+	h.offset_bottom = -10
+	h.add_theme_constant_override("separation", 8)
+	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	for step in [-1, 1]:
+		var b := UiTheme.button(tr("< Xoay") if step < 0 else tr("Xoay >"), func(): EventBus.camera_rotate_requested.emit(step))
+		b.custom_minimum_size = Vector2(96, 52)
+		h.add_child(b)
+	add_child(h)
+	_touch = h
+	_pad = camera_pad()
+	add_child(_pad)
+
+
+## 3 x 3 pad: arrows pan while held, + / − zoom, the middle returns to the factory.
+static func camera_pad() -> GridContainer:
+	var g := GridContainer.new()
+	g.columns = 3
+	g.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
+	g.offset_left = 12
+	g.offset_top = -72 - 3 * 50
+	g.offset_bottom = -72
+	g.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	g.add_theme_constant_override("h_separation", 4)
+	g.add_theme_constant_override("v_separation", 4)
+	g.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var cells := [["+", Vector2.ZERO], ["^", Vector2(0, -1)], ["−", Vector2.ZERO],
+		["<", Vector2(-1, 0)], [TranslationServer.translate("Về"), Vector2.ZERO], [">", Vector2(1, 0)],
+		["", Vector2.ZERO], ["v", Vector2(0, 1)], ["", Vector2.ZERO]]
+	for c in cells:
+		var text: String = c[0]
+		var dir: Vector2 = c[1]
+		if text == "":
+			var gap := Control.new()
+			gap.custom_minimum_size = Vector2(56, 46)
+			gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			g.add_child(gap)
+			continue
+		var b := UiTheme.button(text, func(): pass)
+		b.custom_minimum_size = Vector2(56, 46)
+		b.modulate.a = 0.85
+		if dir != Vector2.ZERO:
+			b.button_down.connect(func(): EventBus.camera_pad_changed.emit(dir))
+			b.button_up.connect(func(): EventBus.camera_pad_changed.emit(Vector2.ZERO))
+		elif text == "+":
+			b.pressed.connect(func(): EventBus.camera_zoom_requested.emit(0.8))
+		elif text == "−":
+			b.pressed.connect(func(): EventBus.camera_zoom_requested.emit(1.25))
+		else:
+			b.tooltip_text = TranslationServer.translate("Về nhà máy chính")
+			b.pressed.connect(func(): EventBus.camera_focus_requested.emit(Vector3(-2, 0, 0), 30.0))
+		g.add_child(b)
+	return g
+
+
+## Screen rects of everything the player reads or presses (bars, buttons,
+## open panels, notices), for the clouds to keep clear of.
+func control_rects() -> Array[Rect2]:
+	var out: Array[Rect2] = []
+	var items: Array = [_bar, _tutorial, _build_banner, _selection, _report, _touch, _pad, _help]
+	for b in _nav.get_children():
+		items.append(b)
+	if _current != "":
+		items.append(_panels[_current])
+	for t in _toasts.get_children():
+		items.append(t)
+	for c in items:
+		var ctl := c as Control
+		if ctl and ctl.is_visible_in_tree():
+			var xf := ctl.get_global_transform_with_canvas()
+			out.append(Rect2(xf.origin, ctl.size * xf.get_scale()))
+	return out
+
+
+## Android back button / gesture: closes whatever is open, one thing at a time.
+func _notification(what: int) -> void:
+	if what != NOTIFICATION_WM_GO_BACK_REQUEST:
+		return
+	if _report.visible:
+		_report.visible = false
+	elif _build_banner.visible:
+		EventBus.build_mode_changed.emit(false)
+	elif _current != "":
+		toggle_panel(_current)
+	elif _selection.visible:
+		EventBus.selection_changed.emit("", 0)
 
 
 func _on_order_completed(d: Dictionary) -> void:
-	var msg := "%s đã thanh toán %s" % [d.customer, Fmt.money(int(d.value) - int(d.penalty))]
+	var msg := tr("%s đã thanh toán %s") % [d.customer, Fmt.money(int(d.value) - int(d.penalty))]
 	if int(d.penalty) > 0:
-		msg += " (phạt trễ %s)" % Fmt.money(int(d.penalty))
+		msg += tr(" (phạt trễ %s)") % Fmt.money(int(d.penalty))
 	show_toast(msg, int(d.penalty) == 0)
