@@ -277,6 +277,8 @@ render_mode cull_back, specular_schlick_ggx;
 uniform vec4 deep : source_color;
 uniform vec4 shallow : source_color;
 uniform vec4 foam : source_color = vec4(0.93, 0.96, 0.96, 1.0);
+uniform sampler2D wave_tex : hint_normal, filter_linear_mipmap, repeat_enable;
+uniform float detail = 1.0;
 varying vec3 wpos;
 varying float depth;
 
@@ -297,12 +299,19 @@ void fragment() {
 		+ d2 * cos(dot(d2, p) - t * 0.65) * 0.05
 		+ d3 * cos(dot(d3, p) + t * 1.7) * 0.022
 		+ d4 * cos(dot(d4, p) - t * 2.3) * 0.011;
+	// Fine ripples on top of the swell (0.14), stronger on higher levels.
+	vec2 r1 = texture(wave_tex, p * (1.0 / 9.0) + t * vec2(0.02, 0.012)).xy * 2.0 - 1.0;
+	vec2 r2 = texture(wave_tex, p * (1.0 / 3.7) - t * vec2(0.014, -0.024)).xy * 2.0 - 1.0;
+	g += (r1 * 0.6 + r2 * 0.4) * 0.22 * detail;
 	vec3 n = normalize(vec3(-g.x, 1.0, -g.y));
 	NORMAL = normalize((VIEW_MATRIX * vec4(n, 0.0)).xyz);
 	float shore = 1.0 - smoothstep(0.0, 0.07, depth);
 	float wave = 0.5 + 0.5 * sin(depth * 60.0 - t * 1.6 + p.x * 0.05);
 	vec3 col = mix(shallow.rgb, deep.rgb, smoothstep(0.0, 0.85, depth));
 	col = mix(col, foam.rgb, shore * (0.45 + 0.4 * wave));
+	// Darker where the ripples face the eye, brighter where they mirror the sky.
+	float facing = clamp(dot(NORMAL, VIEW), 0.0, 1.0);
+	col *= 0.82 + 0.5 * pow(1.0 - facing, 2.0);
 	ALBEDO = col;
 	ROUGHNESS = 0.2;
 	METALLIC = 0.0;
@@ -318,6 +327,8 @@ func sea_material() -> ShaderMaterial:
 	m.shader = sh
 	m.set_shader_parameter("deep", sea_deep)
 	m.set_shader_parameter("shallow", sea_shallow)
+	m.set_shader_parameter("wave_tex", Landscape.wave_texture())
+	m.set_shader_parameter("detail", 0.6 if low else 1.0)
 	return m
 
 
@@ -424,15 +435,16 @@ func karst(x: float, z: float, w: float, h: float) -> void:
 func _leaf_mesh(kind: String) -> ArrayMesh:
 	var m := MeshBatch.new()
 	var trunk := Color("6b4a2e")
+	var leaf := Palette.surface("foliage")
 	match kind:
 		"tree":
 			m.cylinder(0.24, 2.0, Vector3(0, 1.0, 0), trunk, null, 0.15, Vector3.ZERO, 6)
 			for c in [[Vector3(0, 2.7, 0), 1.35, 0.0], [Vector3(0.75, 2.5, 0.35), 0.95, 0.06], [Vector3(-0.65, 2.45, -0.3), 0.9, 0.06], [Vector3(0.1, 3.35, -0.2), 0.95, -0.05]]:
-				m.sphere(c[1], c[0], Color("4f8a3c").darkened(c[2]), null, Vector3(1, 0.85, 1), 8, 5)
+				m.sphere(c[1], c[0], Color("4f8a3c").darkened(c[2]), leaf, Vector3(1, 0.85, 1), 8, 5)
 		"pine":
 			m.cylinder(0.18, 1.4, Vector3(0, 0.7, 0), trunk, null, 0.12, Vector3.ZERO, 6)
 			for k in 4:
-				m.cylinder(1.5 - k * 0.3, 1.7, Vector3(0, 1.6 + k * 0.95, 0), Color("2f5d33").lightened(k * 0.04), null, 0.0, Vector3(0, k * 0.4, 0), 8)
+				m.cylinder(1.5 - k * 0.3, 1.7, Vector3(0, 1.6 + k * 0.95, 0), Color("2f5d33").lightened(k * 0.04), leaf, 0.0, Vector3(0, k * 0.4, 0), 8)
 		"palm":
 			var prev := Vector3.ZERO
 			for i in range(1, 6):
@@ -445,23 +457,23 @@ func _leaf_mesh(kind: String) -> ArrayMesh:
 				var dir := Vector3(cos(a), 0, sin(a))
 				var mid := prev + dir * 1.3 + Vector3(0, 0.35, 0)
 				var tip := prev + dir * 2.6 + Vector3(0, -0.6, 0)
-				m.bar(prev, mid, 0.12, Color("4f8a3c"))
-				m.bar(mid, tip, 0.1, Color("5f9c44"))
-				m.box(Vector3(0.7, 0.03, 1.5), prev.lerp(tip, 0.55) + Vector3(0, 0.05, 0), Color("5a9a3e"), null, Vector3(0, -a + PI / 2.0, 0.25))
+				m.bar(prev, mid, 0.12, Color("4f8a3c"), leaf)
+				m.bar(mid, tip, 0.1, Color("5f9c44"), leaf)
+				m.box(Vector3(0.7, 0.03, 1.5), prev.lerp(tip, 0.55) + Vector3(0, 0.05, 0), Color("5a9a3e"), leaf, Vector3(0, -a + PI / 2.0, 0.25))
 			for n in 3:
 				m.sphere(0.18, prev + Vector3(cos(n * 2.1) * 0.25, -0.3, sin(n * 2.1) * 0.25), Color("6b8e23"), null, Vector3.ONE, 6, 4)
 		"rubber":
 			# Plantation rubber tree: slim straight trunk, high narrow crown.
 			m.cylinder(0.16, 4.0, Vector3(0, 2.0, 0), Color("8a8170"), null, 0.12, Vector3.ZERO, 6)
-			m.sphere(1.2, Vector3(0, 4.9, 0), Color("3f7330"), null, Vector3(1, 1.3, 1), 8, 5)
-			m.sphere(0.9, Vector3(0.4, 5.9, 0.2), Color("4b8236"), null, Vector3(1, 1.1, 1), 7, 4)
+			m.sphere(1.2, Vector3(0, 4.9, 0), Color("3f7330"), leaf, Vector3(1, 1.3, 1), 8, 5)
+			m.sphere(0.9, Vector3(0.4, 5.9, 0.2), Color("4b8236"), leaf, Vector3(1, 1.1, 1), 7, 4)
 		"bamboo":
 			for k in 7:
 				var a := k * TAU / 7.0
 				var base := Vector3(cos(a) * 0.3, 0, sin(a) * 0.3)
 				var lean := Vector3(cos(a), 0, sin(a)) * 1.8
 				m.bar(base, base + Vector3(0, 6.5, 0) + lean, 0.07, Color("8bb24a"), null, true)
-				m.sphere(0.6, base + Vector3(0, 5.6, 0) + lean * 0.85, Color("6f9f3a"), null, Vector3(1.4, 0.5, 0.9), 7, 4)
+				m.sphere(0.6, base + Vector3(0, 5.6, 0) + lean * 0.85, Color("6f9f3a"), leaf, Vector3(1.4, 0.5, 0.9), 7, 4)
 		"cactus":
 			# Saguaro: a ribbed column with two raised arms.
 			var g := Color("4f7d45")
@@ -481,11 +493,11 @@ func _leaf_mesh(kind: String) -> ArrayMesh:
 			for k in 5:
 				var a := k * TAU / 5.0
 				m.bar(Vector3(cos(a) * 3.0, 0, sin(a) * 3.0), Vector3(cos(a) * 3.0, 3.6, sin(a) * 3.0), 0.12, Color("6d5a45"))
-			m.sphere(4.2, Vector3(0, 4.6, 0), Color("4c7a38"), null, Vector3(1.2, 0.55, 1.2), 10, 6)
-			m.sphere(3.0, Vector3(0.8, 5.6, -0.5), Color("5b8a43"), null, Vector3(1.1, 0.6, 1.1), 9, 5)
+			m.sphere(4.2, Vector3(0, 4.6, 0), Color("4c7a38"), leaf, Vector3(1.2, 0.55, 1.2), 10, 6)
+			m.sphere(3.0, Vector3(0.8, 5.6, -0.5), Color("5b8a43"), leaf, Vector3(1.1, 0.6, 1.1), 9, 5)
 		"bush":
 			for k in 3:
-				m.sphere(0.6 - k * 0.1, Vector3((k - 1) * 0.45, 0.35, (k % 2) * 0.3), Color("3f7a34").darkened(0.05 * k), null, Vector3(1, 0.75, 1), 7, 4)
+				m.sphere(0.6 - k * 0.1, Vector3((k - 1) * 0.45, 0.35, (k % 2) * 0.3), Color("3f7a34").darkened(0.05 * k), leaf, Vector3(1, 0.75, 1), 7, 4)
 	return m.build_mesh()
 
 

@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.14.0 – Cảnh quan chân thực hơn
+
+- **Đồi núi thật**: các gò tròn quanh nhà máy được thay bằng địa hình đồi lượn
+  sóng cao tới khoảng 25 m, thung lũng nhà máy, ruộng và phố vẫn phẳng, con
+  đường giữ một hành lang bằng phẳng tới mép bản đồ. Đường dốc lộ màu đá.
+- **Rừng trên đồi**: khoảng 1.500 cây (máy tính) hoặc 450 cây (điện thoại),
+  mọc thành từng cụm dày thưa tự nhiên, ba loại cây, mỗi cây một sắc xanh hơi
+  khác. Vẽ bằng MultiMesh nên chỉ tốn ba lệnh vẽ; trên điện thoại rừng không đổ
+  bóng.
+- **Cỏ và đất**: shader mới cho mặt đất, cỏ loang những mảng xanh tươi và vàng
+  úa, vết đốm và hạt mịn, màu ngả xanh ô-liu tự nhiên thay cho xanh lá chói.
+  Mức Vừa/Cao thêm độ gồ của cỏ và **bóng mây trôi** trên mặt đất.
+- **Tán lá**: tán cây chia thành từng chùm lá, ngọn sáng nắng, bụng tán tối
+  hơn; mức Cao lá đung đưa nhẹ trong gió. Áp dụng cho cây ở nhà máy chính và
+  mọi chi nhánh.
+- **Mặt nước** (ao, ruộng lúa) gợn sóng, sẫm khi nhìn xuống và phản chiếu màu
+  trời ở chỗ gợn; biển ở các chi nhánh thêm gợn sóng nhỏ trên sóng lớn.
+- **Ánh sáng**: tông màu AgX như máy ảnh (nắng mạnh không bị cháy sáng), bóng
+  râm lấy màu bầu trời và ánh xanh hắt từ mặt cỏ, nắng mạnh hơn một chút,
+  sương mù xa mang màu trời và ấm hơn về phía mặt trời. Ban đêm vẫn dùng ánh
+  trăng xanh cố định cho dễ nhìn.
+- Mọi thứ tạo bằng code (không thêm file ảnh hay mô hình); ở mức Thấp shader
+  chỉ đổi màu, không thêm phép tính nặng.
+- Chụp ảnh cảnh quan: `-- --screenshot=/tmp/shots --screenshot-scenery`.
+
 ## 0.13.0 – Nhiều ngôn ngữ, màn hình mở đầu, bảng Cài đặt
 
 - **Màn hình mở đầu** khi mở game: tên game, ván đang chơi (ngày, quy mô,
