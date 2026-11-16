@@ -11,6 +11,10 @@ static var dismissed := false
 var _hud: Node
 var _confirm: ConfirmationDialog
 var _speed_before := 1
+## Short screens (a phone held sideways): smaller title, no tagline,
+## one-line game card and lower buttons, so it all fits above the languages.
+var _compact := false
+var _col: VBoxContainer
 
 
 func _init(hud: Node) -> void:
@@ -24,8 +28,16 @@ func open() -> void:
 	dismissed = false
 	_speed_before = maxi(1, TimeManager.speed)
 	TimeManager.set_speed(0)
+	_compact = false
 	_build()
 	visible = true
+	_fit.call_deferred()
+
+
+func _fit() -> void:
+	if not _compact and _col and _col.get_combined_minimum_size().y > size.y - 90:
+		_compact = true
+		_build()
 
 
 func close(new_game := false) -> void:
@@ -61,11 +73,13 @@ func _build() -> void:
 	col.set_anchors_and_offsets_preset(Control.PRESET_LEFT_WIDE)
 	col.offset_left = 64
 	col.offset_right = 64 + 560
+	col.offset_bottom = -76  # the languages row
 	col.alignment = BoxContainer.ALIGNMENT_CENTER
-	col.add_theme_constant_override("separation", 12)
+	col.add_theme_constant_override("separation", 8 if _compact else 12)
 	add_child(col)
+	_col = col
 
-	var title := UiTheme.label(tr("Quản Lý Nhà Máy"), 44, Color.WHITE, true)
+	var title := UiTheme.label(tr("Quản Lý Nhà Máy"), 30 if _compact else 44, Color.WHITE, true)
 	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	title.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.6))
 	title.add_theme_constant_override("outline_size", 8)
@@ -80,6 +94,8 @@ func _build() -> void:
 	var gap := Control.new()
 	gap.custom_minimum_size.y = 12
 	col.add_child(gap)
+	tag.visible = not _compact
+	gap.visible = not _compact
 
 	var sim := GameManager.sim
 	var has_game := SaveManager.load_note in ["loaded", "backup"] or sim.day() > 1 or sim.state.tutorial_step > 0
@@ -88,8 +104,10 @@ func _build() -> void:
 		card.custom_minimum_size.x = 320
 		card.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 		card.add_theme_stylebox_override("panel", UiTheme.panel_style(Color(0.09, 0.12, 0.17, 0.8), 10, 12))
-		var cv := VBoxContainer.new()
-		cv.add_child(UiTheme.label(tr("Ván đang chơi"), 13, UiTheme.MUTED))
+		var cv: BoxContainer = HBoxContainer.new() if _compact else VBoxContainer.new()
+		cv.add_theme_constant_override("separation", 10 if _compact else 2)
+		if not _compact:
+			cv.add_child(UiTheme.label(tr("Ván đang chơi"), 13, UiTheme.MUTED))
 		cv.add_child(UiTheme.label("%s · %s" % [tr("Ngày %d") % sim.day(), sim.expansion.tier_name()], 17, UiTheme.TEXT, true))
 		cv.add_child(UiTheme.label(Fmt.money(sim.state.cash), 17, UiTheme.GOOD if sim.state.cash >= 0 else UiTheme.BAD, true))
 		card.add_child(cv)
@@ -131,9 +149,9 @@ func _build() -> void:
 
 func _big(text: String, callback: Callable, primary := false) -> Button:
 	var b := UiTheme.button(text, callback)
-	b.custom_minimum_size = Vector2(320, 58)
+	b.custom_minimum_size = Vector2(320, 46 if _compact else 58)
 	b.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	b.add_theme_font_size_override("font_size", roundi(20 * UiTheme.TEXT_SCALE))
+	b.add_theme_font_size_override("font_size", roundi((17 if _compact else 20) * UiTheme.TEXT_SCALE))
 	b.add_theme_font_override("font", UiTheme.font(600))
 	if primary:
 		for st in ["normal", "hover", "pressed"]:
