@@ -63,16 +63,16 @@ func can_watch(kind: String, report: Dictionary = {}) -> bool:
 ## Why the ad button is greyed out, or "" when it works.
 func wait_reason() -> String:
 	if _cooldown > 0.0:
-		return "Chờ %d giây" % ceili(_cooldown)
+		return tr("Chờ %d giây") % ceili(_cooldown)
 	if not ads.is_ready():
-		return "Đang tải quảng cáo…"
+		return tr("Đang tải quảng cáo…")
 	return ""
 
 
 ## Shows a rewarded ad and gives the reward once it was watched to the end.
 func watch(kind: String, report: Dictionary = {}) -> void:
 	if not can_watch(kind, report):
-		EventBus.toast.emit("Hôm nay đã hết lượt xem quảng cáo này, mai quay lại nhé.", false)
+		EventBus.toast.emit(tr("Hôm nay đã hết lượt xem quảng cáo này, mai quay lại nhé."), false)
 		return
 	if wait_reason() != "":
 		EventBus.toast.emit(wait_reason(), false)
@@ -86,7 +86,7 @@ func watch(kind: String, report: Dictionary = {}) -> void:
 			GameManager.command(GameManager.sim.diamonds.ad_reward(kind, today(), report))
 			SaveManager.save_game()
 		else:
-			EventBus.toast.emit("Quảng cáo đóng trước khi xong nên chưa có thưởng.", false)
+			EventBus.toast.emit(tr("Quảng cáo đóng trước khi xong nên chưa có thưởng."), false)
 		changed.emit())
 
 
@@ -103,7 +103,7 @@ func price_text(pack_id: String) -> String:
 
 func buy(pack_id: String) -> void:
 	if not store.available():
-		EventBus.toast.emit("Nạp kim cương chỉ có trên bản iPhone, iPad và Android.", false)
+		EventBus.toast.emit(tr("Nạp kim cương chỉ có trên bản iPhone, iPad và Android."), false)
 		return
 	store.buy(MonetizationConfig.product_id(pack_id))
 

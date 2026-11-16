@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.13.0 – Nhiều ngôn ngữ
+
+- Chọn ngôn ngữ ở **Menu → Ngôn ngữ · Language**: tiếng Việt, English,
+  简体中文, 日本語, 한국어, हिन्दी. Đổi ngôn ngữ thì game tự lưu rồi dựng lại màn
+  hình, chơi tiếp ngay chỗ cũ.
+- Lần đầu mở game chọn theo ngôn ngữ của máy (không có thì tiếng Anh); người
+  đã có file lưu từ bản cũ vẫn ở tiếng Việt.
+- Toàn bộ chữ được dịch: bảng, thông báo, hướng dẫn, nhiệm vụ, biển 3D, lời
+  công nhân nói chuyện và suy nghĩ. Tên công nhân, tên khách hàng Việt Nam giữ
+  nguyên.
+- Font Noto Sans thu gọn (chỉ chứa chữ game dùng, ~0,7 MB) cho chữ Trung,
+  Nhật, Hàn và Hindi, chạy được cả trên web. Ngoài tiếng Việt, tiền hiển thị
+  kiểu quốc tế ($1,234.50, $1.2M).
+- Thêm ngôn ngữ mới chỉ cần thêm một file `data/i18n/<mã>.json`, xem
+  `data/i18n/README.md`.
+
 ## 0.11.0 – Kim cương, nhiệm vụ, quản lý cấp cao, quảng cáo có thưởng, nạp tiền
 
 - Tiền tệ mới **kim cương** (ô kim cương trên thanh trên cùng). Game mới và

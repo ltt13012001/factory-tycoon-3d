@@ -428,9 +428,9 @@ func _process(delta: float) -> void:
 	_bar_root.visible = m.in_cycle or m.status == "repairing"
 	_bar_fill.scale = Vector3(maxf(progress, 0.01), 1, 1)
 	_bar_fill.position.x = -0.9 + 0.9 * progress
-	var text: String = STATUS_TEXT.get(m.status, "")
+	var text: String = tr(STATUS_TEXT.get(m.status, ""))
 	if text == "" and int(m.condition) < 30:
-		text = "Cần bảo trì (%d%%)" % m.condition
+		text = tr("Cần bảo trì (%d%%)") % m.condition
 		color = Palette.STATUS_WARN
 	_label.text = text
 	if _label.modulate != color:

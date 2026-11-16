@@ -125,7 +125,7 @@ func machine_slots(id: String) -> int:
 
 ## "Xưởng chính" for the first factory, else the location's name.
 func factory_name(id: String) -> String:
-	return "Xưởng chính" if id == "" else loc(id).display_name
+	return tr("Xưởng chính") if id == "" else loc(id).display_name
 
 
 func extra_raw_capacity() -> int:
@@ -143,11 +143,11 @@ func tier() -> int:
 
 
 func tier_name() -> String:
-	return TIER_NAMES[tier()]
+	return tr(TIER_NAMES[tier()])
 
 
 func owner_title() -> String:
-	return OWNER_TITLES[tier()]
+	return tr(OWNER_TITLES[tier()])
 
 
 ## Factories that are producing: the first one, every factory next door
@@ -186,28 +186,28 @@ func next_tier_requirement() -> Dictionary:
 	var t := tier() + 1
 	match t:
 		1:
-			return {"text": "Có ít nhất 2 nhà xưởng đang chạy (xây Xưởng 2 và đặt máy)", "met": factories_operating() >= 2, "fee": TIER_FEES[t]}
+			return {"text": tr("Có ít nhất 2 nhà xưởng đang chạy (xây Xưởng 2 và đặt máy)"), "met": factories_operating() >= 2, "fee": TIER_FEES[t]}
 		2:
-			return {"text": "Có ít nhất 2 chi nhánh trong nước đã hoạt động (đang có %d)" % ready_count(DOMESTIC), "met": ready_count(DOMESTIC) >= 2, "fee": TIER_FEES[t]}
+			return {"text": tr("Có ít nhất 2 chi nhánh trong nước đã hoạt động (đang có %d)") % ready_count(DOMESTIC), "met": ready_count(DOMESTIC) >= 2, "fee": TIER_FEES[t]}
 		3:
-			return {"text": "Có ít nhất 1 chi nhánh ở nước ngoài đã hoạt động", "met": ready_count(ABROAD) >= 1, "fee": TIER_FEES[t]}
+			return {"text": tr("Có ít nhất 1 chi nhánh ở nước ngoài đã hoạt động"), "met": ready_count(ABROAD) >= 1, "fee": TIER_FEES[t]}
 		4:
-			return {"text": "Có chi nhánh hoạt động ở ít nhất 3 nước ngoài (đang có %d)" % countries_abroad().size(), "met": countries_abroad().size() >= 3, "fee": TIER_FEES[t]}
+			return {"text": tr("Có chi nhánh hoạt động ở ít nhất 3 nước ngoài (đang có %d)") % countries_abroad().size(), "met": countries_abroad().size() >= 3, "fee": TIER_FEES[t]}
 	return {"text": "", "met": false, "fee": 0}
 
 
 func advance_tier() -> Dictionary:
 	var req := next_tier_requirement()
 	if req.text == "":
-		return Simulation.fail("Đã là tập đoàn đa quốc gia.")
+		return Simulation.fail(tr("Đã là tập đoàn đa quốc gia."))
 	if not req.met:
-		return Simulation.fail("Chưa đủ điều kiện: %s." % req.text)
+		return Simulation.fail(tr("Chưa đủ điều kiện: %s.") % req.text)
 	if not sim.economy.can_afford(req.fee):
-		return Simulation.fail("Không đủ tiền đăng ký (%s)." % Fmt.money(req.fee))
-	sim.economy.book("expansion", -req.fee, "Đăng ký " + TIER_NAMES[tier() + 1])
+		return Simulation.fail(tr("Không đủ tiền đăng ký (%s).") % Fmt.money(req.fee))
+	sim.economy.book("expansion", -req.fee, tr("Đăng ký %s") % (tr(TIER_NAMES[tier() + 1])))
 	sim.state.company_tier = tier() + 1
 	sim.emit_event(&"tier_changed", {"tier": tier()})
-	return Simulation.ok("Chúc mừng! Bạn đã thành lập %s. Chức danh mới: %s." % [tier_name(), owner_title()])
+	return Simulation.ok(tr("Chúc mừng! Bạn đã thành lập %s. Chức danh mới: %s.") % [tier_name(), owner_title()])
 
 
 # --- Line speed (first factory) ------------------------------------------------
@@ -224,13 +224,13 @@ func line_speed_cost() -> int:
 func upgrade_line_speed() -> Dictionary:
 	var cost := line_speed_cost()
 	if cost < 0:
-		return Simulation.fail("Dây chuyền đã cải tiến tối đa.")
+		return Simulation.fail(tr("Dây chuyền đã cải tiến tối đa."))
 	if not sim.economy.can_afford(cost):
-		return Simulation.fail("Không đủ tiền (%s)." % Fmt.money(cost))
-	sim.economy.book("upgrade", -cost, "Cải tiến dây chuyền")
+		return Simulation.fail(tr("Không đủ tiền (%s).") % Fmt.money(cost))
+	sim.economy.book("upgrade", -cost, tr("Cải tiến dây chuyền"))
 	sim.state.line_speed_level = line_speed_level() + 1
 	sim.emit_event(&"expansion_changed", {})
-	return Simulation.ok("Dây chuyền cấp %d: máy nhanh hơn %d%%." % [line_speed_level(), line_speed_level() * LINE_SPEED_PERCENT])
+	return Simulation.ok(tr("Dây chuyền cấp %d: máy nhanh hơn %d%%.") % [line_speed_level(), line_speed_level() * LINE_SPEED_PERCENT])
 
 
 ## Total speed bonus (percent) for every machine in a factory ("" = the first).
@@ -272,34 +272,34 @@ func exec_hire_fee(id: String) -> int:
 
 func hire_exec(id: String) -> Dictionary:
 	if not EXECUTIVES.has(id):
-		return Simulation.fail("Không có chức vụ này.")
+		return Simulation.fail(tr("Không có chức vụ này."))
 	var e: Dictionary = EXECUTIVES[id]
 	if has_exec(id):
-		return Simulation.fail("Đã có %s." % e.name)
+		return Simulation.fail(tr("Đã có %s.") % tr(e.name))
 	if tier() < int(e.tier):
-		return Simulation.fail("Cần trở thành %s trước." % TIER_NAMES[e.tier])
+		return Simulation.fail(tr("Cần trở thành %s trước.") % tr(TIER_NAMES[e.tier]))
 	var fee := exec_hire_fee(id)
 	if not sim.economy.can_afford(fee):
-		return Simulation.fail("Không đủ tiền tuyển (%s)." % Fmt.money(fee))
+		return Simulation.fail(tr("Không đủ tiền tuyển (%s).") % Fmt.money(fee))
 	var person := sim.employees.next_name()
 	var first_director := DIRECTORS.has(id) and not has_director()
-	sim.economy.book("hire", -fee, "Bổ nhiệm %s" % e.name)
+	sim.economy.book("hire", -fee, tr("Bổ nhiệm %s") % tr(e.name))
 	sim.state.executives[id] = person
 	sim.emit_event(&"expansion_changed", {})
 	if first_director:
 		# The first director takes over accepting orders (can be turned off).
 		sim.state.settings.auto_accept = true
-		return Simulation.ok("%s được bổ nhiệm làm %s và sẽ tự nhận đơn hàng." % [person, e.name])
-	return Simulation.ok("%s được bổ nhiệm làm %s." % [person, e.name])
+		return Simulation.ok(tr("%s được bổ nhiệm làm %s và sẽ tự nhận đơn hàng.") % [person, tr(e.name)])
+	return Simulation.ok(tr("%s được bổ nhiệm làm %s.") % [person, tr(e.name)])
 
 
 func fire_exec(id: String) -> Dictionary:
 	if not has_exec(id):
-		return Simulation.fail("Chức vụ này đang trống.")
+		return Simulation.fail(tr("Chức vụ này đang trống."))
 	var person: String = sim.state.executives[id]
 	sim.state.executives.erase(id)
 	sim.emit_event(&"expansion_changed", {})
-	return Simulation.ok("%s đã thôi giữ chức %s." % [person, EXECUTIVES[id].name])
+	return Simulation.ok(tr("%s đã thôi giữ chức %s.") % [person, tr(EXECUTIVES[id].name)])
 
 
 func exec_wages() -> int:
@@ -325,7 +325,7 @@ func interest_percent() -> int:
 # --- Sites ---------------------------------------------------------------------
 
 func head_title(l: LocationDef) -> String:
-	return HEAD_TITLES[l.region]
+	return tr(HEAD_TITLES[l.region])
 
 
 func head_wage(l: LocationDef) -> int:
@@ -361,18 +361,18 @@ func previous_full(l: LocationDef) -> bool:
 func block_reason(id: String) -> String:
 	var l := loc(id)
 	if l == null:
-		return "Không có địa điểm này"
+		return tr("Không có địa điểm này")
 	if tier() < l.min_tier:
-		return "Cần trở thành %s" % TIER_NAMES[l.min_tier]
+		return tr("Cần trở thành %s") % tr(TIER_NAMES[l.min_tier])
 	var s := site(id)
 	var cost := next_step_cost(id)
 	if s.is_empty():
 		if l.region == LOCAL and not previous_full(l):
-			return "Cần đặt đủ máy ở xưởng trước" if l.order <= 2 else "Cần đặt đủ %d máy ở %s" % [loc("lot_%d" % (l.order - 1)).max_lines, loc("lot_%d" % (l.order - 1)).display_name]
+			return tr("Cần đặt đủ máy ở xưởng trước") if l.order <= 2 else tr("Cần đặt đủ %d máy ở %s") % [loc("lot_%d" % (l.order - 1)).max_lines, loc("lot_%d" % (l.order - 1)).display_name]
 	elif s.status == SURVEYING or s.status == BUILDING or s.status == READY:
-		return "Đang thực hiện" if s.status != READY else "Đã hoạt động"
+		return tr("Đang thực hiện") if s.status != READY else tr("Đã hoạt động")
 	if not sim.economy.can_afford(cost):
-		return "Không đủ tiền"
+		return tr("Không đủ tiền")
 	return ""
 
 
@@ -405,15 +405,15 @@ func next_step(id: String) -> Dictionary:
 		s = {"id": id, "status": LAND, "ticks_left": 0, "total_ticks": 0, "lines": 0, "automation": 0, "head": "", "market": 100, "workers": 0}
 		sim.state.sites.append(s)
 		if l.region == LOCAL:
-			sim.economy.book("expansion", -cost, "Mua đất " + l.display_name)
+			sim.economy.book("expansion", -cost, tr("Mua đất %s") % l.display_name)
 			sim.emit_event(&"expansion_changed", {"id": id})
-			return Simulation.ok("Đã mua đất cho %s. Giờ có thể xây nhà xưởng." % l.display_name)
-		sim.economy.book("expansion", -cost, "Khảo sát " + l.display_name)
+			return Simulation.ok(tr("Đã mua đất cho %s. Giờ có thể xây nhà xưởng.") % l.display_name)
+		sim.economy.book("expansion", -cost, tr("Khảo sát %s") % l.display_name)
 		_start(s, SURVEYING, survey_hours(l))
-		return Simulation.ok("Đang khảo sát %s, có kết quả sau %d giờ." % [l.display_name, survey_hours(l)])
-	sim.economy.book("expansion", -cost, ("Xây " if l.region == LOCAL else "Mở ") + l.display_name)
+		return Simulation.ok(tr("Đang khảo sát %s, có kết quả sau %d giờ.") % [l.display_name, survey_hours(l)])
+	sim.economy.book("expansion", -cost, (tr("Xây %s") if l.region == LOCAL else tr("Mở %s")) % l.display_name)
 	_start(s, BUILDING, l.build_hours)
-	return Simulation.ok("Bắt đầu xây %s, xong sau %d giờ." % [l.display_name, l.build_hours])
+	return Simulation.ok(tr("Bắt đầu xây %s, xong sau %d giờ.") % [l.display_name, l.build_hours])
 
 
 func _start(s: Dictionary, status: String, hours: int) -> void:
@@ -426,64 +426,64 @@ func _start(s: Dictionary, status: String, hours: int) -> void:
 func buy_line(id: String) -> Dictionary:
 	var s := site(id)
 	if s.is_empty() or s.status != READY:
-		return Simulation.fail("Nhà xưởng chưa xây xong.")
+		return Simulation.fail(tr("Nhà xưởng chưa xây xong."))
 	var l := loc(id)
 	if is_factory(id):
-		return Simulation.fail("%s đặt máy thật: vào Xây dựng để mua máy cho xưởng này." % l.display_name)
+		return Simulation.fail(tr("%s đặt máy thật: vào Xây dựng để mua máy cho xưởng này.") % l.display_name)
 	if int(s.lines) >= l.max_lines:
-		return Simulation.fail("Đã đủ %d dây chuyền." % l.max_lines)
+		return Simulation.fail(tr("Đã đủ %d dây chuyền.") % l.max_lines)
 	if not sim.economy.can_afford(l.line_cost):
-		return Simulation.fail("Không đủ tiền (%s)." % Fmt.money(l.line_cost))
-	sim.economy.book("machine", -l.line_cost, "Dây chuyền cho " + l.display_name)
+		return Simulation.fail(tr("Không đủ tiền (%s).") % Fmt.money(l.line_cost))
+	sim.economy.book("machine", -l.line_cost, tr("Dây chuyền cho %s") % l.display_name)
 	s.lines = int(s.lines) + 1
 	sim.emit_event(&"expansion_changed", {"id": id})
-	return Simulation.ok("%s có %d dây chuyền." % [l.display_name, s.lines])
+	return Simulation.ok(tr("%s có %d dây chuyền.") % [l.display_name, s.lines])
 
 
 func upgrade_automation(id: String) -> Dictionary:
 	var s := site(id)
 	if s.is_empty() or s.status != READY:
-		return Simulation.fail("Nhà xưởng chưa xây xong.")
+		return Simulation.fail(tr("Nhà xưởng chưa xây xong."))
 	var cost := automation_cost(s)
 	if cost < 0:
-		return Simulation.fail("Đã tự động hoá tối đa.")
+		return Simulation.fail(tr("Đã tự động hoá tối đa."))
 	if not sim.economy.can_afford(cost):
-		return Simulation.fail("Không đủ tiền (%s)." % Fmt.money(cost))
-	sim.economy.book("upgrade", -cost, "Tự động hoá " + loc(id).display_name)
+		return Simulation.fail(tr("Không đủ tiền (%s).") % Fmt.money(cost))
+	sim.economy.book("upgrade", -cost, tr("Tự động hoá %s") % loc(id).display_name)
 	s.automation = int(s.automation) + 1
 	sim.emit_event(&"expansion_changed", {"id": id})
 	if is_factory(id):
-		return Simulation.ok("%s tự động hoá cấp %d: máy nhanh hơn %d%%." % [loc(id).display_name, s.automation, int(s.automation) * AUTOMATION_SPEED_PERCENT])
-	return Simulation.ok("%s tự động hoá cấp %d: lãi thêm %d%%." % [loc(id).display_name, s.automation, int(s.automation) * AUTOMATION_PERCENT])
+		return Simulation.ok(tr("%s tự động hoá cấp %d: máy nhanh hơn %d%%.") % [loc(id).display_name, s.automation, int(s.automation) * AUTOMATION_SPEED_PERCENT])
+	return Simulation.ok(tr("%s tự động hoá cấp %d: lãi thêm %d%%.") % [loc(id).display_name, s.automation, int(s.automation) * AUTOMATION_PERCENT])
 
 
 func hire_head(id: String) -> Dictionary:
 	var s := site(id)
 	var l := loc(id)
 	if s.is_empty() or not (s.status == READY or s.status == BUILDING):
-		return Simulation.fail("Hãy xây nhà xưởng trước.")
+		return Simulation.fail(tr("Hãy xây nhà xưởng trước."))
 	if s.head != "":
-		return Simulation.fail("%s đã có %s." % [l.display_name, head_title(l).to_lower()])
+		return Simulation.fail(tr("%s đã có %s.") % [l.display_name, head_title(l).to_lower()])
 	var fee := head_hire_fee(l)
 	if not sim.economy.can_afford(fee):
-		return Simulation.fail("Không đủ tiền tuyển (%s)." % Fmt.money(fee))
+		return Simulation.fail(tr("Không đủ tiền tuyển (%s).") % Fmt.money(fee))
 	var person := sim.employees.next_name()
-	sim.economy.book("hire", -fee, "Tuyển %s %s" % [head_title(l).to_lower(), l.display_name])
+	sim.economy.book("hire", -fee, tr("Tuyển %s %s") % [head_title(l).to_lower(), l.display_name])
 	s.head = person
 	sim.emit_event(&"expansion_changed", {"id": id})
-	return Simulation.ok("%s làm %s %s." % [person, head_title(l).to_lower(), l.display_name])
+	return Simulation.ok(tr("%s làm %s %s.") % [person, head_title(l).to_lower(), l.display_name])
 
 
 func fire_head(id: String) -> Dictionary:
 	var s := site(id)
 	if s.is_empty() or s.head == "":
-		return Simulation.fail("Chưa có người quản lý.")
+		return Simulation.fail(tr("Chưa có người quản lý."))
 	var person: String = s.head
 	s.head = ""
 	sim.emit_event(&"expansion_changed", {"id": id})
 	if is_factory(id):
-		return Simulation.ok("%s đã nghỉ. Máy ở %s chạy chậm hơn và không ai gọi thợ khi máy hỏng." % [person, loc(id).display_name])
-	return Simulation.ok("%s đã nghỉ. Xưởng sẽ dừng cho tới khi có người mới." % person)
+		return Simulation.ok(tr("%s đã nghỉ. Máy ở %s chạy chậm hơn và không ai gọi thợ khi máy hỏng.") % [person, loc(id).display_name])
+	return Simulation.ok(tr("%s đã nghỉ. Xưởng sẽ dừng cho tới khi có người mới.") % person)
 
 
 # --- Branch factory workers --------------------------------------------------------
@@ -521,38 +521,38 @@ func hire_workers(id: String, count := 1) -> Dictionary:
 	var s := site(id)
 	var l := loc(id)
 	if l == null or is_factory(id):
-		return Simulation.fail("Xưởng này tuyển nhân viên ở bảng Nhân sự.")
+		return Simulation.fail(tr("Xưởng này tuyển nhân viên ở bảng Nhân sự."))
 	if s.is_empty() or s.status != READY:
-		return Simulation.fail("Chi nhánh chưa xây xong.")
+		return Simulation.fail(tr("Chi nhánh chưa xây xong."))
 	var missing := workers_needed(s) - workers(s)
 	if int(s.lines) == 0:
-		return Simulation.fail("Mua dây chuyền trước rồi mới tuyển công nhân.")
+		return Simulation.fail(tr("Mua dây chuyền trước rồi mới tuyển công nhân."))
 	if missing <= 0:
-		return Simulation.fail("Mọi dây chuyền đã đủ công nhân.")
+		return Simulation.fail(tr("Mọi dây chuyền đã đủ công nhân."))
 	var n := missing if count <= 0 else mini(count, missing)
 	var fee := worker_hire_fee(l)
 	# Hire as many as the money allows.
 	while n > 0 and not sim.economy.can_afford(fee * n):
 		n -= 1
 	if n <= 0:
-		return Simulation.fail("Không đủ tiền tuyển (%s mỗi người)." % Fmt.money(fee))
-	sim.economy.book("hire", -fee * n, "Tuyển %d công nhân %s" % [n, l.display_name])
+		return Simulation.fail(tr("Không đủ tiền tuyển (%s mỗi người).") % Fmt.money(fee))
+	sim.economy.book("hire", -fee * n, tr("Tuyển %d công nhân %s") % [n, l.display_name])
 	s.workers = workers(s) + n
 	sim.emit_event(&"expansion_changed", {"id": id})
-	return Simulation.ok("%s có %d công nhân, %d/%d dây chuyền đủ người." % [l.display_name, workers(s), staffed_lines(s), int(s.lines)])
+	return Simulation.ok(tr("%s có %d công nhân, %d/%d dây chuyền đủ người.") % [l.display_name, workers(s), staffed_lines(s), int(s.lines)])
 
 
 ## Lets count factory workers of a branch go (count 0: those no line needs).
 func fire_workers(id: String, count := 1) -> Dictionary:
 	var s := site(id)
 	if s.is_empty() or is_factory(id) or workers(s) == 0:
-		return Simulation.fail("Chi nhánh không có công nhân.")
+		return Simulation.fail(tr("Chi nhánh không có công nhân."))
 	var n := maxi(0, workers(s) - workers_needed(s)) if count <= 0 else mini(count, workers(s))
 	if n <= 0:
-		return Simulation.fail("Không có công nhân thừa.")
+		return Simulation.fail(tr("Không có công nhân thừa."))
 	s.workers = workers(s) - n
 	sim.emit_event(&"expansion_changed", {"id": id})
-	return Simulation.ok("%d công nhân %s đã nghỉ việc." % [n, loc(id).display_name])
+	return Simulation.ok(tr("%d công nhân %s đã nghỉ việc.") % [n, loc(id).display_name])
 
 
 ## Saves from before 0.9: each production line of a factory next door
@@ -575,7 +575,7 @@ func convert_old_lines() -> void:
 				sim.state.employees.append(sim.employees.make_employee(EmployeeManager.WAREHOUSE, s.id))
 		refund += maxi(0, loc(s.id).line_cost - d.price) * lines
 	if refund > 0:
-		sim.economy.book("machine_sale", refund, "Đổi dây chuyền cũ sang máy")
+		sim.economy.book("machine_sale", refund, tr("Đổi dây chuyền cũ sang máy"))
 
 
 ## Profit bonus (percent) for a site, before its market factor.
@@ -653,5 +653,5 @@ func end_of_day() -> void:
 			sim.economy.add_stat("branch_costs", cost)
 	var wages := exec_wages()
 	if wages > 0:
-		sim.economy.book("executives", -wages, "Ban lãnh đạo")
+		sim.economy.book("executives", -wages, tr("Ban lãnh đạo"))
 		sim.economy.add_stat("exec_wages", wages)

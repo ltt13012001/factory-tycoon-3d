@@ -29,7 +29,7 @@ func available() -> bool:
 
 func buy(product_id: String) -> void:
 	if _store.purchase({"product_id": product_id}) != OK:
-		purchase_result.emit(product_id, "", false, "Không mở được App Store, thử lại sau.", "")
+		purchase_result.emit(product_id, "", false, tr("Không mở được App Store, thử lại sau."), "")
 
 
 func finish(token: String) -> void:

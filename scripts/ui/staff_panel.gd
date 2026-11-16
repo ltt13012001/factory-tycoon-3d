@@ -16,7 +16,7 @@ var _open := {}
 
 
 func _init() -> void:
-	title = "Nhân sự"
+	title = tr("Nhân sự")
 
 
 func signature(sim: Simulation) -> String:
@@ -35,19 +35,19 @@ func build(b: VBoxContainer, sim: Simulation) -> void:
 	var factories: Array = [""] + sim.expansion.factory_ids()
 	if filter != "all" and not factories.has(filter):
 		filter = "all"
-	row(b, "Số nhân viên", "%d" % sim.state.employees.size())
-	row(b, "Tổng lương mỗi ngày", Fmt.money(sim.employees.total_wages()), UiTheme.WARN)
+	row(b, tr("Số nhân viên"), "%d" % sim.state.employees.size())
+	row(b, tr("Tổng lương mỗi ngày"), Fmt.money(sim.employees.total_wages()), UiTheme.WARN)
 	var avg := sim.employees.average_mood()
-	row(b, "Tâm trạng chung", "%s (%d)" % [SelectionPanel.mood_text(avg), avg], SelectionPanel.mood_color(avg))
+	row(b, tr("Tâm trạng chung"), "%s (%d)" % [SelectionPanel.mood_text(avg), avg], SelectionPanel.mood_color(avg))
 	if sim.employees.on_strike():
-		b.add_child(wrap_label("⚠ Công nhân đang đình công! Xem phần Ca làm việc và lương ở cuối bảng.", 14, UiTheme.BAD))
-		buttons(b, [UiTheme.diamond_button("Liên hoan, chấm dứt đình công · %d" % DiamondManager.PARTY_COST, func(): GameManager.staff_party(), not sim.diamonds.can_spend(DiamondManager.PARTY_COST))])
+		b.add_child(wrap_label(tr("⚠ Công nhân đang đình công! Xem phần Ca làm việc và lương ở cuối bảng."), 14, UiTheme.BAD))
+		buttons(b, [UiTheme.diamond_button(tr("Liên hoan, chấm dứt đình công · %d") % DiamondManager.PARTY_COST, func(): GameManager.staff_party(), not sim.diamonds.can_spend(DiamondManager.PARTY_COST))])
 	if factories.size() > 1:
 		var values := ["all"] + factories
-		var labels := ["Tất cả"]
+		var labels := [tr("Tất cả")]
 		for f in factories:
 			labels.append(_short_name(sim, f, factories.size()))
-		b.add_child(UiTheme.label("Xem xưởng", 14, UiTheme.MUTED))
+		b.add_child(UiTheme.label(tr("Xem xưởng"), 14, UiTheme.MUTED))
 		b.add_child(UiTheme.choice(values, labels, filter, func(v):
 			filter = v
 			refresh()))
@@ -58,7 +58,7 @@ func build(b: VBoxContainer, sim: Simulation) -> void:
 		_leaders_card(b, sim)
 	b.add_child(HSeparator.new())
 	_shift_card(b, sim)
-	b.add_child(wrap_label("Phí tuyển %s, lương %s mỗi ngày.\n· Vận hành máy: tự nhận máy còn trống trong xưởng của mình.\n· Nhân viên kho: chuyển hàng từ máy sang kho thành phẩm (ở xưởng chính còn dỡ hạt nhựa từ bãi vào kho).\n· Kỹ thuật viên: tự bảo trì máy dưới %d%% và sửa máy hỏng trong xưởng, không mất phí sửa." % [Fmt.money(cfg.hire_fee), Fmt.money(cfg.wage_per_day), EmployeeManager.SERVICE_BELOW]))
+	b.add_child(wrap_label(tr("Phí tuyển %s, lương %s mỗi ngày.\n· Vận hành máy: tự nhận máy còn trống trong xưởng của mình.\n· Nhân viên kho: chuyển hàng từ máy sang kho thành phẩm (ở xưởng chính còn dỡ hạt nhựa từ bãi vào kho).\n· Kỹ thuật viên: tự bảo trì máy dưới %d%% và sửa máy hỏng trong xưởng, không mất phí sửa.") % [Fmt.money(cfg.hire_fee), Fmt.money(cfg.wage_per_day), EmployeeManager.SERVICE_BELOW]))
 
 
 ## One factory: its people per position, its manager and hiring.
@@ -72,9 +72,9 @@ func _factory_section(b: VBoxContainer, sim: Simulation, site: String) -> void:
 	var name := UiTheme.label(sim.expansion.factory_name(site), 18, UiTheme.WARN, true)
 	name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(name)
-	head.add_child(UiTheme.label("%d người · %s/ngày" % [staff.size(), Fmt.money(wages)], 13, UiTheme.MUTED))
-	var look := UiTheme.button("Xem", func(): EventBus.camera_focus_requested.emit(_factory_centre(site), 32.0))
-	look.tooltip_text = "Đưa camera tới xưởng này"
+	head.add_child(UiTheme.label(tr("%d người · %s/ngày") % [staff.size(), Fmt.money(wages)], 13, UiTheme.MUTED))
+	var look := UiTheme.button(tr("Xem"), func(): EventBus.camera_focus_requested.emit(_factory_centre(site), 32.0))
+	look.tooltip_text = tr("Đưa camera tới xưởng này")
 	head.add_child(look)
 	b.add_child(head)
 	var c := card(b)
@@ -83,17 +83,17 @@ func _factory_section(b: VBoxContainer, sim: Simulation, site: String) -> void:
 	for m in machines:
 		if m.operator_id == 0 and sim.production.needs_operator(m):
 			no_op += 1
-	row(c, "Máy", "%d / %d" % [machines.size(), sim.production.slot_count(site)])
+	row(c, tr("Máy"), "%d / %d" % [machines.size(), sim.production.slot_count(site)])
 	if no_op > 0:
-		row(c, "Máy chưa có người vận hành", "%d" % no_op, UiTheme.WARN)
+		row(c, tr("Máy chưa có người vận hành"), "%d" % no_op, UiTheme.WARN)
 	if not machines.is_empty() and sim.employees.count(EmployeeManager.WAREHOUSE, site) == 0:
-		c.add_child(wrap_label("Chưa có nhân viên kho: hàng không được mang đi, máy sẽ dừng khi pallet đầy.", 13, UiTheme.WARN))
+		c.add_child(wrap_label(tr("Chưa có nhân viên kho: hàng không được mang đi, máy sẽ dừng khi pallet đầy."), 13, UiTheme.WARN))
 	_manager_row(c, sim, site)
 	var poor := not sim.economy.can_afford(sim.config.hire_fee)
 	buttons(c, [
-		UiTheme.button("+ Vận hành", func(): GameManager.hire_at(EmployeeManager.OPERATOR, site), poor),
-		UiTheme.button("+ Kho", func(): GameManager.hire_at(EmployeeManager.WAREHOUSE, site), poor),
-		UiTheme.button("+ Kỹ thuật", func(): GameManager.hire_at(EmployeeManager.TECHNICIAN, site), poor),
+		UiTheme.button(tr("+ Vận hành"), func(): GameManager.hire_at(EmployeeManager.OPERATOR, site), poor),
+		UiTheme.button(tr("+ Kho"), func(): GameManager.hire_at(EmployeeManager.WAREHOUSE, site), poor),
+		UiTheme.button(tr("+ Kỹ thuật"), func(): GameManager.hire_at(EmployeeManager.TECHNICIAN, site), poor),
 	])
 	for role in ROLES:
 		_role_group(b, sim, site, role, staff.filter(func(e): return e.role == role))
@@ -113,11 +113,11 @@ func _manager_row(c: VBoxContainer, sim: Simulation, site: String) -> void:
 		who = sim.expansion.site(site).head
 		fire = func(): GameManager.fire_site_head(site)
 	var h := HBoxContainer.new()
-	var l := UiTheme.label("Xưởng trưởng: " + (who if who != "" else "chưa có"), 14, UiTheme.GOOD if who != "" else UiTheme.WARN)
+	var l := UiTheme.label(tr("Xưởng trưởng: %s") % ((who if who != "" else tr("chưa có"))), 14, UiTheme.GOOD if who != "" else UiTheme.WARN)
 	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	h.add_child(l)
 	if who != "":
-		h.add_child(UiTheme.button("Cho nghỉ", fire))
+		h.add_child(UiTheme.button(tr("Cho nghỉ"), fire))
 	c.add_child(h)
 	if who != "":
 		return
@@ -127,8 +127,8 @@ func _manager_row(c: VBoxContainer, sim: Simulation, site: String) -> void:
 		var l2: LocationDef = sim.content.locations[site]
 		fee = sim.expansion.head_hire_fee(l2)
 		wage = sim.expansion.head_wage(l2)
-	c.add_child(wrap_label("Máy cả xưởng nhanh hơn %d%%, tự gọi sửa máy hỏng khi không có kỹ thuật viên rảnh. Lương %s / ngày." % [ExpansionManager.MANAGER_SPEED_PERCENT, Fmt.money(wage)]))
-	var btn := UiTheme.button("+ Tuyển xưởng trưởng (%s)" % Fmt.money(fee), func(): GameManager.hire_at(EmployeeManager.MANAGER, site), not sim.economy.can_afford(fee))
+	c.add_child(wrap_label(tr("Máy cả xưởng nhanh hơn %d%%, tự gọi sửa máy hỏng khi không có kỹ thuật viên rảnh. Lương %s / ngày.") % [ExpansionManager.MANAGER_SPEED_PERCENT, Fmt.money(wage)]))
+	var btn := UiTheme.button(tr("+ Tuyển xưởng trưởng (%s)") % Fmt.money(fee), func(): GameManager.hire_at(EmployeeManager.MANAGER, site), not sim.economy.can_afford(fee))
 	btn.add_theme_color_override("font_color", UiTheme.GOOD)
 	buttons(c, [btn])
 
@@ -150,12 +150,12 @@ func _role_group(b: VBoxContainer, sim: Simulation, site: String, role: String, 
 			resting += 1
 		else:
 			working += 1
-	var parts := ["%d làm" % working]
+	var parts := [tr("%d làm") % working]
 	if resting > 0:
-		parts.append(("%d đình công" if sim.employees.on_strike() else "%d nghỉ") % resting)
+		parts.append((tr("%d đình công") if sim.employees.on_strike() else tr("%d nghỉ")) % resting)
 	if home > 0:
-		parts.append("%d về nhà" % home)
-	var text := "%s %s (%d) · %s" % ["▾" if open else "▸", EmployeeManager.ROLE_NAMES[role], people.size(), ", ".join(parts)]
+		parts.append(tr("%d về nhà") % home)
+	var text := "%s %s (%d) · %s" % ["▾" if open else "▸", tr(EmployeeManager.ROLE_NAMES[role]), people.size(), ", ".join(parts)]
 	var toggle := UiTheme.button(text, func():
 		_open[key] = not open
 		refresh())
@@ -186,10 +186,10 @@ func _role_group(b: VBoxContainer, sim: Simulation, site: String, role: String, 
 		v.add_child(act)
 		h.add_child(v)
 		var id: int = e.id
-		h.add_child(UiTheme.button("Xem", func():
+		h.add_child(UiTheme.button(tr("Xem"), func():
 			EventBus.selection_changed.emit("worker", id)
 			EventBus.camera_focus_requested.emit(_factory_centre(site), 0.0)))
-		h.add_child(UiTheme.button("Cho nghỉ", func(): GameManager.fire(id)))
+		h.add_child(UiTheme.button(tr("Cho nghỉ"), func(): GameManager.fire(id)))
 		c.add_child(h)
 
 
@@ -198,34 +198,34 @@ func _leaders_card(b: VBoxContainer, sim: Simulation) -> void:
 	var lines := []
 	for id in ExpansionManager.EXECUTIVE_ORDER:
 		if sim.expansion.has_exec(id):
-			lines.append([ExpansionManager.EXECUTIVES[id].name, str(sim.state.executives[id])])
+			lines.append([tr(ExpansionManager.EXECUTIVES[id].name), str(sim.state.executives[id])])
 	for id in DiamondManager.SENIOR_ORDER:
 		if sim.diamonds.senior_level(id) > 0:
-			lines.append(["%s (cấp %d)" % [DiamondManager.SENIORS[id].name, sim.diamonds.senior_level(id)], sim.diamonds.senior_name(id)])
+			lines.append([tr("%s (cấp %d)") % [tr(DiamondManager.SENIORS[id].name), sim.diamonds.senior_level(id)], sim.diamonds.senior_name(id)])
 	for s in sim.state.sites:
 		if not sim.expansion.is_factory(s.id) and s.head != "":
 			var l: LocationDef = sim.content.locations[s.id]
 			lines.append(["%s %s" % [sim.expansion.head_title(l), l.display_name], s.head])
 		if not sim.expansion.is_factory(s.id) and sim.expansion.workers(s) > 0:
 			var l: LocationDef = sim.content.locations[s.id]
-			lines.append(["Công nhân xưởng %s" % l.display_name, "%d người" % sim.expansion.workers(s)])
+			lines.append([tr("Công nhân xưởng %s") % l.display_name, tr("%d người") % sim.expansion.workers(s)])
 	if lines.is_empty():
 		b.add_child(HSeparator.new())
-		b.add_child(UiTheme.button("Chiêu mộ quản lý cấp cao bằng kim cương →", func(): EventBus.panel_requested.emit("diamonds")))
+		b.add_child(UiTheme.button(tr("Chiêu mộ quản lý cấp cao bằng kim cương →"), func(): EventBus.panel_requested.emit("diamonds")))
 		return
 	b.add_child(HSeparator.new())
-	b.add_child(UiTheme.label("Ban lãnh đạo và chi nhánh", 18, UiTheme.WARN, true))
+	b.add_child(UiTheme.label(tr("Ban lãnh đạo và chi nhánh"), 18, UiTheme.WARN, true))
 	var c := card(b)
 	for x in lines:
 		row(c, x[0], x[1])
-	c.add_child(wrap_label("Bổ nhiệm ban lãnh đạo, giám đốc và công nhân chi nhánh ở bảng Mở rộng; quản lý cấp cao chiêu mộ bằng kim cương ở bảng Kim cương."))
+	c.add_child(wrap_label(tr("Bổ nhiệm ban lãnh đạo, giám đốc và công nhân chi nhánh ở bảng Mở rộng; quản lý cấp cao chiêu mộ bằng kim cương ở bảng Kim cương.")))
 
 
 ## Short factory names for the rows of choice buttons on narrow phones.
 static func _short_name(sim: Simulation, site: String, count: int) -> String:
 	if site == "":
-		return "Chính"
-	return sim.expansion.factory_name(site) if count <= 2 else sim.expansion.factory_name(site).replace("Xưởng ", "X")
+		return TranslationServer.translate("Chính")
+	return sim.expansion.factory_name(site) if count <= 2 else sim.expansion.factory_name(site).replace(TranslationServer.translate("Xưởng "), TranslationServer.translate("X"))
 
 
 static func _factory_centre(site: String) -> Vector3:
@@ -236,20 +236,20 @@ static func _factory_centre(site: String) -> Vector3:
 func _shift_card(b: VBoxContainer, sim: Simulation) -> void:
 	var em := sim.employees
 	var c := card(b)
-	c.add_child(UiTheme.label("Ca làm việc và lương (mọi xưởng)", 16, UiTheme.TEXT, true))
+	c.add_child(UiTheme.label(tr("Ca làm việc và lương (mọi xưởng)"), 16, UiTheme.TEXT, true))
 	var hours := em.shift_hours()
 	var start := sim.config.day_start_hour
-	row(c, "Giờ làm", "%02d:00 – %02d:00 (%d tiếng)" % [start, (start + hours) % 24, hours])
+	row(c, tr("Giờ làm"), tr("%02d:00 – %02d:00 (%d tiếng)") % [start, (start + hours) % 24, hours])
 	var labels := []
 	for h in EmployeeManager.SHIFT_CHOICES:
-		labels.append("%d tiếng" % h)
+		labels.append(tr("%d tiếng") % h)
 	c.add_child(UiTheme.choice(EmployeeManager.SHIFT_CHOICES, labels, hours, func(h): GameManager.set_shift(h)))
-	c.add_child(wrap_label("Ca chuẩn %d tiếng. Tăng ca 10–14 tiếng làm ra nhiều hàng hơn, giờ tăng ca trả %d%% lương nhưng nhân viên mệt và kém vui hơn. Ngoài giờ làm, máy cần người vận hành sẽ dừng; máy tự động vẫn chạy." % [EmployeeManager.STANDARD_SHIFT, EmployeeManager.OVERTIME_PAY_PERCENT]))
+	c.add_child(wrap_label(tr("Ca chuẩn %d tiếng. Tăng ca 10–14 tiếng làm ra nhiều hàng hơn, giờ tăng ca trả %d%% lương nhưng nhân viên mệt và kém vui hơn. Ngoài giờ làm, máy cần người vận hành sẽ dừng; máy tự động vẫn chạy.") % [EmployeeManager.STANDARD_SHIFT, EmployeeManager.OVERTIME_PAY_PERCENT]))
 	var pay := em.pay_percent()
-	var pay_row := row(c, "Mức lương", "")
+	var pay_row := row(c, tr("Mức lương"), "")
 	var pay_label: Label = pay_row.get_child(1)
 	var wage_text := func(p: int) -> String:
-		return "%d%% · %s / người / ngày" % [p, Fmt.money(sim.config.wage_per_day * p / 100)]
+		return tr("%d%% · %s / người / ngày") % [p, Fmt.money(sim.config.wage_per_day * p / 100)]
 	pay_label.text = wage_text.call(pay)
 	var sl := UiTheme.slider(EmployeeManager.PAY_MIN, EmployeeManager.PAY_MAX, 5, pay, func(p):
 		pay_label.text = wage_text.call(p)
@@ -257,13 +257,13 @@ func _shift_card(b: VBoxContainer, sim: Simulation) -> void:
 	c.add_child(sl)
 	var avg := em.average_mood()
 	var target := em.average_mood_target()
-	row(c, "Tâm trạng chung", "%s (%d)" % [SelectionPanel.mood_text(avg), avg], SelectionPanel.mood_color(avg))
+	row(c, tr("Tâm trạng chung"), "%s (%d)" % [SelectionPanel.mood_text(avg), avg], SelectionPanel.mood_color(avg))
 	c.add_child(UiTheme.bar(avg, 100, SelectionPanel.mood_color(avg)))
-	var trend := "đang tăng" if target > avg + 1 else ("đang giảm" if target < avg - 1 else "ổn định")
-	row(c, "Với lương và giờ làm này", "hướng tới %d (%s)" % [target, trend], SelectionPanel.mood_color(target))
+	var trend := tr("đang tăng") if target > avg + 1 else (tr("đang giảm") if target < avg - 1 else tr("ổn định"))
+	row(c, tr("Với lương và giờ làm này"), tr("hướng tới %d (%s)") % [target, trend], SelectionPanel.mood_color(target))
 	if em.on_strike():
-		c.add_child(wrap_label("⚠ Công nhân đang đình công, không ai làm việc! Tăng lương hoặc bớt tăng ca (tâm trạng hướng tới từ %d trở lên) để họ quay lại." % EmployeeManager.STRIKE_ENDS_AT, 14, UiTheme.BAD))
+		c.add_child(wrap_label(tr("⚠ Công nhân đang đình công, không ai làm việc! Tăng lương hoặc bớt tăng ca (tâm trạng hướng tới từ %d trở lên) để họ quay lại.") % EmployeeManager.STRIKE_ENDS_AT, 14, UiTheme.BAD))
 	elif target < EmployeeManager.STRIKE_BELOW:
-		c.add_child(wrap_label("⚠ Lương thấp và giờ làm dài: tâm trạng dưới %d thì công nhân có thể đình công." % EmployeeManager.STRIKE_BELOW, 14, UiTheme.BAD))
+		c.add_child(wrap_label(tr("⚠ Lương thấp và giờ làm dài: tâm trạng dưới %d thì công nhân có thể đình công.") % EmployeeManager.STRIKE_BELOW, 14, UiTheme.BAD))
 	elif sim.buildings.level("break_room") == 0:
-		c.add_child(wrap_label("Mẹo: xây Phòng nghỉ nhân viên để mọi người vui hơn (+%d)." % EmployeeManager.BREAK_ROOM_MOOD))
+		c.add_child(wrap_label(tr("Mẹo: xây Phòng nghỉ nhân viên để mọi người vui hơn (+%d).") % EmployeeManager.BREAK_ROOM_MOOD))

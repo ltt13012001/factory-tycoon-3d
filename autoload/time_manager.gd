@@ -43,11 +43,11 @@ func clock_text(short := false) -> String:
 	var sim: Simulation = GameManager.sim
 	if sim == null:
 		return ""
-	var text := "Ngày %d · %s" % [sim.day(), Fmt.clock(sim.state.tick, sim.config)]
+	var text := tr("Ngày %d · %s") % [sim.day(), Fmt.clock(sim.state.tick, sim.config)]
 	if short:
 		return text
 	if sim.employees.on_strike():
-		text += " · Đình công"
+		text += tr(" · Đình công")
 	elif not sim.employees.on_shift():
-		text += " · Hết ca" + (" (tua ×%d)" % NIGHT_SPEEDUP if speed > 0 and night_factor() > 1 else "")
+		text += tr(" · Hết ca") + (tr(" (tua ×%d)") % NIGHT_SPEEDUP if speed > 0 and night_factor() > 1 else "")
 	return text

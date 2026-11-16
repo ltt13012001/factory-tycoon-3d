@@ -94,21 +94,21 @@ func _update_label(sim: Simulation, id: String, s: Dictionary, progress: int) ->
 	var color := Color("ffe082")
 	if s.is_empty():
 		var reason := sim.expansion.block_reason(id)
-		text = "Đất bán: %s" % Fmt.money(l.land_cost) if reason == "" else "Đất bán · " + reason
+		text = tr("Đất bán: %s") % Fmt.money(l.land_cost) if reason == "" else tr("Đất bán · %s") % reason
 	else:
 		match s.status:
 			ExpansionManager.LAND:
-				text = "Đất của bạn · sẵn sàng xây xưởng"
+				text = tr("Đất của bạn · sẵn sàng xây xưởng")
 			ExpansionManager.BUILDING:
-				text = "Đang xây %d%%" % progress
+				text = tr("Đang xây %d%%") % progress
 			ExpansionManager.READY:
 				var machines := sim.production.machines_at(id).size()
 				var staff := sim.employees.staff_at(id).size()
-				text = "%d/%d máy · %d nhân viên" % [machines, l.max_lines, staff]
+				text = tr("%d/%d máy · %d nhân viên") % [machines, l.max_lines, staff]
 				if machines == 0:
-					text = "Xưởng trống · vào Xây dựng để đặt máy"
+					text = tr("Xưởng trống · vào Xây dựng để đặt máy")
 				elif s.head == "":
-					text += " · chưa có xưởng trưởng"
+					text += tr(" · chưa có xưởng trưởng")
 					color = Color("ffcc80")
 				else:
 					text = "%s · %s" % [s.head, text]

@@ -66,20 +66,20 @@ func update_label(sim: Simulation, l: LocationDef, s: Dictionary) -> void:
 	match status:
 		"":
 			var reason := ex.block_reason(l.id)
-			text = "Đất dự kiến · %s" % ("bấm Mở rộng để khảo sát" if reason == "" else reason)
+			text = tr("Đất dự kiến · %s") % (tr("bấm Mở rộng để khảo sát") if reason == "" else reason)
 		ExpansionManager.SURVEYING:
-			text = "Đang khảo sát thị trường"
+			text = tr("Đang khảo sát thị trường")
 		ExpansionManager.SURVEYED, ExpansionManager.LAND:
-			text = "Đã khảo sát · sức mua %d%%" % int(s.market)
+			text = tr("Đã khảo sát · sức mua %d%%") % int(s.market)
 		ExpansionManager.BUILDING:
-			text = "Đang xây %d%%" % (100 - int(s.ticks_left) * 100 / maxi(1, int(s.total_ticks)))
+			text = tr("Đang xây %d%%") % (100 - int(s.ticks_left) * 100 / maxi(1, int(s.total_ticks)))
 		ExpansionManager.READY:
-			text = "%d/%d dây chuyền · %d công nhân" % [int(s.lines), l.max_lines, ex.workers(s)]
+			text = tr("%d/%d dây chuyền · %d công nhân") % [int(s.lines), l.max_lines, ex.workers(s)]
 			if s.head == "":
-				text += " · chưa có giám đốc, chưa sản xuất"
+				text += tr(" · chưa có giám đốc, chưa sản xuất")
 				color = Color("ffab91")
 			else:
-				text = "%s · %s · lãi %s/ngày" % [s.head, text, Fmt.money(ex.daily_income(s) - ex.daily_cost(s))]
+				text = tr("%s · %s · lãi %s/ngày") % [s.head, text, Fmt.money(ex.daily_income(s) - ex.daily_cost(s))]
 				color = Color("b9f6ca")
 	_label.text = text
 	_label.modulate = color

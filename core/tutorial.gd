@@ -21,7 +21,7 @@ func current_text() -> String:
 	var step := sim.state.tutorial_step
 	if step >= STEPS.size():
 		return ""
-	return STEPS[step].text
+	return tr(STEPS[step].text)
 
 
 func on_event(name: StringName) -> void:

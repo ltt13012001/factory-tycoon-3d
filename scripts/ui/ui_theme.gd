@@ -1,5 +1,8 @@
-## Builds the shared UI Theme and the Vietnamese-capable font
-## (Be Vietnam Pro, SIL OFL, split into latin / latin-ext / vietnamese subsets).
+## Builds the shared UI Theme and the font: Be Vietnam Pro (SIL OFL, split
+## into latin / latin-ext / vietnamese subsets) for Latin and Vietnamese, with
+## Noto Sans (SIL OFL) behind it for Chinese, Japanese, Korean and Hindi.
+## The Noto files hold only the characters the game's texts use; rebuild them
+## with tools/subset_fonts.py after editing a translation.
 class_name UiTheme
 extends RefCounted
 
@@ -60,9 +63,28 @@ static func font(weight: int = 400) -> Font:
 		return _fonts[weight]
 	var base := "res://assets/fonts/be-vietnam-pro-%s-%d-normal.woff2"
 	var f: FontFile = load(base % ["latin", weight]).duplicate()
-	f.fallbacks = [load(base % ["vietnamese", weight]), load(base % ["latin-ext", weight])]
+	var fallbacks: Array[Font] = [load(base % ["vietnamese", weight]), load(base % ["latin-ext", weight])]
+	# Chinese, Japanese and Korean share many characters but draw them
+	# differently, so the font of the language in use goes first.
+	var order := ["sc", "jp", "kr"]
+	var lang := TranslationServer.get_locale()
+	if lang.begins_with("ja"):
+		order = ["jp", "sc", "kr"]
+	elif lang.begins_with("ko"):
+		order = ["kr", "sc", "jp"]
+	order.append("devanagari")
+	for script_name in order:
+		var path := "res://assets/fonts/noto-sans-%s-%d.woff2" % [script_name, weight]
+		if ResourceLoader.exists(path):
+			fallbacks.append(load(path))
+	f.fallbacks = fallbacks
 	_fonts[weight] = f
 	return f
+
+
+## Forgets the built fonts, so the next ones put the new language's font first.
+static func clear_fonts() -> void:
+	_fonts.clear()
 
 
 static func panel_style(color: Color = BG, radius: int = 10, pad: int = 12) -> StyleBoxFlat:

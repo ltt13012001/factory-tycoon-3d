@@ -56,17 +56,17 @@ func end_of_day(day_number: int) -> Dictionary:
 	var cfg := sim.config
 	var wages := sim.employees.total_wages()
 	if wages > 0:
-		book("wages", -wages, "%d nhân viên" % s.employees.size())
+		book("wages", -wages, tr("%d nhân viên") % s.employees.size())
 		add_stat("wages", wages)
-	book("rent", -cfg.rent_per_day, "Thuê đất")
+	book("rent", -cfg.rent_per_day, tr("Thuê đất"))
 	add_stat("rent", cfg.rent_per_day)
 	if s.power_accrued > 0:
-		book("power", -s.power_accrued, "Tiền điện")
+		book("power", -s.power_accrued, tr("Tiền điện"))
 		add_stat("power", s.power_accrued)
 		s.power_accrued = 0
 	if s.cash < 0:
 		var interest := ceili(-s.cash * cfg.overdraft_interest_percent / 100.0 * sim.expansion.interest_percent() / 100.0)
-		book("interest", -interest, "Lãi thấu chi")
+		book("interest", -interest, tr("Lãi thấu chi"))
 		add_stat("interest", interest)
 
 	var income := 0

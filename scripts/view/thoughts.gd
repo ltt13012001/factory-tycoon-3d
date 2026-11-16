@@ -18,47 +18,47 @@ static func pick(sim: Simulation, e: Dictionary) -> Dictionary:
 	var mood := int(e.get("mood", 70))
 	var seed := int(e.id) * 31 + sim.state.tick / 30
 	if sim.employees.on_strike() and e.role != EmployeeManager.MANAGER:
-		return _t(_one(["Tăng lương đi!", "Đình công!", "Không tăng lương, không làm!", "Lương thấp quá!", "Bớt tăng ca đi!"], seed), "angry", true)
+		return _t(_one([TranslationServer.translate("Tăng lương đi!"), TranslationServer.translate("Đình công!"), TranslationServer.translate("Không tăng lương, không làm!"), TranslationServer.translate("Lương thấp quá!"), TranslationServer.translate("Bớt tăng ca đi!")], seed), "angry", true)
 	if int(e.get("away", 0)) > 0:
-		return _t(_one(["Vào ca thôi!", "Chào buổi sáng!", "Đi làm nào!"], seed), "happy")
+		return _t(_one([TranslationServer.translate("Vào ca thôi!"), TranslationServer.translate("Chào buổi sáng!"), TranslationServer.translate("Đi làm nào!")], seed), "happy")
 	var job: Dictionary = e.get("job", {})
 	if int(job.get("wait", 0)) > 0:
-		return _t("Kho đầy rồi!", "sad", true)
+		return _t(TranslationServer.translate("Kho đầy rồi!"), "sad", true)
 	var m := {}
 	if e.role == EmployeeManager.OPERATOR and int(e.machine_id) != 0:
 		m = sim.state.find_by_id(sim.state.machines, int(e.machine_id))
 	if not m.is_empty():
 		if m.broken and int(m.repairer_id) == 0:
-			return _t(_one(["Máy hỏng rồi!", "Gọi thợ sửa đi!"], seed), "sad", true)
+			return _t(_one([TranslationServer.translate("Máy hỏng rồi!"), TranslationServer.translate("Gọi thợ sửa đi!")], seed), "sad", true)
 		if m.status == ProductionManager.NO_MATERIAL:
-			return _t(_one(["Hết hạt nhựa rồi...", "Chờ nguyên liệu..."], seed), "sad")
+			return _t(_one([TranslationServer.translate("Hết hạt nhựa rồi..."), TranslationServer.translate("Chờ nguyên liệu...")], seed), "sad")
 	var long_day := sim.employees.shift_hours() >= 12
 	var shift_hour := posmod(sim.state.tick - 1, sim.config.ticks_per_day) / sim.config.ticks_per_hour
 	if e.get("rest", false):
 		if mood < EmployeeManager.UNHAPPY_BELOW:
-			return _t(_one(["Lương thấp quá...", "Chán quá...", "Bao giờ tăng lương?"], seed), "sad")
+			return _t(_one([TranslationServer.translate("Lương thấp quá..."), TranslationServer.translate("Chán quá..."), TranslationServer.translate("Bao giờ tăng lương?")], seed), "sad")
 		if long_day and shift_hour >= 8:
-			return _t(_one(["Mệt quá, nghỉ chút...", "Tăng ca mỏi lưng ghê"], seed), "tired")
-		return _t(_one(["Nghỉ chút đã", "Hôm nay vắng đơn ghê", "Uống ly nước đã", "Chờ đơn mới thôi", "Thư giãn tí", "Không có việc, nghỉ xíu"], seed), "calm")
+			return _t(_one([TranslationServer.translate("Mệt quá, nghỉ chút..."), TranslationServer.translate("Tăng ca mỏi lưng ghê")], seed), "tired")
+		return _t(_one([TranslationServer.translate("Nghỉ chút đã"), TranslationServer.translate("Hôm nay vắng đơn ghê"), TranslationServer.translate("Uống ly nước đã"), TranslationServer.translate("Chờ đơn mới thôi"), TranslationServer.translate("Thư giãn tí"), TranslationServer.translate("Không có việc, nghỉ xíu")], seed), "calm")
 	if mood < EmployeeManager.UNHAPPY_BELOW:
-		return _t(_one(["Lương thấp quá...", "Chán quá...", "Bao giờ tăng lương?", "Làm mãi không đủ sống"], seed), "sad")
+		return _t(_one([TranslationServer.translate("Lương thấp quá..."), TranslationServer.translate("Chán quá..."), TranslationServer.translate("Bao giờ tăng lương?"), TranslationServer.translate("Làm mãi không đủ sống")], seed), "sad")
 	if long_day and shift_hour >= 9:
-		return _t(_one(["Tăng ca mệt quá...", "Sắp hết ca chưa?", "Được thêm tiền tăng ca"], seed), "tired")
-	var lines: Array = ["Cố lên nào!", "Đơn này phải kịp hạn!"]
+		return _t(_one([TranslationServer.translate("Tăng ca mệt quá..."), TranslationServer.translate("Sắp hết ca chưa?"), TranslationServer.translate("Được thêm tiền tăng ca")], seed), "tired")
+	var lines: Array = [TranslationServer.translate("Cố lên nào!"), TranslationServer.translate("Đơn này phải kịp hạn!")]
 	match e.role:
 		EmployeeManager.OPERATOR:
-			lines += ["Máy chạy êm ghê", "Thêm một mẻ nữa!", "Hàng đẹp quá!"]
+			lines += [TranslationServer.translate("Máy chạy êm ghê"), TranslationServer.translate("Thêm một mẻ nữa!"), TranslationServer.translate("Hàng đẹp quá!")]
 		EmployeeManager.WAREHOUSE:
 			if job.is_empty():
-				lines = ["Có hàng thì gọi nhé!"]
+				lines = [TranslationServer.translate("Có hàng thì gọi nhé!")]
 			else:
-				lines = ["Hàng nặng thật!", "Chuyển vào kho thôi!", "Nhẹ tay nào!"]
+				lines = [TranslationServer.translate("Hàng nặng thật!"), TranslationServer.translate("Chuyển vào kho thôi!"), TranslationServer.translate("Nhẹ tay nào!")]
 		EmployeeManager.TECHNICIAN:
-			lines = ["Sửa xong ngay đây!", "Siết lại con ốc này..."] if not job.is_empty() else ["Máy nào cần bảo trì?"]
+			lines = [TranslationServer.translate("Sửa xong ngay đây!"), TranslationServer.translate("Siết lại con ốc này...")] if not job.is_empty() else [TranslationServer.translate("Máy nào cần bảo trì?")]
 		EmployeeManager.MANAGER:
-			lines = ["Mọi người cố lên!", "Năng suất tốt đấy!", "Kiểm tra máy nào..."]
+			lines = [TranslationServer.translate("Mọi người cố lên!"), TranslationServer.translate("Năng suất tốt đấy!"), TranslationServer.translate("Kiểm tra máy nào...")]
 	if mood >= 75:
-		lines += ["Làm việc hăng say!", "Lương ổn, làm hết mình!", "Hôm nay vui ghê!"]
+		lines += [TranslationServer.translate("Làm việc hăng say!"), TranslationServer.translate("Lương ổn, làm hết mình!"), TranslationServer.translate("Hôm nay vui ghê!")]
 	return _t(_one(lines, seed), "happy" if mood >= 60 else "calm")
 
 

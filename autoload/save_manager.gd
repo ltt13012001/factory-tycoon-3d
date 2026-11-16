@@ -236,15 +236,15 @@ func import_code(code: String) -> Dictionary:
 	var json := decode(code)
 	var parsed = JSON.parse_string(json) if json != "" else null
 	if not parsed is Dictionary or not parsed.has("tick"):
-		return {"ok": false, "message": "Mã lưu không đúng. Hãy dán lại toàn bộ mã."}
+		return {"ok": false, "message": tr("Mã lưu không đúng. Hãy dán lại toàn bộ mã.")}
 	if int(parsed.get("save_version", 0)) > SaveMigrations.CURRENT_VERSION:
-		return {"ok": false, "message": "Mã lưu từ bản game mới hơn. Hãy cập nhật game."}
+		return {"ok": false, "message": tr("Mã lưu từ bản game mới hơn. Hãy cập nhật game.")}
 	# Keep the current game as the backup in case the code was the wrong one.
 	save_game()
 	if not GameManager.sim.load_save_dict(parsed):
-		return {"ok": false, "message": "Không đọc được mã lưu."}
+		return {"ok": false, "message": tr("Không đọc được mã lưu.")}
 	save_game()
-	return {"ok": true, "message": "Đã tải tiến trình từ mã lưu (ngày %d)." % GameManager.sim.day()}
+	return {"ok": true, "message": tr("Đã tải tiến trình từ mã lưu (ngày %d).") % GameManager.sim.day()}
 
 
 ## Browser only: downloads the save as a file the player can keep.

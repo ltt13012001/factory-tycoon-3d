@@ -2,8 +2,12 @@ class_name MachineDef
 extends Resource
 
 @export var id: String = ""
-@export var display_name: String = ""
-@export_multiline var description: String = ""
+@export var display_name: String = "":
+	get:
+		return TranslationServer.translate(display_name)
+@export_multiline var description: String = "":
+	get:
+		return TranslationServer.translate(description)
 @export var price: int = 0
 @export var cycle_ticks: int = 24
 @export var output_product_id: String = ""

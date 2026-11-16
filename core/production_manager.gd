@@ -123,43 +123,43 @@ func repair_cost(m: Dictionary) -> int:
 ## Why this machine type cannot be bought yet, or "" when it can.
 func unlock_reason(d: MachineDef) -> String:
 	if sim.day() < d.min_day:
-		return "Mở từ ngày %d" % d.min_day
+		return tr("Mở từ ngày %d") % d.min_day
 	if sim.state.reputation < d.min_reputation:
-		return "Cần uy tín %d" % d.min_reputation
+		return tr("Cần uy tín %d") % d.min_reputation
 	return ""
 
 
 func buy_machine(def_id: String, slot: int, site := "") -> Dictionary:
 	if not sim.content.machines.has(def_id):
-		return Simulation.fail("Không có loại máy này.")
+		return Simulation.fail(tr("Không có loại máy này."))
 	if site != "" and not sim.expansion.is_factory(site):
-		return Simulation.fail("Không có nhà xưởng này.")
+		return Simulation.fail(tr("Không có nhà xưởng này."))
 	if slot < 0 or slot >= slot_count(site):
-		return Simulation.fail("Ô đặt máy không hợp lệ." if site == "" or sim.expansion.is_ready(site) else "Nhà xưởng chưa xây xong.")
+		return Simulation.fail(tr("Ô đặt máy không hợp lệ.") if site == "" or sim.expansion.is_ready(site) else tr("Nhà xưởng chưa xây xong."))
 	if not machine_in_slot(slot, site).is_empty():
-		return Simulation.fail("Ô này đã có máy.")
+		return Simulation.fail(tr("Ô này đã có máy."))
 	var d: MachineDef = sim.content.machines[def_id]
 	var locked := unlock_reason(d)
 	if locked != "":
 		return Simulation.fail(locked + ".")
 	if not sim.economy.can_afford(d.price):
-		return Simulation.fail("Không đủ tiền. Cần %s." % Fmt.money(d.price))
-	sim.economy.book("machine", -d.price, "Mua " + d.display_name)
+		return Simulation.fail(tr("Không đủ tiền. Cần %s.") % Fmt.money(d.price))
+	sim.economy.book("machine", -d.price, tr("Mua %s") % d.display_name)
 	var m := make_machine(def_id, slot, site)
 	sim.state.machines.append(m)
 	sim.state.machines_bought += 1
 	sim.employees.auto_assign()
 	sim.emit_event(&"machine_added", m.duplicate())
 	if site != "":
-		return Simulation.ok("Đã mua %s cho %s." % [d.display_name, sim.expansion.loc(site).display_name])
-	return Simulation.ok("Đã mua %s." % d.display_name)
+		return Simulation.ok(tr("Đã mua %s cho %s.") % [d.display_name, sim.expansion.loc(site).display_name])
+	return Simulation.ok(tr("Đã mua %s.") % d.display_name)
 
 
 func sell_machine(machine_id: int) -> Dictionary:
 	var s := sim.state
 	var m := s.find_by_id(s.machines, machine_id)
 	if m.is_empty():
-		return Simulation.fail("Không tìm thấy máy.")
+		return Simulation.fail(tr("Không tìm thấy máy."))
 	var d := def_of(m)
 	var refund := d.price * d.resale_percent / 100
 	# Units on the pallet go to the finished store; a cycle in progress is lost.
@@ -172,46 +172,46 @@ func sell_machine(machine_id: int) -> Dictionary:
 		if not e.job.is_empty() and e.job.kind == "repair" and int(e.job.machine_id) == machine_id:
 			e.job = {}
 	s.machines.erase(m)
-	sim.economy.book("machine_sale", refund, "Bán " + d.display_name)
+	sim.economy.book("machine_sale", refund, tr("Bán %s") % d.display_name)
 	sim.employees.auto_assign()
 	sim.emit_event(&"machine_removed", {"id": machine_id})
-	return Simulation.ok("Đã bán máy, thu về %s." % Fmt.money(refund))
+	return Simulation.ok(tr("Đã bán máy, thu về %s.") % Fmt.money(refund))
 
 
 func upgrade(machine_id: int) -> Dictionary:
 	var m := sim.state.find_by_id(sim.state.machines, machine_id)
 	if m.is_empty():
-		return Simulation.fail("Không tìm thấy máy.")
+		return Simulation.fail(tr("Không tìm thấy máy."))
 	var cost := upgrade_cost(m)
 	if cost < 0:
-		return Simulation.fail("Máy đã ở cấp cao nhất.")
+		return Simulation.fail(tr("Máy đã ở cấp cao nhất."))
 	if not sim.economy.can_afford(cost):
-		return Simulation.fail("Không đủ tiền nâng cấp (%s)." % Fmt.money(cost))
-	sim.economy.book("upgrade", -cost, "Nâng cấp " + def_of(m).display_name)
+		return Simulation.fail(tr("Không đủ tiền nâng cấp (%s).") % Fmt.money(cost))
+	sim.economy.book("upgrade", -cost, tr("Nâng cấp %s") % def_of(m).display_name)
 	m.level = int(m.level) + 1
 	sim.emit_event(&"machine_upgraded", {"id": m.id, "level": m.level})
-	return Simulation.ok("Máy lên cấp %d: nhanh hơn %d%%." % [m.level, def_of(m).upgrade_speed_percent * (int(m.level) - 1)])
+	return Simulation.ok(tr("Máy lên cấp %d: nhanh hơn %d%%.") % [m.level, def_of(m).upgrade_speed_percent * (int(m.level) - 1)])
 
 
 ## The owner repairs (or services) the machine for a fee.
 func repair(machine_id: int) -> Dictionary:
 	var m := sim.state.find_by_id(sim.state.machines, machine_id)
 	if m.is_empty():
-		return Simulation.fail("Không tìm thấy máy.")
+		return Simulation.fail(tr("Không tìm thấy máy."))
 	if int(m.repairer_id) != 0:
-		return Simulation.fail("Máy đang được sửa.")
+		return Simulation.fail(tr("Máy đang được sửa."))
 	if int(m.condition) >= 100 and not m.broken:
-		return Simulation.fail("Máy đang ở tình trạng tốt.")
+		return Simulation.fail(tr("Máy đang ở tình trạng tốt."))
 	var cost := repair_cost(m)
 	if not sim.economy.can_afford(cost):
-		return Simulation.fail("Không đủ tiền sửa máy (%s)." % Fmt.money(cost))
+		return Simulation.fail(tr("Không đủ tiền sửa máy (%s).") % Fmt.money(cost))
 	if cost > 0:
-		sim.economy.book("repair", -cost, "Sửa " + def_of(m).display_name)
+		sim.economy.book("repair", -cost, tr("Sửa %s") % def_of(m).display_name)
 		sim.economy.add_stat("repairs", cost)
 	start_repair(m, OWNER)
 	if site_of(m) != "":
-		return Simulation.ok("Đã gọi thợ đến sửa máy ở %s." % sim.expansion.loc(site_of(m)).display_name)
-	return Simulation.ok("Chủ xưởng đang đến sửa máy.")
+		return Simulation.ok(tr("Đã gọi thợ đến sửa máy ở %s.") % sim.expansion.loc(site_of(m)).display_name)
+	return Simulation.ok(tr("Chủ xưởng đang đến sửa máy."))
 
 
 func start_repair(m: Dictionary, repairer_id: int) -> void:

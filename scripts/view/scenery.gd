@@ -262,10 +262,14 @@ func _build_gate() -> void:
 		_b.box(Vector3(0.55, 0.2, 0.55), Vector3(x, 0.1, 14.2), Color("9a9893"), _paving)
 	_b.box(Vector3(7.2, 0.9, 0.25), Vector3(16, 4.4, 14.2), Color("1565c0"), _paint)
 	_b.box(Vector3(7.3, 0.08, 0.3), Vector3(16, 4.86, 14.2), Color("cfd8dc"), _steel)
-	var sign := Palette.label3d(self, "NHÀ MÁY NHỰA", Vector3(16, 4.4, 14.4), 44, Color.WHITE)
+	var sign := Palette.label3d(self, tr("NHÀ MÁY NHỰA"), Vector3(16, 4.4, 14.4), 44, Color.WHITE)
 	sign.billboard = BaseMaterial3D.BILLBOARD_DISABLED
 	sign.no_depth_test = false
 	sign.outline_size = 0
+	# Keep the name on the 7 m board, however long it is in the language in use.
+	var text_w := sign.font.get_string_size(sign.text, HORIZONTAL_ALIGNMENT_LEFT, -1, sign.font_size).x * sign.pixel_size
+	if text_w > 6.6:
+		sign.pixel_size *= 6.6 / text_w
 	var booth := Vector3(9.6, 0, 12.9)
 	_b.box(Vector3(1.6, 0.25, 1.6), booth + Vector3(0, 0.125, 0), Color("9a9893"), _paving)
 	_b.box(Vector3(1.4, 2.2, 1.4), booth + Vector3(0, 1.35, 0), Color("eceff1"), _paint)
@@ -341,7 +345,7 @@ func _build_neighbourhood() -> void:
 		if i == 6:
 			_flat.box(Vector3(2.4, 0.04, 12.0), Vector3(x + 1.2, 0.02, z0 + 6.0), Color("9a978f"), _paving)
 			x += 2.4
-	Palette.label3d(self, "Tạp hoá", Vector3(-8.0 + 4.2 + 4.6 + 2.5, 4.4, z0 - 0.5), 30)
+	Palette.label3d(self, tr("Tạp hoá"), Vector3(-8.0 + 4.2 + 4.6 + 2.5, 4.4, z0 - 0.5), 30)
 
 
 func _build_neighbour_factory(o: Vector3) -> void:
@@ -400,7 +404,7 @@ func _build_neighbour_factory(o: Vector3) -> void:
 	smoke.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(smoke)
 	_flat.box(Vector3(w + 4, 0.04, 3.0), o + Vector3(0, 0.02, -d / 2.0 - 1.5), Color("8a8d90"), _paving)
-	Palette.label3d(self, "Xưởng cơ khí bên cạnh", o + Vector3(0, 8.5, 0), 30, Color("eceff1"))
+	Palette.label3d(self, tr("Xưởng cơ khí bên cạnh"), o + Vector3(0, 8.5, 0), 30, Color("eceff1"))
 
 
 ## A glazed window or door in a frame.

@@ -37,50 +37,50 @@ func show_report(r: Dictionary) -> void:
 		_box.remove_child(c)
 		c.queue_free()
 	var st: Dictionary = r.stats
-	_box.add_child(UiTheme.label("Báo cáo cuối ngày %d" % r.day, 22, UiTheme.TEXT, true))
+	_box.add_child(UiTheme.label(tr("Báo cáo cuối ngày %d") % r.day, 22, UiTheme.TEXT, true))
 	_box.add_child(HSeparator.new())
-	_section("Sản xuất")
-	_row("Sản phẩm đạt chuẩn", "%d" % st.produced)
-	_row("Sản phẩm lỗi", "%d" % st.defects)
-	_row("Đơn đã giao", "%d (trễ %d)" % [st.orders_delivered, st.orders_late])
-	_section("Lãi lỗ (ghi nhận khi giao hàng)")
+	_section(tr("Sản xuất"))
+	_row(tr("Sản phẩm đạt chuẩn"), "%d" % st.produced)
+	_row(tr("Sản phẩm lỗi"), "%d" % st.defects)
+	_row(tr("Đơn đã giao"), tr("%d (trễ %d)") % [st.orders_delivered, st.orders_late])
+	_section(tr("Lãi lỗ (ghi nhận khi giao hàng)"))
 	_row("Doanh thu", Fmt.money(st.revenue), UiTheme.GOOD)
-	_row("Giá vốn nguyên liệu đã dùng", "-" + Fmt.money(st.material_cost))
-	_row("Tiền điện", "-" + Fmt.money(st.power))
-	_row("Lương", "-" + Fmt.money(st.wages))
-	_row("Thuê đất", "-" + Fmt.money(st.rent))
+	_row(tr("Giá vốn nguyên liệu đã dùng"), "-" + Fmt.money(st.material_cost))
+	_row(tr("Tiền điện"), "-" + Fmt.money(st.power))
+	_row(tr("Lương"), "-" + Fmt.money(st.wages))
+	_row(tr("Thuê đất"), "-" + Fmt.money(st.rent))
 	if st.penalties > 0:
-		_row("Phạt giao trễ", "-" + Fmt.money(st.penalties), UiTheme.BAD)
+		_row(tr("Phạt giao trễ"), "-" + Fmt.money(st.penalties), UiTheme.BAD)
 	if int(st.get("repairs", 0)) > 0:
-		_row("Sửa máy", "-" + Fmt.money(st.repairs))
+		_row(tr("Sửa máy"), "-" + Fmt.money(st.repairs))
 	if st.interest > 0:
-		_row("Lãi thấu chi", "-" + Fmt.money(st.interest), UiTheme.BAD)
+		_row(tr("Lãi thấu chi"), "-" + Fmt.money(st.interest), UiTheme.BAD)
 	if int(st.get("branch_income", 0)) > 0:
-		_row("Lãi các xưởng, chi nhánh khác", "+" + Fmt.money(st.branch_income), UiTheme.GOOD)
+		_row(tr("Lãi các xưởng, chi nhánh khác"), "+" + Fmt.money(st.branch_income), UiTheme.GOOD)
 	if int(st.get("branch_costs", 0)) > 0:
-		_row("Chi phí xưởng, chi nhánh khác", "-" + Fmt.money(st.branch_costs))
+		_row(tr("Chi phí xưởng, chi nhánh khác"), "-" + Fmt.money(st.branch_costs))
 	if int(st.get("exec_wages", 0)) > 0:
-		_row("Lương ban lãnh đạo", "-" + Fmt.money(st.exec_wages))
+		_row(tr("Lương ban lãnh đạo"), "-" + Fmt.money(st.exec_wages))
 	if int(st.get("bonus", 0)) > 0:
-		_row("Thưởng, đổi kim cương", "+" + Fmt.money(st.bonus), UiTheme.GOOD)
-	_row("Lợi nhuận", Fmt.money(r.profit), UiTheme.GOOD if r.profit >= 0 else UiTheme.BAD, true)
-	_section("Dòng tiền (tiền mặt thực thu, thực chi)")
-	_row("Tiền đầu ngày", Fmt.money(r.start_cash))
-	_row("Tổng thu", "+" + Fmt.money(r.income), UiTheme.GOOD)
-	_row("Tổng chi", "-" + Fmt.money(r.expense), UiTheme.BAD)
-	_row("Tiền cuối ngày", Fmt.money(r.end_cash), UiTheme.TEXT, true)
-	_row("Uy tín", "%d / 100" % r.reputation)
-	var note := UiTheme.label("Lợi nhuận khác dòng tiền: mua nguyên liệu hay máy làm giảm tiền mặt ngay, nhưng chỉ phần nguyên liệu đã dùng mới tính vào chi phí.", 12, UiTheme.MUTED)
+		_row(tr("Thưởng, đổi kim cương"), "+" + Fmt.money(st.bonus), UiTheme.GOOD)
+	_row(tr("Lợi nhuận"), Fmt.money(r.profit), UiTheme.GOOD if r.profit >= 0 else UiTheme.BAD, true)
+	_section(tr("Dòng tiền (tiền mặt thực thu, thực chi)"))
+	_row(tr("Tiền đầu ngày"), Fmt.money(r.start_cash))
+	_row(tr("Tổng thu"), "+" + Fmt.money(r.income), UiTheme.GOOD)
+	_row(tr("Tổng chi"), "-" + Fmt.money(r.expense), UiTheme.BAD)
+	_row(tr("Tiền cuối ngày"), Fmt.money(r.end_cash), UiTheme.TEXT, true)
+	_row(tr("Uy tín"), "%d / 100" % r.reputation)
+	var note := UiTheme.label(tr("Lợi nhuận khác dòng tiền: mua nguyên liệu hay máy làm giảm tiền mặt ngay, nhưng chỉ phần nguyên liệu đã dùng mới tính vào chi phí."), 12, UiTheme.MUTED)
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	note.custom_minimum_size.x = 400
 	_box.add_child(note)
 	if r.critical:
-		var warn := UiTheme.label("Tiền mặt vượt hạn mức thấu chi. Bạn không mua thêm được gì cho tới khi phục hồi. Hãy bán bớt máy hoặc cho bớt người nghỉ.", 14, UiTheme.BAD)
+		var warn := UiTheme.label(tr("Tiền mặt vượt hạn mức thấu chi. Bạn không mua thêm được gì cho tới khi phục hồi. Hãy bán bớt máy hoặc cho bớt người nghỉ."), 14, UiTheme.BAD)
 		warn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		warn.custom_minimum_size.x = 400
 		_box.add_child(warn)
 	_ad_button(r)
-	_box.add_child(UiTheme.button("Tiếp tục", func(): visible = false))
+	_box.add_child(UiTheme.button(tr("Tiếp tục"), func(): visible = false))
 	visible = true
 	_fit.call_deferred()
 
@@ -118,7 +118,7 @@ func _ad_button(r: Dictionary) -> void:
 	if not Monetization.can_watch("report", r):
 		return
 	var cash := sim.diamonds.report_bonus(r)
-	var b := UiTheme.button("Xem quảng cáo: thưởng thêm %s" % Fmt.money(cash), func():
+	var b := UiTheme.button(tr("Xem quảng cáo: thưởng thêm %s") % Fmt.money(cash), func():
 		visible = false
 		Monetization.watch("report", r))
 	b.add_theme_color_override("font_color", UiTheme.GOOD)

@@ -14,7 +14,10 @@ func available() -> bool:
 
 func price_of(product_id: String) -> String:
 	var p := DiamondManager.pack(MonetizationConfig.pack_id(product_id))
-	return "%s (thử)" % p.get("price", "?")
+	var price := str(p.get("price", "?"))
+	if not Fmt.is_vietnamese():
+		price = price.replace(",", ".")  # the fallback prices are written "0,99 USD"
+	return tr("%s (thử)") % price
 
 
 func buy(product_id: String) -> void:
@@ -24,10 +27,10 @@ func buy(product_id: String) -> void:
 		purchase_result.emit(product_id, txn, true, "", txn)
 		return
 	var dlg := ConfirmationDialog.new()
-	dlg.title = "Mua thử"
-	dlg.dialog_text = "Bản thử nghiệm: nhận gói này miễn phí, không trừ tiền thật?"
-	dlg.ok_button_text = "Nhận"
-	dlg.cancel_button_text = "Hủy"
+	dlg.title = tr("Mua thử")
+	dlg.dialog_text = tr("Bản thử nghiệm: nhận gói này miễn phí, không trừ tiền thật?")
+	dlg.ok_button_text = tr("Nhận")
+	dlg.cancel_button_text = tr("Hủy")
 	add_child(dlg)
 	dlg.confirmed.connect(func(): purchase_result.emit(product_id, txn, true, "", txn))
 	dlg.canceled.connect(func(): purchase_result.emit(product_id, txn, false, "", ""))

@@ -4,7 +4,7 @@ extends SidePanel
 
 
 func _init() -> void:
-	title = "Nhiệm vụ"
+	title = tr("Nhiệm vụ")
 
 
 func signature(sim: Simulation) -> String:
@@ -14,14 +14,14 @@ func signature(sim: Simulation) -> String:
 func build(b: VBoxContainer, sim: Simulation) -> void:
 	var qm := sim.quests
 	var top := HBoxContainer.new()
-	var l := UiTheme.label("Kim cương đang có", 15, UiTheme.MUTED)
+	var l := UiTheme.label(tr("Kim cương đang có"), 15, UiTheme.MUTED)
 	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top.add_child(l)
 	top.add_child(UiTheme.diamond_amount(sim.diamonds.balance(), 17))
 	b.add_child(top)
 
-	b.add_child(UiTheme.label("Nhiệm vụ ngày %d" % sim.day(), 18, UiTheme.WARN, true))
-	b.add_child(wrap_label("Mỗi ngày trong game có %d nhiệm vụ mới. Xong cả %d được thưởng thêm %d kim cương." % [QuestManager.DAILY_COUNT, QuestManager.DAILY_COUNT, QuestManager.DAILY_ALL_BONUS]))
+	b.add_child(UiTheme.label(tr("Nhiệm vụ ngày %d") % sim.day(), 18, UiTheme.WARN, true))
+	b.add_child(wrap_label(tr("Mỗi ngày trong game có %d nhiệm vụ mới. Xong cả %d được thưởng thêm %d kim cương.") % [QuestManager.DAILY_COUNT, QuestManager.DAILY_COUNT, QuestManager.DAILY_ALL_BONUS]))
 	var list := qm.daily()
 	for i in list.size():
 		var d: Dictionary = list[i]
@@ -43,15 +43,15 @@ func build(b: VBoxContainer, sim: Simulation) -> void:
 		ph.add_child(UiTheme.label(shown, 13, UiTheme.MUTED))
 		c.add_child(ph)
 		if d.claimed:
-			c.add_child(UiTheme.label("✓ Đã nhận", 14, UiTheme.GOOD))
+			c.add_child(UiTheme.label(tr("✓ Đã nhận"), 14, UiTheme.GOOD))
 		elif done:
 			var idx := i
-			var btn := UiTheme.diamond_button("Nhận thưởng", func(): GameManager.claim_daily_quest(idx))
+			var btn := UiTheme.diamond_button(tr("Nhận thưởng"), func(): GameManager.claim_daily_quest(idx))
 			btn.add_theme_color_override("font_color", UiTheme.GOOD)
 			c.add_child(btn)
 
 	b.add_child(HSeparator.new())
-	b.add_child(UiTheme.label("Thành tựu", 18, UiTheme.WARN, true))
+	b.add_child(UiTheme.label(tr("Thành tựu"), 18, UiTheme.WARN, true))
 	var shown_open := 0
 	for m in qm.milestones():
 		if m.claimed:
@@ -71,12 +71,12 @@ func build(b: VBoxContainer, sim: Simulation) -> void:
 		c.add_child(h)
 		if m.met:
 			var id: String = m.id
-			var btn := UiTheme.diamond_button("Nhận thưởng", func(): GameManager.claim_milestone(id))
+			var btn := UiTheme.diamond_button(tr("Nhận thưởng"), func(): GameManager.claim_milestone(id))
 			btn.add_theme_color_override("font_color", UiTheme.GOOD)
 			c.add_child(btn)
 	var claimed := 0
 	for m in qm.milestones():
 		if m.claimed:
 			claimed += 1
-	b.add_child(wrap_label("Đã nhận %d / %d thành tựu." % [claimed, QuestManager.MILESTONES.size()]))
-	b.add_child(UiTheme.button("Thêm kim cương: xem quảng cáo, nạp →", func(): EventBus.panel_requested.emit("diamonds")))
+	b.add_child(wrap_label(tr("Đã nhận %d / %d thành tựu.") % [claimed, QuestManager.MILESTONES.size()]))
+	b.add_child(UiTheme.button(tr("Thêm kim cương: xem quảng cáo, nạp →"), func(): EventBus.panel_requested.emit("diamonds")))

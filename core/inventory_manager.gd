@@ -63,18 +63,18 @@ func set_auto_buy_amounts(lot: int, threshold: int) -> Dictionary:
 
 func buy_material(qty: int) -> Dictionary:
 	if not sim.config.lot_sizes.has(qty):
-		return Simulation.fail("Lô hàng không hợp lệ.")
+		return Simulation.fail(tr("Lô hàng không hợp lệ."))
 	return _order_material(qty)
 
 
 func _order_material(qty: int) -> Dictionary:
 	var cfg := sim.config
 	if qty > raw_free_space():
-		return Simulation.fail("Kho nguyên liệu không đủ chỗ (còn %d)." % maxi(0, raw_free_space()))
+		return Simulation.fail(tr("Kho nguyên liệu không đủ chỗ (còn %d).") % maxi(0, raw_free_space()))
 	var cost := lot_cost(qty)
 	if not sim.economy.can_afford(cost):
-		return Simulation.fail("Không đủ tiền. Cần %s." % Fmt.money(cost))
-	sim.economy.book("material", -cost, "Mua %d %s" % [qty, sim.content.material().display_name])
+		return Simulation.fail(tr("Không đủ tiền. Cần %s.") % Fmt.money(cost))
+	sim.economy.book("material", -cost, tr("Mua %d %s") % [qty, sim.content.material().display_name])
 	var p := {
 		"id": sim.state.take_id(),
 		"qty": qty,
@@ -83,12 +83,12 @@ func _order_material(qty: int) -> Dictionary:
 	}
 	sim.state.purchases.append(p)
 	sim.emit_event(&"material_ordered", p.duplicate())
-	return Simulation.ok("Đã đặt %d %s, giao sau %d giờ." % [qty, sim.content.material().display_name, cfg.delivery_hours])
+	return Simulation.ok(tr("Đã đặt %d %s, giao sau %d giờ.") % [qty, sim.content.material().display_name, cfg.delivery_hours])
 
 
 func set_auto_buy(enabled: bool) -> Dictionary:
 	sim.state.settings.auto_buy = enabled
-	return Simulation.ok("Đã bật tự động mua hạt nhựa." if enabled else "Đã tắt tự động mua hạt nhựa.")
+	return Simulation.ok(tr("Đã bật tự động mua hạt nhựa.") if enabled else tr("Đã tắt tự động mua hạt nhựa."))
 
 
 func tick() -> void:

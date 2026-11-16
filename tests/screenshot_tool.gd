@@ -9,6 +9,9 @@ var _sites_only := false
 var _branches := ""
 ## --screenshot-diamonds: only the diamonds, quests and ads shots (0.11).
 var _diamonds_only := false
+## --screenshot-lang: the main panels and the language menu, to check a
+## translation (pick the language with --lang=en, --lang=ja, ...).
+var _lang_only := false
 
 
 func _ready() -> void:
@@ -19,6 +22,8 @@ func _ready() -> void:
 			_sites_only = true
 		if a == "--screenshot-diamonds":
 			_diamonds_only = true
+		if a == "--screenshot-lang":
+			_lang_only = true
 		if a.begins_with("--screenshot-branches"):
 			_branches = a.trim_prefix("--screenshot-branches").trim_prefix("=")
 			if _branches == "":
@@ -61,6 +66,10 @@ func _run() -> void:
 		return
 	if _diamonds_only:
 		await _diamond_shots(hud)
+		get_tree().quit()
+		return
+	if _lang_only:
+		await _lang_shots(hud)
 		get_tree().quit()
 		return
 	await _shot("01_factory")
@@ -389,6 +398,32 @@ func _showcase() -> void:
 	print("build ", sim.build("warehouse_expansion"))
 	sim.state.construction.ticks_left = sim.state.construction.total_ticks / 2
 	TimeManager.set_speed(1)
+
+
+## The panels with the most text, for checking a language (0.13).
+func _lang_shots(hud: Node) -> void:
+	var lang := I18n.current()
+	await _shot("50_%s_factory" % lang)
+	for p in ["orders", "build", "staff", "expansion", "diamonds"]:
+		hud.toggle_panel(p)
+		await get_tree().create_timer(0.6).timeout
+		await _shot("5%d_%s_%s" % [["orders", "build", "staff", "expansion", "diamonds"].find(p) + 1, lang, p])
+	hud.toggle_panel("diamonds")
+	EventBus.selection_changed.emit("machine", GameManager.sim.state.machines[0].id)
+	EventBus.report_requested.emit(GameManager.sim.state.reports[-1])
+	await get_tree().create_timer(0.6).timeout
+	await _shot("56_%s_report" % lang)
+	hud.find_child("DailyReport", true, false).visible = false
+	var menu: MenuButton = hud._menu
+	menu.show_popup()
+	await get_tree().create_timer(0.4).timeout
+	var pm := menu.get_popup()
+	for i in pm.item_count:
+		if pm.get_item_submenu_node(i) != null:
+			pm.set_focused_item(i)
+			pm.get_item_submenu_node(i).popup(Rect2i(Vector2i(pm.position) + Vector2i(-pm.size.x - 4, 0) + Vector2i(0, 0), Vector2i.ZERO))
+	await get_tree().create_timer(0.4).timeout
+	await _shot("57_%s_menu" % lang)
 
 
 func _shot(name: String) -> void:

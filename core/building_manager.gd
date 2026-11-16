@@ -54,15 +54,15 @@ func next_cost(id: String) -> int:
 func block_reason(id: String) -> String:
 	var d: ConstructionDef = sim.content.constructions.get(id)
 	if d == null:
-		return "Không có công trình này."
+		return tr("Không có công trình này.")
 	if level(id) >= d.level_costs.size():
-		return "Đã xây tối đa"
+		return tr("Đã xây tối đa")
 	if not sim.state.construction.is_empty():
-		return "Đang xây công trình khác"
+		return tr("Đang xây công trình khác")
 	if sim.state.reputation < d.min_reputation:
-		return "Cần uy tín %d" % d.min_reputation
+		return tr("Cần uy tín %d") % d.min_reputation
 	if not sim.economy.can_afford(next_cost(id)):
-		return "Không đủ tiền"
+		return tr("Không đủ tiền")
 	return ""
 
 
@@ -72,11 +72,11 @@ func start(id: String) -> Dictionary:
 		return Simulation.fail(reason + ".")
 	var d: ConstructionDef = sim.content.constructions[id]
 	var cost := next_cost(id)
-	sim.economy.book("construction", -cost, "Xây " + d.display_name)
+	sim.economy.book("construction", -cost, tr("Xây %s") % d.display_name)
 	var total := d.build_hours * sim.config.ticks_per_hour
 	sim.state.construction = {"id": id, "ticks_left": total, "total_ticks": total}
 	sim.emit_event(&"construction_started", {"id": id})
-	return Simulation.ok("Bắt đầu xây %s, xong sau %d giờ." % [d.display_name, d.build_hours])
+	return Simulation.ok(tr("Bắt đầu xây %s, xong sau %d giờ.") % [d.display_name, d.build_hours])
 
 
 func tick() -> void:

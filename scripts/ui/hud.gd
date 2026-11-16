@@ -84,23 +84,23 @@ func _ready() -> void:
 			if _current != "":
 				toggle_panel(_current)  # get the panel out of the way of the hall
 			var d: MachineDef = GameManager.sim.content.machines[GameManager.pending_machine_id]
-			_banner_label.text = "Bấm vào ô xanh trong xưởng để đặt %s (%s)." % [d.display_name, Fmt.money(d.price)])
-	EventBus.order_offered.connect(func(_d): show_toast("Có đơn hàng mới!", true))
-	EventBus.order_expired.connect(func(d): show_toast("Đơn của %s đã hết hạn." % d.customer, false))
-	EventBus.material_arrived.connect(func(d): show_toast("Xe chở %d hạt nhựa đã đến bãi." % d.qty, true))
+			_banner_label.text = tr("Bấm vào ô xanh trong xưởng để đặt %s (%s).") % [d.display_name, Fmt.money(d.price)])
+	EventBus.order_offered.connect(func(_d): show_toast(tr("Có đơn hàng mới!"), true))
+	EventBus.order_expired.connect(func(d): show_toast(tr("Đơn của %s đã hết hạn.") % d.customer, false))
+	EventBus.material_arrived.connect(func(d): show_toast(tr("Xe chở %d hạt nhựa đã đến bãi.") % d.qty, true))
 	EventBus.order_completed.connect(_on_order_completed)
-	EventBus.cash_critical.connect(func(_d): show_toast("Tiền mặt vượt hạn mức thấu chi!", false))
-	EventBus.machine_broken.connect(func(_d): show_toast("Một máy vừa hỏng! Bấm vào máy để sửa hoặc tuyển kỹ thuật viên.", false))
-	EventBus.machine_repaired.connect(func(_d): show_toast("Máy đã sửa xong.", true))
-	EventBus.machine_upgraded.connect(func(_d): show_toast("Đã nâng cấp máy.", true))
-	EventBus.construction_finished.connect(func(d): show_toast("Đã xây xong %s!" % GameManager.sim.content.constructions[d.id].display_name, true))
-	EventBus.site_opened.connect(func(d): show_toast(("%s đã xây xong! Vào Xây dựng để đặt máy, Nhân sự để tuyển công nhân cho xưởng." if str(d.id).begins_with("lot_") else "%s đã xây xong! Nhớ tuyển người quản lý và mua dây chuyền.") % d.name, true))
-	EventBus.site_surveyed.connect(func(d): show_toast("Khảo sát %s xong: sức mua %d%%." % [GameManager.sim.content.locations[d.id].display_name, d.market], true))
-	EventBus.strike_started.connect(func(_d): show_toast("Công nhân đình công vì lương thấp! Vào Nhân sự để tăng lương hoặc bớt tăng ca.", false))
-	EventBus.quest_completed.connect(func(d): show_toast("Xong nhiệm vụ: %s. Vào Nhiệm vụ để nhận kim cương." % d.text, true))
-	EventBus.boost_ended.connect(func(_d): show_toast("Hết thời gian tăng tốc sản xuất.", true))
-	EventBus.strike_ended.connect(func(_d): show_toast("Công nhân đã quay lại làm việc.", true))
-	EventBus.staff_unhappy.connect(func(_d): show_toast("Công nhân đang bất mãn với lương và giờ làm. Coi chừng đình công!", false))
+	EventBus.cash_critical.connect(func(_d): show_toast(tr("Tiền mặt vượt hạn mức thấu chi!"), false))
+	EventBus.machine_broken.connect(func(_d): show_toast(tr("Một máy vừa hỏng! Bấm vào máy để sửa hoặc tuyển kỹ thuật viên."), false))
+	EventBus.machine_repaired.connect(func(_d): show_toast(tr("Máy đã sửa xong."), true))
+	EventBus.machine_upgraded.connect(func(_d): show_toast(tr("Đã nâng cấp máy."), true))
+	EventBus.construction_finished.connect(func(d): show_toast(tr("Đã xây xong %s!") % GameManager.sim.content.constructions[d.id].display_name, true))
+	EventBus.site_opened.connect(func(d): show_toast((tr("%s đã xây xong! Vào Xây dựng để đặt máy, Nhân sự để tuyển công nhân cho xưởng.") if str(d.id).begins_with("lot_") else tr("%s đã xây xong! Nhớ tuyển người quản lý và mua dây chuyền.")) % d.name, true))
+	EventBus.site_surveyed.connect(func(d): show_toast(tr("Khảo sát %s xong: sức mua %d%%.") % [GameManager.sim.content.locations[d.id].display_name, d.market], true))
+	EventBus.strike_started.connect(func(_d): show_toast(tr("Công nhân đình công vì lương thấp! Vào Nhân sự để tăng lương hoặc bớt tăng ca."), false))
+	EventBus.quest_completed.connect(func(d): show_toast(tr("Xong nhiệm vụ: %s. Vào Nhiệm vụ để nhận kim cương.") % d.text, true))
+	EventBus.boost_ended.connect(func(_d): show_toast(tr("Hết thời gian tăng tốc sản xuất."), true))
+	EventBus.strike_ended.connect(func(_d): show_toast(tr("Công nhân đã quay lại làm việc."), true))
+	EventBus.staff_unhappy.connect(func(_d): show_toast(tr("Công nhân đang bất mãn với lương và giờ làm. Coi chừng đình công!"), false))
 	EventBus.panel_requested.connect(func(id):
 		if _current != id:
 			toggle_panel(id))
@@ -124,27 +124,27 @@ func _process(delta: float) -> void:
 	_cash.text = Fmt.money_short(s.cash)
 	_cash.tooltip_text = Fmt.money(s.cash)
 	_cash.add_theme_color_override("font_color", UiTheme.GOOD if s.cash >= 0 else UiTheme.BAD)
-	_rep.text = "Uy tín %d" % s.reputation
+	_rep.text = tr("Uy tín %d") % s.reputation
 	_tier.text = sim.expansion.tier_name()
 	_clock.text = TimeManager.clock_text()
 	var incoming := sim.inventory.pending_material() + s.dock
 	if _compact:
-		_raw.text = "Nhựa %d/%d" % [s.raw, sim.buildings.raw_capacity()]
+		_raw.text = tr("Nhựa %d/%d") % [s.raw, sim.buildings.raw_capacity()]
 	else:
-		_raw.text = "Hạt nhựa %d/%d%s" % [s.raw, sim.buildings.raw_capacity(), (" (+%d)" % incoming) if incoming > 0 else ""]
+		_raw.text = tr("Hạt nhựa %d/%d%s") % [s.raw, sim.buildings.raw_capacity(), (" (+%d)" % incoming) if incoming > 0 else ""]
 	_raw.add_theme_color_override("font_color", UiTheme.BAD if s.raw < 20 else UiTheme.TEXT)
-	_finished.text = "Kho %d/%d" % [s.finished_total(), sim.buildings.finished_capacity()]
+	_finished.text = tr("Kho %d/%d") % [s.finished_total(), sim.buildings.finished_capacity()]
 	var broken := 0
 	for m in s.machines:
 		if m.broken:
 			broken += 1
 	_alert.visible = broken > 0
-	_alert.text = "⚠ %d máy hỏng!" % broken
+	_alert.text = tr("⚠ %d máy hỏng!") % broken
 	_strike_alert.visible = sim.employees.on_strike()
 	var c: Dictionary = s.construction
 	_build_status.visible = not c.is_empty()
 	if not c.is_empty():
-		_build_status.text = "Đang xây %s: %d%%" % [sim.content.constructions[c.id].display_name, 100 - int(c.ticks_left) * 100 / maxi(1, int(c.total_ticks))]
+		_build_status.text = tr("Đang xây %s: %d%%") % [sim.content.constructions[c.id].display_name, 100 - int(c.ticks_left) * 100 / maxi(1, int(c.total_ticks))]
 	var offers := sim.orders.with_status(OrderManager.OFFERED).size()
 	var ready := 0
 	for o in sim.orders.with_status(OrderManager.ACCEPTED):
@@ -152,20 +152,20 @@ func _process(delta: float) -> void:
 			ready += 1
 	var badge := ""
 	if offers > 0:
-		badge += "  %d mới" % offers
+		badge += tr("  %d mới") % offers
 	if ready > 0:
-		badge += "  %d giao được" % ready
-	_nav_buttons["orders"].text = "Đơn hàng" + badge
+		badge += tr("  %d giao được") % ready
+	_nav_buttons["orders"].text = tr("Đơn hàng") + badge
 	var claim := sim.quests.claimable()
 	_gems.text = Fmt.group(sim.diamonds.balance())
 	if claim > 0 and UiTheme.is_mobile():
 		_gems.text += "  %d ✓" % claim
-	_nav_buttons["quests"].text = "Nhiệm vụ" + ("  %d ✓" % claim if claim > 0 else "")
+	_nav_buttons["quests"].text = tr("Nhiệm vụ") + ("  %d ✓" % claim if claim > 0 else "")
 	_nav_buttons["quests"].add_theme_color_override("font_color", UiTheme.GOOD if claim > 0 else UiTheme.TEXT)
 	var boost := sim.diamonds.boost_ticks_left()
 	_boost_status.visible = boost > 0 and not UiTheme.is_mobile()
 	if boost > 0:
-		_boost_status.text = "Tăng tốc +%d%%: còn %d giờ" % [DiamondManager.BOOST_PERCENT, ceili(float(boost) / sim.config.ticks_per_hour)]
+		_boost_status.text = tr("Tăng tốc +%d%%: còn %d giờ") % [DiamondManager.BOOST_PERCENT, ceili(float(boost) / sim.config.ticks_per_hour)]
 	var text := sim.tutorial.current_text()
 	_tutorial.visible = text != ""
 	_tutorial_label.text = text
@@ -216,7 +216,7 @@ func _build_top_bar() -> void:
 	_gems = UiTheme.diamond_button("0", func():
 		if _current != "diamonds":
 			toggle_panel("diamonds"))
-	_gems.tooltip_text = "Kim cương: nhận từ nhiệm vụ, quảng cáo hoặc nạp"
+	_gems.tooltip_text = tr("Kim cương: nhận từ nhiệm vụ, quảng cáo hoặc nạp")
 	_gems.add_theme_color_override("font_color", UiTheme.DIAMOND)
 	_gems.add_theme_font_override("font", UiTheme.font(600))
 	h.add_child(_cash)
@@ -235,38 +235,49 @@ func _build_top_bar() -> void:
 		var b := UiTheme.button("||" if sp == 0 else "x%d" % sp, func(): TimeManager.set_speed(sp))
 		b.toggle_mode = true
 		b.custom_minimum_size.x = 46
-		b.tooltip_text = "Tạm dừng (Space)" if sp == 0 else "Tốc độ x%d" % sp
+		b.tooltip_text = tr("Tạm dừng (Space)") if sp == 0 else tr("Tốc độ x%d") % sp
 		speeds.add_child(b)
 		_speed_buttons.append(b)
 	_menu = MenuButton.new()
-	_menu.text = "Menu"
+	_menu.text = tr("Menu")
 	_menu.flat = false
 	_menu.focus_mode = Control.FOCUS_NONE
 	var pm := _menu.get_popup()
 	pm.add_theme_font_size_override("font_size", 18)
-	pm.add_item("Chữ to hơn (A+)", 0)
-	pm.add_item("Chữ nhỏ hơn (A−)", 1)
-	pm.add_separator("Đồ họa (máy yếu chọn Thấp)")
-	pm.add_radio_check_item("Tự động", GRAPHICS_ITEM)
+	pm.add_item(tr("Chữ to hơn (A+)"), 0)
+	pm.add_item(tr("Chữ nhỏ hơn (A−)"), 1)
+	pm.add_separator(tr("Đồ họa (máy yếu chọn Thấp)"))
+	pm.add_radio_check_item(tr("Tự động"), GRAPHICS_ITEM)
 	for i in Graphics.NAMES.size():
-		pm.add_radio_check_item(Graphics.NAMES[i], GRAPHICS_ITEM + 1 + i)
+		pm.add_radio_check_item(tr(Graphics.NAMES[i]), GRAPHICS_ITEM + 1 + i)
 	pm.about_to_popup.connect(_update_graphics_items)
 	pm.about_to_popup.connect(_update_save_item)
 	pm.add_separator()
-	pm.add_item("Lưu game", 2)
-	pm.add_item("Sao lưu / chuyển máy khác", 4)
-	pm.add_item("Chơi lại từ đầu", 3)
+	var langs := PopupMenu.new()
+	langs.add_theme_font_size_override("font_size", 18)
+	for i in I18n.languages.size():
+		langs.add_radio_check_item(I18n.languages[i][1], i)
+		langs.set_item_checked(i, I18n.languages[i][0] == I18n.current())
+	langs.id_pressed.connect(func(i): _change_language(I18n.languages[i][0]))
+	# "Language" stays in English too, so anyone can find the way back.
+	var lang_title := tr("Ngôn ngữ")
+	if lang_title != "Language":
+		lang_title += " · Language"
+	pm.add_submenu_node_item(lang_title, langs)
+	pm.add_item(tr("Lưu game"), 2)
+	pm.add_item(tr("Sao lưu / chuyển máy khác"), 4)
+	pm.add_item(tr("Chơi lại từ đầu"), 3)
 	pm.id_pressed.connect(_on_menu)
 	h.add_child(_menu)
 	_confirm = ConfirmationDialog.new()
-	_confirm.title = "Chơi lại từ đầu?"
-	_confirm.dialog_text = "Tiến trình hiện tại sẽ bị xóa. Kim cương và quản lý cấp cao được giữ lại."
-	_confirm.ok_button_text = "Chơi lại"
-	_confirm.cancel_button_text = "Hủy"
+	_confirm.title = tr("Chơi lại từ đầu?")
+	_confirm.dialog_text = tr("Tiến trình hiện tại sẽ bị xóa. Kim cương và quản lý cấp cao được giữ lại.")
+	_confirm.ok_button_text = tr("Chơi lại")
+	_confirm.cancel_button_text = tr("Hủy")
 	_confirm.confirmed.connect(func():
 		GameManager.new_game()
 		EventBus.selection_changed.emit("", 0)
-		show_toast("Bắt đầu game mới.", true))
+		show_toast(tr("Bắt đầu game mới."), true))
 	add_child(_confirm)
 	_save_dialog = SaveDialog.new()
 	add_child(_save_dialog)
@@ -280,7 +291,7 @@ func _on_menu(id: int) -> void:
 			set_ui_scale(_ui_scale - 0.1)
 		2:
 			var saved := SaveManager.save_game()
-			show_toast("Đã lưu game." if saved else "Không lưu được! Thử Menu → Sao lưu để giữ mã lưu.", saved)
+			show_toast(tr("Đã lưu game.") if saved else tr("Không lưu được! Thử Menu → Sao lưu để giữ mã lưu."), saved)
 		4:
 			_save_dialog.open()
 		3:
@@ -289,16 +300,27 @@ func _on_menu(id: int) -> void:
 			if id >= GRAPHICS_ITEM:
 				var g: Graphics = get_tree().current_scene.get_node("Graphics")
 				g.set_tier(id - GRAPHICS_ITEM - 1)
-				show_toast("Đồ họa: %s%s" % ["Tự động – " if Graphics.auto else "", Graphics.NAMES[Graphics.tier]], true)
+				show_toast(tr("Đồ họa: %s%s") % [tr("Tự động – ") if Graphics.auto else "", tr(Graphics.NAMES[Graphics.tier])], true)
+
+
+## Saves, switches language and rebuilds the scene so every text, panel and
+## 3D sign comes back in the new language. The game carries on where it was.
+func _change_language(code: String) -> void:
+	if code == I18n.current():
+		return
+	SaveManager.save_game()
+	I18n.set_language(code)
+	EventBus.selection_changed.emit("", 0)
+	get_tree().reload_current_scene.call_deferred()
 
 
 ## "Lưu game" says when the game last saved itself.
 func _update_save_item() -> void:
 	var pm := _menu.get_popup()
-	var text := "Lưu game"
+	var text := tr("Lưu game")
 	if SaveManager.last_saved > 0.0:
 		var ago := int(Time.get_unix_time_from_system() - SaveManager.last_saved)
-		text += " (tự lưu %s trước)" % ("%d giây" % ago if ago < 60 else "%d phút" % (ago / 60))
+		text += tr(" (tự lưu %s trước)") % (tr("%d giây") % ago if ago < 60 else tr("%d phút") % (ago / 60))
 	pm.set_item_text(pm.get_item_index(2), text)
 
 
@@ -306,15 +328,15 @@ func _update_save_item() -> void:
 func _report_load() -> void:
 	match SaveManager.load_note:
 		"loaded":
-			show_toast("Đã tải tiến trình đã lưu: ngày %d." % GameManager.sim.day(), true)
+			show_toast(tr("Đã tải tiến trình đã lưu: ngày %d.") % GameManager.sim.day(), true)
 		"backup":
-			show_toast("File lưu chính bị hỏng, đã tải bản dự phòng gần nhất (ngày %d)." % GameManager.sim.day(), false)
+			show_toast(tr("File lưu chính bị hỏng, đã tải bản dự phòng gần nhất (ngày %d).") % GameManager.sim.day(), false)
 		"broken":
-			show_toast("Không đọc được file lưu cũ nên bắt đầu game mới. File cũ được giữ lại trong thư mục saves.", false)
+			show_toast(tr("Không đọc được file lưu cũ nên bắt đầu game mới. File cũ được giữ lại trong thư mục saves."), false)
 		"newer":
-			show_toast("File lưu đến từ bản game mới hơn nên không mở được. Hãy cập nhật game; file cũ vẫn được giữ.", false)
+			show_toast(tr("File lưu đến từ bản game mới hơn nên không mở được. Hãy cập nhật game; file cũ vẫn được giữ."), false)
 	if not SaveManager.storage_is_persistent():
-		show_toast("Trình duyệt này không giữ dữ liệu sau khi đóng trang. Vào Menu → Sao lưu để giữ mã lưu.", false)
+		show_toast(tr("Trình duyệt này không giữ dữ liệu sau khi đóng trang. Vào Menu → Sao lưu để giữ mã lưu."), false)
 
 
 ## Ticks the graphics level in the menu; on Auto it also names the level in use.
@@ -323,7 +345,7 @@ func _update_graphics_items() -> void:
 	for i in 4:
 		var idx := pm.get_item_index(GRAPHICS_ITEM + i)
 		pm.set_item_checked(idx, (i == 0) == Graphics.auto and (i == 0 or i - 1 == Graphics.tier))
-	pm.set_item_text(pm.get_item_index(GRAPHICS_ITEM), "Tự động (%s)" % Graphics.NAMES[Graphics.tier] if Graphics.auto else "Tự động")
+	pm.set_item_text(pm.get_item_index(GRAPHICS_ITEM), tr("Tự động (%s)") % tr(Graphics.NAMES[Graphics.tier]) if Graphics.auto else tr("Tự động"))
 
 
 ## Scales the whole interface (and the 3D labels stay as they are).
@@ -334,7 +356,7 @@ func set_ui_scale(value: float) -> void:
 	cfg.load(SETTINGS_PATH)
 	cfg.set_value("ui", "scale", _ui_scale)
 	cfg.save(SETTINGS_PATH)
-	show_toast("Cỡ giao diện %d%%" % roundi(_ui_scale * 100), true)
+	show_toast(tr("Cỡ giao diện %d%%") % roundi(_ui_scale * 100), true)
 
 
 func _load_ui_scale() -> void:
@@ -394,7 +416,7 @@ func _build_nav() -> void:
 	add_child(nav)
 	for p in PANELS:
 		var id: String = p[0]
-		var b := UiTheme.button(p[1], func(): toggle_panel(id))
+		var b := UiTheme.button(tr(p[1]), func(): toggle_panel(id))
 		b.toggle_mode = true
 		b.custom_minimum_size = Vector2(170, 42 if UiTheme.is_mobile() else 46)
 		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
@@ -421,10 +443,10 @@ func _build_nav() -> void:
 	_alert.add_theme_color_override("font_color", Color.WHITE)
 	for st in ["normal", "hover", "pressed"]:
 		_alert.add_theme_stylebox_override(st, UiTheme.panel_style(UiTheme.BAD.darkened(0.25 if st == "normal" else 0.1), 8, 8))
-	_alert.tooltip_text = "Bấm để chọn máy hỏng"
+	_alert.tooltip_text = tr("Bấm để chọn máy hỏng")
 	_alert.visible = false
 	nav.add_child(_alert)
-	_strike_alert = UiTheme.button("⚠ Đình công!", func():
+	_strike_alert = UiTheme.button(tr("⚠ Đình công!"), func():
 		if _current != "staff":
 			toggle_panel("staff"))
 	_strike_alert.custom_minimum_size = Vector2(170, 46)
@@ -490,12 +512,12 @@ func _build_tutorial() -> void:
 	_build_banner.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	var bh := HBoxContainer.new()
 	bh.add_theme_constant_override("separation", 12)
-	_banner_label = UiTheme.label("Bấm vào ô xanh trong xưởng để đặt máy.", 16, Color.WHITE, true)
+	_banner_label = UiTheme.label(tr("Bấm vào ô xanh trong xưởng để đặt máy."), 16, Color.WHITE, true)
 	if UiTheme.is_mobile():
 		_banner_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		_banner_label.custom_minimum_size.x = 420
 	bh.add_child(_banner_label)
-	bh.add_child(UiTheme.button("Hủy" if UiTheme.is_mobile() else "Hủy (Esc)", func(): EventBus.build_mode_changed.emit(false)))
+	bh.add_child(UiTheme.button(tr("Hủy") if UiTheme.is_mobile() else tr("Hủy (Esc)"), func(): EventBus.build_mode_changed.emit(false)))
 	_build_banner.add_child(bh)
 	_build_banner.visible = false
 	add_child(_build_banner)
@@ -553,14 +575,14 @@ func _build_corner_panels() -> void:
 
 
 func _build_help() -> void:
-	var text := "Q / E xoay · Lăn chuột phóng to · Kéo chuột hoặc WASD di chuyển · Bấm vào máy để xem và sửa · Space tạm dừng"
+	var text := tr("Q / E xoay · Lăn chuột phóng to · Kéo chuột hoặc WASD di chuyển · Bấm vào máy để xem và sửa · Space tạm dừng")
 	var l := UiTheme.label(text, 13, Color(1, 1, 1, 0.85))
 	l.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
 	l.offset_left = 14
 	l.offset_top = -30
 	if UiTheme.is_mobile():
 		# Next to the rotate buttons, wrapping onto two lines if needed.
-		l.text = "Kéo để di chuyển (vuốt nhanh để lướt) · Chụm hai ngón để phóng to · Xoay hai ngón để xoay tự do · Chạm vào máy để xem"
+		l.text = tr("Kéo để di chuyển (vuốt nhanh để lướt) · Chụm hai ngón để phóng to · Xoay hai ngón để xoay tự do · Chạm vào máy để xem")
 		l.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
 		l.offset_left = 224
 		l.offset_right = -16
@@ -586,7 +608,7 @@ func _build_touch_buttons() -> void:
 	h.add_theme_constant_override("separation", 8)
 	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	for step in [-1, 1]:
-		var b := UiTheme.button("< Xoay" if step < 0 else "Xoay >", func(): EventBus.camera_rotate_requested.emit(step))
+		var b := UiTheme.button(tr("< Xoay") if step < 0 else tr("Xoay >"), func(): EventBus.camera_rotate_requested.emit(step))
 		b.custom_minimum_size = Vector2(96, 52)
 		h.add_child(b)
 	add_child(h)
@@ -608,7 +630,7 @@ static func camera_pad() -> GridContainer:
 	g.add_theme_constant_override("v_separation", 4)
 	g.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var cells := [["+", Vector2.ZERO], ["^", Vector2(0, -1)], ["−", Vector2.ZERO],
-		["<", Vector2(-1, 0)], ["Về", Vector2.ZERO], [">", Vector2(1, 0)],
+		["<", Vector2(-1, 0)], [TranslationServer.translate("Về"), Vector2.ZERO], [">", Vector2(1, 0)],
 		["", Vector2.ZERO], ["v", Vector2(0, 1)], ["", Vector2.ZERO]]
 	for c in cells:
 		var text: String = c[0]
@@ -630,7 +652,7 @@ static func camera_pad() -> GridContainer:
 		elif text == "−":
 			b.pressed.connect(func(): EventBus.camera_zoom_requested.emit(1.25))
 		else:
-			b.tooltip_text = "Về nhà máy chính"
+			b.tooltip_text = TranslationServer.translate("Về nhà máy chính")
 			b.pressed.connect(func(): EventBus.camera_focus_requested.emit(Vector3(-2, 0, 0), 30.0))
 		g.add_child(b)
 	return g
@@ -670,7 +692,7 @@ func _notification(what: int) -> void:
 
 
 func _on_order_completed(d: Dictionary) -> void:
-	var msg := "%s đã thanh toán %s" % [d.customer, Fmt.money(int(d.value) - int(d.penalty))]
+	var msg := tr("%s đã thanh toán %s") % [d.customer, Fmt.money(int(d.value) - int(d.penalty))]
 	if int(d.penalty) > 0:
-		msg += " (phạt trễ %s)" % Fmt.money(int(d.penalty))
+		msg += tr(" (phạt trễ %s)") % Fmt.money(int(d.penalty))
 	show_toast(msg, int(d.penalty) == 0)

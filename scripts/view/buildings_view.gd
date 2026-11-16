@@ -75,7 +75,7 @@ func _sync_site(sim: Simulation, delta: float) -> void:
 	_site_ghost.scale.y = maxf(0.02, done)
 	_site_ghost.position.y = _site_ghost.mesh.size.y * _site_ghost.scale.y / 2.0
 	var d: ConstructionDef = sim.content.constructions[id]
-	_site_label.text = "Đang xây %s  %d%%" % [d.display_name, roundi(done * 100.0)]
+	_site_label.text = tr("Đang xây %s  %d%%") % [d.display_name, roundi(done * 100.0)]
 	var speed := maxf(1.0, TimeManager.speed) if TimeManager.speed > 0 else 0.0
 	for i in _builders.size():
 		var b := _builders[i]
@@ -232,7 +232,7 @@ func _build_parking() -> void:
 	b.cylinder(0.06, 4.5, Vector3(e.x - 0.3, 2.25, e.y - 0.4), Color("6d747a"), Palette.surface("steel"), -1.0, Vector3.ZERO, 8)
 	b.box(Vector3(0.6, 0.1, 0.25), Vector3(e.x - 0.55, 4.45, e.y - 0.4), Color("3a3f44"), Palette.surface("steel"))
 	b.build(n, false)
-	Palette.label3d(n, "Bãi đỗ xe", Vector3(-4.5, 1.2, 12), 32)
+	Palette.label3d(n, tr("Bãi đỗ xe"), Vector3(-4.5, 1.2, 12), 32)
 	# Staff cars
 	var colors := [Color("b71c1c"), Color("eceff1"), Color("1565c0"), Color("455a64"), Color("2e2e2e")]
 	for i in 4:
@@ -307,7 +307,7 @@ func _build_annex() -> Node3D:
 					b.box(Vector3(0.1, 0.12, z1 - z0), Vector3(x, y - 0.06, (z0 + z1) / 2.0), Color("e67e22"), paint)
 				b.box(Vector3(2.5, 0.03, z1 - z0), Vector3(22.0, y - 0.02, (z0 + z1) / 2.0), Color("9aa3ab"), steel)
 	b.build(n)
-	Palette.label3d(n, "Kho mở rộng", Vector3(22, 4.4, -4), 36)
+	Palette.label3d(n, tr("Kho mở rộng"), Vector3(22, 4.4, -4), 36)
 	return n
 
 
@@ -332,7 +332,7 @@ func _build_hall_row() -> Node3D:
 		b.cylinder(0.15, 0.08, Vector3(x, 0.38, -1.2), Color("f5f5f5"), Palette.surface("paint"), 0.12)
 	b.box(Vector3(23.5, 0.06, 0.03), Vector3(-6, 0.55, -1.2), Color("ffca28"))
 	b.build(_locked_zone)
-	Palette.label3d(_locked_zone, "Khu mở rộng (Xây dựng → Mở rộng xưởng)", Vector3(-6, 1.4, 1.8), 30, Color("ffe082"))
+	Palette.label3d(_locked_zone, tr("Khu mở rộng (Xây dựng → Mở rộng xưởng)"), Vector3(-6, 1.4, 1.8), 30, Color("ffe082"))
 	return n
 
 
@@ -363,7 +363,7 @@ func _build_sales_office() -> Node3D:
 		var ang := k * TAU / 4.0
 		b.sphere(0.32, Vector3(-20.0 + cos(ang) * 0.18, 1.0 + (k % 2) * 0.15, -6.7 + sin(ang) * 0.18), Color("43a047").darkened(0.08 * k), null, Vector3(1, 1.3, 1), 8, 5)
 	b.build(n)
-	Palette.label3d(n, "Phòng kinh doanh", Vector3(-21.2, 2.4, -9.5), 34)
+	Palette.label3d(n, tr("Phòng kinh doanh"), Vector3(-21.2, 2.4, -9.5), 34)
 	return n
 
 
@@ -395,7 +395,7 @@ func _build_break_room() -> Node3D:
 	b.build(n)
 	var glow := Palette.box(n, Vector3(0.05, 1.2, 0.5), Vector3(-22.58, 1.0, 2.4), Color("ffecb3"))
 	glow.material_override = Palette.mat(Color("ffecb3"), 1.5)
-	Palette.label3d(n, "Phòng nghỉ", Vector3(-21.2, 2.4, 0), 34)
+	Palette.label3d(n, tr("Phòng nghỉ"), Vector3(-21.2, 2.4, 0), 34)
 	return n
 
 
@@ -418,5 +418,5 @@ func _build_solar_canopy() -> Node3D:
 			b.box(Vector3(0.04, 0.1, 2.6), Vector3(a.x + 0.1 + k * (e.x - a.x - 0.2) / 6.0, 3.13, zc), Color("cfd8dc"), steel, Vector3(-0.2, 0, 0))
 		b.box(Vector3(e.x - a.x, 0.1, 0.04), Vector3((a.x + e.x) / 2.0, 3.13, zc), Color("cfd8dc"), steel, Vector3(-0.2, 0, 0))
 	b.build(n)
-	Palette.label3d(n, "Điện mặt trời", Vector3((a.x + e.x) / 2.0, 4.4, (a.y + e.y) / 2.0), 34, Color("fff59d"))
+	Palette.label3d(n, tr("Điện mặt trời"), Vector3((a.x + e.x) / 2.0, 4.4, (a.y + e.y) / 2.0), 34, Color("fff59d"))
 	return n

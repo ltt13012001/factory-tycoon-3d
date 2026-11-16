@@ -298,11 +298,11 @@ func _build_back_wall() -> void:
 	b.cylinder(0.09, 0.5, Vector3(-3.0, 0.3, z + 0.32), Color("d32f2f"), paint)
 	b.cylinder(0.03, 0.08, Vector3(-3.0, 0.59, z + 0.32), Color("26292c"))
 	b.build(_back_wall)
-	var sign := Palette.label3d(_back_wall, "XƯỞNG SẢN XUẤT", Vector3(-6, 5.0, z + 0.2), 44, Color("1f2a36"))
+	var sign := Palette.label3d(_back_wall, tr("XƯỞNG SẢN XUẤT"), Vector3(-6, 5.0, z + 0.2), 44, Color("1f2a36"))
 	sign.billboard = BaseMaterial3D.BILLBOARD_DISABLED
 	sign.no_depth_test = false
 	sign.outline_size = 0
-	var sign2 := Palette.label3d(_back_wall, "KHO HÀNG", Vector3(13, 5.0, z + 0.2), 44, Color("1f2a36"))
+	var sign2 := Palette.label3d(_back_wall, tr("KHO HÀNG"), Vector3(13, 5.0, z + 0.2), 44, Color("1f2a36"))
 	sign2.billboard = BaseMaterial3D.BILLBOARD_DISABLED
 	sign2.no_depth_test = false
 	sign2.outline_size = 0
@@ -369,7 +369,7 @@ func _build_rest_area() -> void:
 	for p in [Vector3(-23.2, 0, 5.1), Vector3(-23.2, 0, 13.0)]:
 		_solid.cylinder(0.28, 0.45, p + Vector3(0, 0.22, 0), Color("8d6e63"), paint, 0.22, Vector3.ZERO, 10)
 		_solid.sphere(0.42, p + Vector3(0, 0.75, 0), Color("4caf50"), null, Vector3(1, 1.2, 1), 8, 5)
-	Palette.label3d(self, "Khu nghỉ ngơi", Vector3(-21.1, 3.5, 8.9), 30, Color("c8f7c5"))
+	Palette.label3d(self, tr("Khu nghỉ ngơi"), Vector3(-21.1, 3.5, 8.9), 30, Color("c8f7c5"))
 
 
 func _build_hall() -> void:
@@ -391,7 +391,7 @@ func _build_hall() -> void:
 	_solid.box(Vector3(1.2, 0.08, 1.0), bin + Vector3(0, 0.06, 0), Color("4a4f54"), Palette.surface("steel"))
 	for k in 5:
 		_solid.box(Vector3(0.22, 0.16, 0.22), bin + Vector3(-0.3 + k * 0.15, 0.86, -0.15 + (k % 2) * 0.3), Palette.SCRAP.lightened(0.1 * (k % 3)), null, Vector3(0, k * 0.7, 0.3))
-	Palette.label3d(self, "Phế phẩm", bin + Vector3(0, 1.5, 0), 32)
+	Palette.label3d(self, tr("Phế phẩm"), bin + Vector3(0, 1.5, 0), 32)
 
 
 ## Workbench, tool trolley and air compressor along the west wall.
@@ -424,8 +424,8 @@ func _build_warehouse() -> void:
 	_outline(Vector2(12.4, -11.7), Vector2(19.5, -9.0), Color("e3b51f"))
 	_outline(Vector2(12.4, -3.1), Vector2(19.5, 0.7), Color("e3b51f"))
 	_flat.box(Vector3(b.x - a.x, 0.01, 0.1), Vector3((a.x + b.x) / 2.0, 0.065, -4.5), Color("e3b51f"))
-	Palette.label3d(self, "Kho nguyên liệu", Vector3(16, 2.2, -11), 40)
-	Palette.label3d(self, "Kho thành phẩm", Vector3(16, 2.2, -3), 40)
+	Palette.label3d(self, tr("Kho nguyên liệu"), Vector3(16, 2.2, -11), 40)
+	Palette.label3d(self, tr("Kho thành phẩm"), Vector3(16, 2.2, -3), 40)
 	_forklift(Vector3(8.2, 0, -10.4), 0.0)
 	# Roller door frame over the loading doorway
 	var steel := Palette.surface("steel")
@@ -542,7 +542,7 @@ func _build_dock_and_office() -> void:
 	_solid.box(Vector3(0.65, 0.3, 0.2), Vector3(19.85, 0.2, 8.55), Color("d32f2f"), Palette.surface("paint"))
 	_solid.bar(Vector3(19.85, 0.3, 8.5), Vector3(19.85, 1.15, 8.2), 0.05, Color("3a3f44"), steel)
 	_solid.box(Vector3(0.35, 0.05, 0.05), Vector3(19.85, 1.17, 8.19), Color("26292c"), Palette.surface("rubber"))
-	Palette.label3d(self, "Bãi giao nhận", Vector3(16, 1.8, 7), 40)
+	Palette.label3d(self, tr("Bãi giao nhận"), Vector3(16, 1.8, 7), 40)
 	for i in 24:
 		var p := Node3D.new()
 		p.position = FactoryLayout.DOCK_STACK_ORIGIN + Vector3((i % 6) * 1.0, (i / 12) * 0.7, ((i / 6) % 2) * 1.1)
@@ -615,7 +615,7 @@ func _build_slot_pads() -> void:
 			pad.position = FactoryLayout.slot_position(slot, site)
 			var mi := Palette.box(pad, Vector3(4.6, 0.05, 2.4), Vector3(0.9, 0.08, 0), Color(0.3, 0.9, 0.4, 0.45))
 			mi.material_override = Palette.mat(Color(0.3, 0.9, 0.4, 0.45))
-			Palette.label3d(pad, "Đặt máy ở đây", Vector3(0, 1.2, 0), 36, Color("b9ffc8"))
+			Palette.label3d(pad, tr("Đặt máy ở đây"), Vector3(0, 1.2, 0), 36, Color("b9ffc8"))
 			Palette.pick_body(pad, Vector3(4.6, 0.6, 2.4), Vector3(0.9, 0.3, 0), "slot", GameManager.slot_pick_id(slot, site))
 			pad.visible = false
 			pad.process_mode = Node.PROCESS_MODE_DISABLED

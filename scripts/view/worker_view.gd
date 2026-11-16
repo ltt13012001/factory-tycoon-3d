@@ -244,7 +244,7 @@ func _build_sign() -> void:
 	Palette.cylinder(_sign, 0.025, 1.0, Vector3(0, -0.4, 0), Color("8d6e63"))
 	Palette.box(_sign, Vector3(0.95, 0.6, 0.03), Vector3(0, -1.0, 0), Color("fafafa"))
 	var l := Label3D.new()
-	l.text = "TĂNG\nLƯƠNG!"
+	l.text = tr("TĂNG\nLƯƠNG!")
 	l.font = UiTheme.font(600)
 	l.font_size = 48
 	l.pixel_size = 0.0062

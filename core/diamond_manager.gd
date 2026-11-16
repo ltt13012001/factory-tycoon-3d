@@ -108,7 +108,7 @@ func _stat(key: String, amount: int) -> void:
 
 
 func _not_enough(cost: int) -> Dictionary:
-	return Simulation.fail("Không đủ kim cương (cần %d, đang có %d). Làm nhiệm vụ, xem quảng cáo hoặc nạp thêm." % [cost, balance()])
+	return Simulation.fail(tr("Không đủ kim cương (cần %d, đang có %d). Làm nhiệm vụ, xem quảng cáo hoặc nạp thêm.") % [cost, balance()])
 
 
 # --- Senior managers ---------------------------------------------------------
@@ -131,7 +131,7 @@ func senior_cost(id: String) -> int:
 func senior_text(id: String, level := -1) -> String:
 	var s: Dictionary = SENIORS[id]
 	var lvl := senior_level(id) if level < 0 else level
-	return s.text % (int(s.per_level) * maxi(1, lvl))
+	return tr(s.text) % (int(s.per_level) * maxi(1, lvl))
 
 
 ## Sum of the senior managers' bonus for one field.
@@ -146,22 +146,22 @@ func bonus(field: String) -> int:
 
 func recruit_senior(id: String) -> Dictionary:
 	if not SENIORS.has(id):
-		return Simulation.fail("Không có vị trí này.")
+		return Simulation.fail(tr("Không có vị trí này."))
 	var s: Dictionary = SENIORS[id]
 	var cost := senior_cost(id)
 	if cost < 0:
-		return Simulation.fail("%s đã ở cấp cao nhất." % s.name)
+		return Simulation.fail(tr("%s đã ở cấp cao nhất.") % tr(s.name))
 	if not can_spend(cost):
 		return _not_enough(cost)
-	spend(cost, s.name)
+	spend(cost, tr(s.name))
 	var lvl := senior_level(id) + 1
 	if lvl == 1:
 		sim.state.seniors[id] = {"name": sim.employees.next_name(), "level": 1}
 		sim.emit_event(&"expansion_changed", {})
-		return Simulation.ok("%s gia nhập làm %s: %s" % [senior_name(id), s.name, senior_text(id)])
+		return Simulation.ok(tr("%s gia nhập làm %s: %s") % [senior_name(id), tr(s.name), senior_text(id)])
 	sim.state.seniors[id].level = lvl
 	sim.emit_event(&"expansion_changed", {})
-	return Simulation.ok("%s lên cấp %d: %s" % [s.name, lvl, senior_text(id)])
+	return Simulation.ok(tr("%s lên cấp %d: %s") % [tr(s.name), lvl, senior_text(id)])
 
 
 # --- Production boost ----------------------------------------------------------
@@ -182,10 +182,10 @@ func _start_boost(hours: int) -> void:
 
 
 func buy_boost() -> Dictionary:
-	if not spend(BOOST_DIAMOND_COST, "Tăng tốc sản xuất"):
+	if not spend(BOOST_DIAMOND_COST, tr("Tăng tốc sản xuất")):
 		return _not_enough(BOOST_DIAMOND_COST)
 	_start_boost(BOOST_DIAMOND_HOURS)
-	return Simulation.ok("Mọi máy chạy nhanh hơn %d%% trong %d giờ tới." % [BOOST_PERCENT, BOOST_DIAMOND_HOURS])
+	return Simulation.ok(tr("Mọi máy chạy nhanh hơn %d%% trong %d giờ tới.") % [BOOST_PERCENT, BOOST_DIAMOND_HOURS])
 
 
 func tick() -> void:
@@ -205,8 +205,8 @@ func tick() -> void:
 
 func party() -> Dictionary:
 	if sim.state.employees.is_empty():
-		return Simulation.fail("Chưa có nhân viên nào.")
-	if not spend(PARTY_COST, "Liên hoan nhân viên"):
+		return Simulation.fail(tr("Chưa có nhân viên nào."))
+	if not spend(PARTY_COST, tr("Liên hoan nhân viên")):
 		return _not_enough(PARTY_COST)
 	for e in sim.state.employees:
 		e.mood = mini(100, int(e.get("mood", 70)) + PARTY_MOOD)
@@ -214,19 +214,19 @@ func party() -> Dictionary:
 	if striking:
 		sim.state.strike = {}
 		sim.emit_event(&"strike_ended", {})
-	return Simulation.ok("Liên hoan vui vẻ! Mọi người phấn khởi hơn%s." % (" và quay lại làm việc" if striking else ""))
+	return Simulation.ok(tr("Liên hoan vui vẻ! Mọi người phấn khởi hơn%s.") % (tr(" và quay lại làm việc") if striking else ""))
 
 
 func instant_repair(machine_id: int) -> Dictionary:
 	var m := sim.state.find_by_id(sim.state.machines, machine_id)
 	if m.is_empty():
-		return Simulation.fail("Không tìm thấy máy.")
+		return Simulation.fail(tr("Không tìm thấy máy."))
 	if int(m.condition) >= 100 and not m.broken:
-		return Simulation.fail("Máy đang ở tình trạng tốt.")
-	if not spend(REPAIR_COST, "Sửa máy ngay"):
+		return Simulation.fail(tr("Máy đang ở tình trạng tốt."))
+	if not spend(REPAIR_COST, tr("Sửa máy ngay")):
 		return _not_enough(REPAIR_COST)
 	sim.production.finish_repair(m)
-	return Simulation.ok("Máy đã được sửa xong ngay.")
+	return Simulation.ok(tr("Máy đã được sửa xong ngay."))
 
 
 ## What can be finished at once: [{kind, id, name, ticks_left}].
@@ -237,8 +237,8 @@ func rush_targets() -> Array:
 		out.append({"kind": "construction", "id": c.id, "name": sim.content.constructions[c.id].display_name, "ticks_left": int(c.ticks_left)})
 	for s in sim.state.sites:
 		if s.status == ExpansionManager.SURVEYING or s.status == ExpansionManager.BUILDING:
-			var verb := "Khảo sát " if s.status == ExpansionManager.SURVEYING else "Xây "
-			out.append({"kind": "site", "id": s.id, "name": verb + sim.expansion.loc(s.id).display_name, "ticks_left": int(s.ticks_left)})
+			var verb := tr("Khảo sát %s") if s.status == ExpansionManager.SURVEYING else tr("Xây %s")
+			out.append({"kind": "site", "id": s.id, "name": verb % sim.expansion.loc(s.id).display_name, "ticks_left": int(s.ticks_left)})
 	return out
 
 
@@ -252,7 +252,7 @@ func rush(kind: String, id: String) -> Dictionary:
 		if t.kind != kind or t.id != id:
 			continue
 		var cost := rush_cost(t.ticks_left)
-		if not spend(cost, "Hoàn thành ngay " + t.name):
+		if not spend(cost, tr("Hoàn thành ngay %s") % t.name):
 			return _not_enough(cost)
 		if kind == "construction":
 			sim.state.construction.ticks_left = 1
@@ -261,8 +261,8 @@ func rush(kind: String, id: String) -> Dictionary:
 			var s := sim.expansion.site(id)
 			s.ticks_left = 1
 			sim.expansion.tick()
-		return Simulation.ok("%s đã hoàn thành!" % t.name)
-	return Simulation.fail("Không có công việc nào đang làm dở ở đây.")
+		return Simulation.ok(tr("%s đã hoàn thành!") % t.name)
+	return Simulation.fail(tr("Không có công việc nào đang làm dở ở đây."))
 
 
 func exchange_rate() -> int:
@@ -271,11 +271,11 @@ func exchange_rate() -> int:
 
 func exchange() -> Dictionary:
 	var cash := exchange_rate() * EXCHANGE_LOT
-	if not spend(EXCHANGE_LOT, "Đổi kim cương lấy tiền"):
+	if not spend(EXCHANGE_LOT, tr("Đổi kim cương lấy tiền")):
 		return _not_enough(EXCHANGE_LOT)
-	sim.economy.book("diamonds", cash, "Đổi %d kim cương" % EXCHANGE_LOT)
+	sim.economy.book("diamonds", cash, tr("Đổi %d kim cương") % EXCHANGE_LOT)
 	sim.economy.add_stat("bonus", cash)
-	return Simulation.ok("Đã đổi %d kim cương lấy %s." % [EXCHANGE_LOT, Fmt.money(cash)])
+	return Simulation.ok(tr("Đã đổi %d kim cương lấy %s.") % [EXCHANGE_LOT, Fmt.money(cash)])
 
 
 # --- Rewarded ads --------------------------------------------------------------
@@ -320,24 +320,24 @@ func can_watch(kind: String, date: String, report: Dictionary = {}) -> bool:
 ## Called once the ad network confirms the player watched the whole ad.
 func ad_reward(kind: String, date: String, report: Dictionary = {}) -> Dictionary:
 	if not can_watch(kind, date, report):
-		return Simulation.fail("Hôm nay đã hết lượt xem quảng cáo này, mai quay lại nhé.")
+		return Simulation.fail(tr("Hôm nay đã hết lượt xem quảng cáo này, mai quay lại nhé."))
 	var a := _ads(date)
 	a.count = int(a.count) + 1
 	_stat("ads_watched", 1)
 	match kind:
 		"diamonds":
 			a.diamonds = int(a.diamonds) + 1
-			earn(AD_DIAMONDS, "ad", "Xem quảng cáo")
-			return Simulation.ok("Cảm ơn bạn! +%d kim cương." % AD_DIAMONDS)
+			earn(AD_DIAMONDS, "ad", tr("Xem quảng cáo"))
+			return Simulation.ok(tr("Cảm ơn bạn! +%d kim cương.") % AD_DIAMONDS)
 		"report":
 			var cash := report_bonus(report)
 			a.report_day = int(report.day)
-			sim.economy.book("diamonds", cash, "Thưởng cuối ngày %d" % int(report.day))
+			sim.economy.book("diamonds", cash, tr("Thưởng cuối ngày %d") % int(report.day))
 			sim.economy.add_stat("bonus", cash)
-			return Simulation.ok("Đã nhận thưởng %s." % Fmt.money(cash))
+			return Simulation.ok(tr("Đã nhận thưởng %s.") % Fmt.money(cash))
 		_:
 			_start_boost(BOOST_AD_HOURS)
-			return Simulation.ok("Mọi máy chạy nhanh hơn %d%% trong %d giờ tới." % [BOOST_PERCENT, BOOST_AD_HOURS])
+			return Simulation.ok(tr("Mọi máy chạy nhanh hơn %d%% trong %d giờ tới.") % [BOOST_PERCENT, BOOST_AD_HOURS])
 
 
 # --- In-app purchases ----------------------------------------------------------
@@ -354,7 +354,7 @@ static func pack(product_id: String) -> Dictionary:
 func credit_purchase(product_id: String, transaction_id: String) -> Dictionary:
 	var p := pack(product_id)
 	if p.is_empty():
-		return Simulation.fail("Gói không hợp lệ: %s" % product_id)
+		return Simulation.fail(tr("Gói không hợp lệ: %s") % product_id)
 	var log: Array = sim.state.iap_log
 	if transaction_id != "":
 		for entry in log:
@@ -365,4 +365,4 @@ func credit_purchase(product_id: String, transaction_id: String) -> Dictionary:
 	while log.size() > 100:
 		log.pop_front()
 	earn(amount, "purchase", product_id)
-	return Simulation.ok("Nạp thành công +%d kim cương. Cảm ơn bạn đã ủng hộ!" % amount)
+	return Simulation.ok(tr("Nạp thành công +%d kim cương. Cảm ơn bạn đã ủng hộ!") % amount)

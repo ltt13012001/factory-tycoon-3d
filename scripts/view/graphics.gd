@@ -244,4 +244,4 @@ func _process(delta: float) -> void:
 	_slow = _slow + 1 if fps < SLOW_FPS else 0
 	if _slow >= 2:
 		set_tier(tier - 1, false)
-		EventBus.toast.emit("Đã giảm đồ họa xuống %s cho mượt hơn (đổi ở Menu)." % NAMES[tier], true)
+		EventBus.toast.emit(tr("Đã giảm đồ họa xuống %s cho mượt hơn (đổi ở Menu).") % tr(NAMES[tier]), true)

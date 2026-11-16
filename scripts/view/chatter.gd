@@ -105,7 +105,7 @@ func _say(t: Dictionary) -> void:
 	var a: Node3D = t.a
 	var b: Node3D = t.b
 	var speaker: Node3D = a if t.line % 2 == 0 else b
-	var text: String = t.lines[t.line]
+	var text: String = tr(t.lines[t.line])
 	text = text.replace("{a}", a.display_name()).replace("{b}", b.display_name())
 	var seconds := LINE_SECONDS + text.length() * SECONDS_PER_CHAR
 	speaker.say(text, seconds - 0.25)  # a short pause before the answer

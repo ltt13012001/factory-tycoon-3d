@@ -9,9 +9,13 @@ extends Resource
 ## "local" (land next door), "domestic" (another province) or "abroad".
 @export var region: String = "local"
 @export var id: String = ""
-@export var display_name: String = ""
+@export var display_name: String = "":
+	get:
+		return TranslationServer.translate(display_name)
 @export var country: String = "Việt Nam"
-@export_multiline var description: String = ""
+@export_multiline var description: String = "":
+	get:
+		return TranslationServer.translate(description)
 ## Sort order inside its region.
 @export var order: int = 0
 ## Company stage (ExpansionManager.TIER_NAMES) needed before it can be chosen.

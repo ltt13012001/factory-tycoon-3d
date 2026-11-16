@@ -56,7 +56,7 @@ func make_employee(role: String, site := "") -> Dictionary:
 ## The next name from the name list (also used for managers and executives).
 func next_name() -> String:
 	var names := sim.config.worker_names
-	var n := "Công nhân %d" % (sim.state.name_index + 1)
+	var n := tr("Công nhân %d") % (sim.state.name_index + 1)
 	if names.size() > 0:
 		n = names[sim.state.name_index % names.size()]
 		if sim.state.name_index >= names.size():
@@ -83,16 +83,16 @@ func pay_percent() -> int:
 
 func set_shift(hours: int) -> Dictionary:
 	if not SHIFT_CHOICES.has(hours):
-		return Simulation.fail("Ca làm không hợp lệ.")
+		return Simulation.fail(tr("Ca làm không hợp lệ."))
 	sim.state.settings.shift_hours = hours
 	if hours == STANDARD_SHIFT:
-		return Simulation.ok("Ca làm %d tiếng, không tăng ca." % hours)
-	return Simulation.ok("Ca làm %d tiếng: tăng ca %d tiếng, trả %d%% lương giờ." % [hours, hours - STANDARD_SHIFT, OVERTIME_PAY_PERCENT])
+		return Simulation.ok(tr("Ca làm %d tiếng, không tăng ca.") % hours)
+	return Simulation.ok(tr("Ca làm %d tiếng: tăng ca %d tiếng, trả %d%% lương giờ.") % [hours, hours - STANDARD_SHIFT, OVERTIME_PAY_PERCENT])
 
 
 func set_pay(percent: int) -> Dictionary:
 	sim.state.settings.pay_percent = clampi(percent, PAY_MIN, PAY_MAX)
-	return Simulation.ok("Mức lương: %d%% lương chuẩn." % pay_percent())
+	return Simulation.ok(tr("Mức lương: %d%% lương chuẩn.") % pay_percent())
 
 
 ## True while the day shift is on (from the start of the day for shift_hours).
@@ -187,32 +187,32 @@ func staff_at(site: String) -> Array:
 ## The factories next door get their manager from ExpansionManager.hire_head.
 func hire(role: String, site := "") -> Dictionary:
 	if not ROLE_NAMES.has(role):
-		return Simulation.fail("Vai trò không hợp lệ.")
+		return Simulation.fail(tr("Vai trò không hợp lệ."))
 	if site != "":
 		if not sim.expansion.is_factory(site) or not sim.expansion.is_ready(site):
-			return Simulation.fail("Nhà xưởng chưa xây xong.")
+			return Simulation.fail(tr("Nhà xưởng chưa xây xong."))
 		if role == MANAGER:
 			return sim.expansion.hire_head(site)
 	if role == MANAGER and count(MANAGER, "") > 0:
-		return Simulation.fail("Xưởng đã có xưởng trưởng.")
+		return Simulation.fail(tr("Xưởng đã có xưởng trưởng."))
 	var fee := sim.config.hire_fee
 	if not sim.economy.can_afford(fee):
-		return Simulation.fail("Không đủ tiền tuyển dụng (%s)." % Fmt.money(fee))
+		return Simulation.fail(tr("Không đủ tiền tuyển dụng (%s).") % Fmt.money(fee))
 	var e := make_employee(role, site)
-	sim.economy.book("hire", -fee, "Tuyển " + e.name)
+	sim.economy.book("hire", -fee, tr("Tuyển %s") % e.name)
 	sim.state.employees.append(e)
 	auto_assign()
 	sim.emit_event(&"employee_hired", e.duplicate(true))
 	if site != "":
-		return Simulation.ok("Đã tuyển %s (%s) cho %s." % [e.name, ROLE_NAMES[role], sim.expansion.loc(site).display_name])
-	return Simulation.ok("Đã tuyển %s (%s)." % [e.name, ROLE_NAMES[role]])
+		return Simulation.ok(tr("Đã tuyển %s (%s) cho %s.") % [e.name, tr(ROLE_NAMES[role]), sim.expansion.loc(site).display_name])
+	return Simulation.ok(tr("Đã tuyển %s (%s).") % [e.name, tr(ROLE_NAMES[role])])
 
 
 func fire(employee_id: int) -> Dictionary:
 	var s := sim.state
 	var e := s.find_by_id(s.employees, employee_id)
 	if e.is_empty():
-		return Simulation.fail("Không tìm thấy nhân viên.")
+		return Simulation.fail(tr("Không tìm thấy nhân viên."))
 	_drop_carried(e)
 	if e.machine_id != 0:
 		var m := s.find_by_id(s.machines, e.machine_id)
@@ -225,7 +225,7 @@ func fire(employee_id: int) -> Dictionary:
 	s.employees.erase(e)
 	auto_assign()
 	sim.emit_event(&"employee_fired", {"id": employee_id})
-	return Simulation.ok("%s đã nghỉ việc." % e.name)
+	return Simulation.ok(tr("%s đã nghỉ việc.") % e.name)
 
 
 ## Goods in a fired worker's hands go back where they came from.

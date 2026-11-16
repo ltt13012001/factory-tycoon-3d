@@ -24,6 +24,8 @@ var _exit_code := 0
 
 
 func _initialize() -> void:
+	# Tests check the Vietnamese texts and number format.
+	TranslationServer.set_locale("vi")
 	_exit_code = _run_all()
 
 

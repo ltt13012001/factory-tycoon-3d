@@ -3,8 +3,12 @@ class_name ConstructionDef
 extends Resource
 
 @export var id: String = ""
-@export var display_name: String = ""
-@export_multiline var description: String = ""
+@export var display_name: String = "":
+	get:
+		return TranslationServer.translate(display_name)
+@export_multiline var description: String = "":
+	get:
+		return TranslationServer.translate(description)
 ## Cost (cents) of each level; its size is the maximum level.
 @export var level_costs: PackedInt32Array = PackedInt32Array()
 @export var build_hours: int = 4

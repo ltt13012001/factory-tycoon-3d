@@ -12,7 +12,7 @@ var _layer: CanvasLayer
 
 
 func _init() -> void:
-	label = "quảng cáo thử"
+	label = tr("quảng cáo thử")
 
 
 func available() -> bool:
@@ -42,11 +42,11 @@ func show_rewarded(done: Callable) -> void:
 	v.alignment = BoxContainer.ALIGNMENT_CENTER
 	v.add_theme_constant_override("separation", 16)
 	bg.add_child(v)
-	v.add_child(_centered(UiTheme.label("QUẢNG CÁO THỬ NGHIỆM", 28, UiTheme.WARN, true)))
-	v.add_child(_centered(UiTheme.label("Bản phát hành sẽ hiện video quảng cáo thật ở đây.", 16, UiTheme.MUTED)))
+	v.add_child(_centered(UiTheme.label(tr("QUẢNG CÁO THỬ NGHIỆM"), 28, UiTheme.WARN, true)))
+	v.add_child(_centered(UiTheme.label(tr("Bản phát hành sẽ hiện video quảng cáo thật ở đây."), 16, UiTheme.MUTED)))
 	var count := _centered(UiTheme.label("", 20))
 	v.add_child(count)
-	var skip := UiTheme.button("Đóng (không nhận thưởng)", func(): _close(done, false))
+	var skip := UiTheme.button(tr("Đóng (không nhận thưởng)"), func(): _close(done, false))
 	skip.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	v.add_child(skip)
 	var left := [SECONDS]
@@ -54,10 +54,10 @@ func show_rewarded(done: Callable) -> void:
 	timer.wait_time = 0.25
 	timer.autostart = true
 	_layer.add_child(timer)
-	count.text = "Còn %d giây" % ceili(left[0])
+	count.text = tr("Còn %d giây") % ceili(left[0])
 	timer.timeout.connect(func():
 		left[0] -= timer.wait_time
-		count.text = "Còn %d giây" % ceili(maxf(left[0], 0.0))
+		count.text = tr("Còn %d giây") % ceili(maxf(left[0], 0.0))
 		if left[0] <= 0.0:
 			_close(done, true))
 

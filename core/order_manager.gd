@@ -37,7 +37,7 @@ func generate_offer(template_id: String = "small_customer") -> Dictionary:
 		* (1.0 - rs / 2.0 + rs * u)
 		* (1.0 - rp / 2.0 + rp * s.reputation / 100.0)
 		* sim.expansion.order_price_percent() / 100.0)
-	var customer := "Khách hàng"
+	var customer := tr("Khách hàng")
 	if t.customer_names.size() > 0:
 		customer = t.customer_names[sim.rng.randi_range(0, t.customer_names.size() - 1)]
 	var o := {
@@ -64,21 +64,21 @@ func generate_offer(template_id: String = "small_customer") -> Dictionary:
 func accept(order_id: int) -> Dictionary:
 	var o := sim.state.find_by_id(sim.state.orders, order_id)
 	if o.is_empty() or o.status != OFFERED:
-		return Simulation.fail("Đơn hàng không còn.")
+		return Simulation.fail(tr("Đơn hàng không còn."))
 	o.status = ACCEPTED
 	o.accepted_tick = sim.state.tick
 	o.deadline_tick = sim.state.tick + int(o.deadline_days) * sim.config.ticks_per_day
 	sim.emit_event(&"order_accepted", o.duplicate())
-	return Simulation.ok("Đã nhận đơn của %s." % o.customer)
+	return Simulation.ok(tr("Đã nhận đơn của %s.") % o.customer)
 
 
 func reject(order_id: int) -> Dictionary:
 	var o := sim.state.find_by_id(sim.state.orders, order_id)
 	if o.is_empty() or o.status != OFFERED:
-		return Simulation.fail("Đơn hàng không còn.")
+		return Simulation.fail(tr("Đơn hàng không còn."))
 	sim.state.orders.erase(o)
 	sim.emit_event(&"order_removed", {"id": order_id})
-	return Simulation.ok("Đã từ chối đơn.")
+	return Simulation.ok(tr("Đã từ chối đơn."))
 
 
 ## Finished stock is reserved for accepted orders, earliest deadline first.
@@ -154,22 +154,22 @@ func clock_hours_for(product_id: String, units: int) -> int:
 func ship(order_id: int) -> Dictionary:
 	var o := sim.state.find_by_id(sim.state.orders, order_id)
 	if o.is_empty() or o.status != ACCEPTED:
-		return Simulation.fail("Đơn hàng không thể giao.")
+		return Simulation.fail(tr("Đơn hàng không thể giao."))
 	if not is_ready(order_id):
-		return Simulation.fail("Chưa đủ hàng trong kho.")
+		return Simulation.fail(tr("Chưa đủ hàng trong kho."))
 	sim.state.add_finished(o.product_id, -int(o.qty))
 	o.status = SHIPPING
 	o.ship_ticks_left = sim.config.customer_truck_ticks
 	sim.emit_event(&"order_shipping", o.duplicate())
-	return Simulation.ok("Xe tải của %s đang đến lấy hàng." % o.customer)
+	return Simulation.ok(tr("Xe tải của %s đang đến lấy hàng.") % o.customer)
 
 
 ## A director accepts new orders the factory can finish in time.
 func set_auto_accept(enabled: bool) -> Dictionary:
 	if enabled and not sim.expansion.has_director():
-		return Simulation.fail("Cần tuyển một giám đốc để tự động nhận đơn.")
+		return Simulation.fail(tr("Cần tuyển một giám đốc để tự động nhận đơn."))
 	sim.state.settings.auto_accept = enabled
-	return Simulation.ok("Giám đốc sẽ tự nhận đơn kịp hạn." if enabled else "Đã tắt tự động nhận đơn.")
+	return Simulation.ok(tr("Giám đốc sẽ tự nhận đơn kịp hạn.") if enabled else tr("Đã tắt tự động nhận đơn."))
 
 
 ## Hours of slack the director keeps when accepting an order.
@@ -187,7 +187,7 @@ func _auto_accept() -> void:
 
 func set_auto_ship(enabled: bool) -> Dictionary:
 	sim.state.settings.auto_ship = enabled
-	return Simulation.ok("Đã bật tự động giao hàng." if enabled else "Đã tắt tự động giao hàng.")
+	return Simulation.ok(tr("Đã bật tự động giao hàng.") if enabled else tr("Đã tắt tự động giao hàng."))
 
 
 func tick() -> void:
@@ -243,7 +243,7 @@ func _complete(o: Dictionary) -> void:
 	sim.economy.add_stat("orders_delivered", 1)
 	s.total_revenue += value
 	if penalty > 0:
-		sim.economy.book("penalty", -penalty, "Phạt giao trễ %d ngày" % late)
+		sim.economy.book("penalty", -penalty, tr("Phạt giao trễ %d ngày") % late)
 		sim.economy.add_stat("penalties", penalty)
 	if late > 0:
 		sim.economy.add_stat("orders_late", 1)

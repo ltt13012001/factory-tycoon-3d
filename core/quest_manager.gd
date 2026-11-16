@@ -95,7 +95,7 @@ func _target(kind: String) -> int:
 
 
 func daily_text(d: Dictionary) -> String:
-	var t: String = DAILY_KINDS[d.kind].text
+	var t: String = tr(DAILY_KINDS[d.kind].text)
 	return t % (Fmt.money(int(d.target)) if d.kind == "revenue" else int(d.target))
 
 
@@ -118,20 +118,20 @@ func _count(kind: String, amount: int) -> void:
 func claim_daily(index: int) -> Dictionary:
 	var list := daily()
 	if index < 0 or index >= list.size():
-		return Simulation.fail("Không có nhiệm vụ này.")
+		return Simulation.fail(tr("Không có nhiệm vụ này."))
 	var d: Dictionary = list[index]
 	if d.claimed:
-		return Simulation.fail("Đã nhận thưởng rồi.")
+		return Simulation.fail(tr("Đã nhận thưởng rồi."))
 	if not daily_done(d):
-		return Simulation.fail("Chưa hoàn thành nhiệm vụ.")
+		return Simulation.fail(tr("Chưa hoàn thành nhiệm vụ."))
 	d.claimed = true
 	var reward := daily_reward(d)
 	sim.diamonds.earn(reward, "quest", daily_text(d))
-	var msg := "+%d kim cương" % reward
+	var msg := tr("+%d kim cương") % reward
 	if all_daily_claimed() and not q().get("bonus_claimed", false):
 		q().bonus_claimed = true
-		sim.diamonds.earn(DAILY_ALL_BONUS, "quest", "Xong cả %d nhiệm vụ ngày" % DAILY_COUNT)
-		msg += ", thưởng thêm %d vì xong cả ngày" % DAILY_ALL_BONUS
+		sim.diamonds.earn(DAILY_ALL_BONUS, "quest", tr("Xong cả %d nhiệm vụ ngày") % DAILY_COUNT)
+		msg += tr(", thưởng thêm %d vì xong cả ngày") % DAILY_ALL_BONUS
 	return Simulation.ok(msg + "!")
 
 
@@ -181,7 +181,7 @@ func milestone_met(id: String) -> bool:
 func milestones() -> Array:
 	var out := []
 	for m in MILESTONES:
-		out.append({"id": m[0], "text": m[1], "reward": m[2], "met": milestone_met(m[0]), "claimed": milestone_claimed(m[0])})
+		out.append({"id": m[0], "text": tr(m[1]), "reward": m[2], "met": milestone_met(m[0]), "claimed": milestone_claimed(m[0])})
 	return out
 
 
@@ -190,15 +190,15 @@ func claim_milestone(id: String) -> Dictionary:
 		if m[0] != id:
 			continue
 		if milestone_claimed(id):
-			return Simulation.fail("Đã nhận thưởng rồi.")
+			return Simulation.fail(tr("Đã nhận thưởng rồi."))
 		if not milestone_met(id):
-			return Simulation.fail("Chưa đạt thành tựu này.")
+			return Simulation.fail(tr("Chưa đạt thành tựu này."))
 		var claimed: Array = q().get("claimed", [])
 		claimed.append(id)
 		q().claimed = claimed
-		sim.diamonds.earn(int(m[2]), "quest", m[1])
-		return Simulation.ok("Thành tựu \"%s\": +%d kim cương!" % [m[1], m[2]])
-	return Simulation.fail("Không có thành tựu này.")
+		sim.diamonds.earn(int(m[2]), "quest", tr(m[1]))
+		return Simulation.ok(tr("Thành tựu \"%s\": +%d kim cương!") % [tr(m[1]), m[2]])
+	return Simulation.fail(tr("Không có thành tựu này."))
 
 
 ## Rewards waiting for a tap (daily and achievements), for the badge.

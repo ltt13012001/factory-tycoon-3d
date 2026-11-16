@@ -171,7 +171,7 @@ func _build_bar() -> void:
 	v.add_child(_sub)
 	h.add_child(v)
 	h.add_child(UiTheme.button("▶", func(): _step(1)))
-	var back := UiTheme.button("Về nhà máy", func(): leave())
+	var back := UiTheme.button(tr("Về nhà máy"), func(): leave())
 	back.add_theme_color_override("font_color", UiTheme.GOOD)
 	h.add_child(back)
 
@@ -180,13 +180,13 @@ func _update_bar(sim: Simulation) -> void:
 	var l: LocationDef = sim.content.locations[current]
 	_title.text = l.display_name
 	var s := sim.expansion.site(current)
-	var where := l.country if l.region == ExpansionManager.ABROAD else "Việt Nam"
+	var where := l.country if l.region == ExpansionManager.ABROAD else tr("Việt Nam")
 	if s.is_empty():
-		_sub.text = "%s · chưa mở chi nhánh" % where
+		_sub.text = tr("%s · chưa mở chi nhánh") % where
 	elif s.status == ExpansionManager.READY:
-		_sub.text = "%s · %d dây chuyền · %d công nhân · %s" % [where, int(s.lines), sim.expansion.workers(s), "đang sản xuất" if s.head != "" else "chưa có giám đốc"]
+		_sub.text = tr("%s · %d dây chuyền · %d công nhân · %s") % [where, int(s.lines), sim.expansion.workers(s), tr("đang sản xuất") if s.head != "" else tr("chưa có giám đốc")]
 	else:
-		_sub.text = "%s · %s" % [where, {"surveying": "đang khảo sát", "surveyed": "đã khảo sát", "land": "đã có đất", "building": "đang xây dựng"}.get(s.status, "")]
+		_sub.text = "%s · %s" % [where, {"surveying": tr("đang khảo sát"), "surveyed": tr("đã khảo sát"), "land": tr("đã có đất"), "building": tr("đang xây dựng")}.get(s.status, "")]
 
 
 func _step(dir: int) -> void:

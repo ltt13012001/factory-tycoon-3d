@@ -2,7 +2,9 @@ class_name OrderTemplateDef
 extends Resource
 
 @export var id: String = ""
-@export var display_name: String = ""
+@export var display_name: String = "":
+	get:
+		return TranslationServer.translate(display_name)
 @export var product_id: String = ""
 @export var min_quantity: int = 30
 @export var max_quantity: int = 90
