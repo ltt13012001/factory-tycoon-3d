@@ -20,7 +20,7 @@ cũ). Trang sẽ báo rõ lý do và cách sửa.
   bị giới hạn. Bấm ••• → Mở bằng trình duyệt (Chrome hoặc Safari).
 - **Máy yếu, máy thiếu bộ nhớ:** bấm "Chơi chế độ nhẹ" (đồ họa Thấp, vẽ ít
   điểm ảnh hơn). Trang tự bật chế độ này nếu lần trước bị tắt khi đang tải.
-  Chọn lại mức đồ họa ở Menu → Đồ họa thì thoát chế độ nhẹ.
+  Chọn lại mức đồ họa ở Cài đặt → Đồ họa thì thoát chế độ nhẹ.
 - **Màn hình đen, chạy rất chậm trên máy tính:** bật "Dùng tăng tốc phần cứng"
   (Chrome: Cài đặt → Hệ thống) rồi tải lại.
 - **Mạng yếu:** game tải khoảng 10 MB lần đầu.

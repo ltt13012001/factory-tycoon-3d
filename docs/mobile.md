@@ -11,7 +11,7 @@ Từ bản 0.3, game chạy trên điện thoại và máy tính bảng, màn h�
 | Xoay camera 90° | Xoay hai ngón, hoặc nút **< Xoay** / **Xoay >** góc dưới trái |
 | Chọn máy hoặc công nhân, đặt máy | Chạm |
 | Đóng bảng, hủy chế độ xây, bỏ chọn | Nút Quay lại của Android |
-| Phóng to / thu nhỏ giao diện | Menu → A+ / A− |
+| Phóng to / thu nhỏ giao diện | Cài đặt → Cỡ chữ và nút |
 
 Giao diện tự chọn cỡ chữ theo kích thước màn hình (to hơn trên điện thoại),
 tránh tai thỏ và góc bo, rút gọn thanh thông tin trên màn hình hẹp. Game tự

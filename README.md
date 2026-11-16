@@ -6,7 +6,7 @@ máy, nâng cấp và sửa máy, kỹ thuật viên, 5 công trình mở rộng
 ca làm và tăng ca, tâm trạng và đình công, thêm nhà xưởng chạy y như xưởng chính,
 mở rộng thành tập đoàn đa quốc gia,
 kim cương (nhiệm vụ, quảng cáo có thưởng, nạp tiền) để chiêu mộ quản lý cấp cao,
-và khu phố xung quanh. Chơi được bằng 6 ngôn ngữ: tiếng Việt, English, 简体中文, 日本語, 한국어, हिन्दी (Menu → Ngôn ngữ; thêm ngôn ngữ: xem `data/i18n/README.md`). Quảng cáo và nạp tiền: xem `docs/monetization.md`. Xem thay đổi trong `docs/changelog.md`.
+và khu phố xung quanh. Chơi được bằng 6 ngôn ngữ: tiếng Việt, English, 简体中文, 日本語, 한국어, हिन्दी (Cài đặt → Ngôn ngữ, hoặc ngay ở màn hình mở đầu; thêm ngôn ngữ: xem `data/i18n/README.md`). Quảng cáo và nạp tiền: xem `docs/monetization.md`. Xem thay đổi trong `docs/changelog.md`.
 
 ## Chơi thử
 
@@ -25,13 +25,13 @@ và khu phố xung quanh. Chơi được bằng 6 ngôn ngữ: tiếng Việt, E
 | Phóng to, thu nhỏ | Lăn chuột |
 | Di chuyển camera | Kéo chuột phải hoặc chuột giữa, WASD, phím mũi tên |
 | Chọn máy hoặc công nhân | Bấm chuột trái |
-| Phóng to / thu nhỏ giao diện | Menu → A+ / A− |
-| Đồ họa Tự động / Thấp / Vừa / Cao | Menu → Đồ họa |
-| Đổi ngôn ngữ | Menu → Ngôn ngữ · Language |
+| Phóng to / thu nhỏ giao diện | Cài đặt → Cỡ chữ và nút |
+| Đồ họa Tự động / Thấp / Vừa / Cao | Cài đặt → Đồ họa |
+| Đổi ngôn ngữ | Cài đặt → Ngôn ngữ · Language, hoặc ở màn hình mở đầu |
 | Tạm dừng / tiếp tục | Space |
 | Hủy chế độ xây / bỏ chọn | Esc |
 
-Game tự lưu mỗi 30 giây, cuối mỗi ngày game và khi thoát hoặc chuyển ứng dụng, vào `user://saves/slot_1.json` (kèm bản dự phòng `slot_1.bak.json`; bản web lưu thêm vào bộ nhớ trình duyệt). Menu → Sao lưu / chuyển máy khác cho mã lưu để chơi tiếp ở máy khác
+Game tự lưu mỗi 30 giây, cuối mỗi ngày game và khi thoát hoặc chuyển ứng dụng, vào `user://saves/slot_1.json` (kèm bản dự phòng `slot_1.bak.json`; bản web lưu thêm vào bộ nhớ trình duyệt). Cài đặt → Sao lưu / chuyển máy khác cho mã lưu để chơi tiếp ở máy khác
 (trên Windows: `%APPDATA%\Godot\app_userdata\Factory Tycoon 3D\saves\`).
 
 ## Kiểm thử

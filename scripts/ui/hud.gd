@@ -24,7 +24,10 @@ var _finished: Label
 var _alert: Button
 var _strike_alert: Button
 var _build_status: Label
-var _menu: MenuButton
+var _settings_button: Button
+var _settings: SettingsPanel
+var _title: TitleScreen
+var _load_reported := false
 var _ui_scale := 1.0
 var _speed_buttons: Array[Button] = []
 var _nav_buttons := {}
@@ -52,8 +55,6 @@ var _bar: PanelContainer
 var _touch: Control
 
 const SETTINGS_PATH := "user://settings.cfg"
-## Menu ids: Auto, then one per graphics level.
-const GRAPHICS_ITEM := 10
 
 
 func _ready() -> void:
@@ -73,7 +74,16 @@ func _ready() -> void:
 	get_viewport().size_changed.connect(_relayout)
 	_relayout.call_deferred()
 	EventBus.toast.connect(show_toast)
-	_report_load.call_deferred()
+	_settings = SettingsPanel.new(self)
+	add_child(_settings)
+	_title = TitleScreen.new(self)
+	add_child(_title)
+	if _wants_title():
+		_title.open()
+		move_child(_toasts, -1)
+		_update_help.call_deferred()
+	else:
+		_report_load.call_deferred()
 	EventBus.branch_visit_requested.connect(func(_id):
 		if _current != "":
 			toggle_panel(_current))
@@ -174,7 +184,7 @@ func _process(delta: float) -> void:
 
 ## Hides the least important figures, one at a time, when the top bar would
 ## run off the screen (a narrow phone, big text, a long company name), so
-## the speed buttons and the Menu always stay on screen.
+## the speed buttons and Cài đặt always stay on screen.
 func _fit_top_bar() -> void:
 	var optional: Array[Label] = [_raw, _finished, _rep, _tier]  # most important first
 	for l in optional:
@@ -238,37 +248,9 @@ func _build_top_bar() -> void:
 		b.tooltip_text = tr("Tạm dừng (Space)") if sp == 0 else tr("Tốc độ x%d") % sp
 		speeds.add_child(b)
 		_speed_buttons.append(b)
-	_menu = MenuButton.new()
-	_menu.text = tr("Menu")
-	_menu.flat = false
-	_menu.focus_mode = Control.FOCUS_NONE
-	var pm := _menu.get_popup()
-	pm.add_theme_font_size_override("font_size", 18)
-	pm.add_item(tr("Chữ to hơn (A+)"), 0)
-	pm.add_item(tr("Chữ nhỏ hơn (A−)"), 1)
-	pm.add_separator(tr("Đồ họa (máy yếu chọn Thấp)"))
-	pm.add_radio_check_item(tr("Tự động"), GRAPHICS_ITEM)
-	for i in Graphics.NAMES.size():
-		pm.add_radio_check_item(tr(Graphics.NAMES[i]), GRAPHICS_ITEM + 1 + i)
-	pm.about_to_popup.connect(_update_graphics_items)
-	pm.about_to_popup.connect(_update_save_item)
-	pm.add_separator()
-	var langs := PopupMenu.new()
-	langs.add_theme_font_size_override("font_size", 18)
-	for i in I18n.languages.size():
-		langs.add_radio_check_item(I18n.languages[i][1], i)
-		langs.set_item_checked(i, I18n.languages[i][0] == I18n.current())
-	langs.id_pressed.connect(func(i): _change_language(I18n.languages[i][0]))
-	# "Language" stays in English too, so anyone can find the way back.
-	var lang_title := tr("Ngôn ngữ")
-	if lang_title != "Language":
-		lang_title += " · Language"
-	pm.add_submenu_node_item(lang_title, langs)
-	pm.add_item(tr("Lưu game"), 2)
-	pm.add_item(tr("Sao lưu / chuyển máy khác"), 4)
-	pm.add_item(tr("Chơi lại từ đầu"), 3)
-	pm.id_pressed.connect(_on_menu)
-	h.add_child(_menu)
+	_settings_button = UiTheme.button(tr("Cài đặt"), func(): open_settings())
+	_settings_button.tooltip_text = tr("Ngôn ngữ, đồ họa, cỡ chữ, lưu game")
+	h.add_child(_settings_button)
 	_confirm = ConfirmationDialog.new()
 	_confirm.title = tr("Chơi lại từ đầu?")
 	_confirm.dialog_text = tr("Tiến trình hiện tại sẽ bị xóa. Kim cương và quản lý cấp cao được giữ lại.")
@@ -283,26 +265,6 @@ func _build_top_bar() -> void:
 	add_child(_save_dialog)
 
 
-func _on_menu(id: int) -> void:
-	match id:
-		0:
-			set_ui_scale(_ui_scale + 0.1)
-		1:
-			set_ui_scale(_ui_scale - 0.1)
-		2:
-			var saved := SaveManager.save_game()
-			show_toast(tr("Đã lưu game.") if saved else tr("Không lưu được! Thử Menu → Sao lưu để giữ mã lưu."), saved)
-		4:
-			_save_dialog.open()
-		3:
-			_confirm.popup_centered()
-		_:
-			if id >= GRAPHICS_ITEM:
-				var g: Graphics = get_tree().current_scene.get_node("Graphics")
-				g.set_tier(id - GRAPHICS_ITEM - 1)
-				show_toast(tr("Đồ họa: %s%s") % [tr("Tự động – ") if Graphics.auto else "", tr(Graphics.NAMES[Graphics.tier])], true)
-
-
 ## Saves, switches language and rebuilds the scene so every text, panel and
 ## 3D sign comes back in the new language. The game carries on where it was.
 func _change_language(code: String) -> void:
@@ -314,14 +276,44 @@ func _change_language(code: String) -> void:
 	get_tree().reload_current_scene.call_deferred()
 
 
-## "Lưu game" says when the game last saved itself.
-func _update_save_item() -> void:
-	var pm := _menu.get_popup()
-	var text := tr("Lưu game")
-	if SaveManager.last_saved > 0.0:
-		var ago := int(Time.get_unix_time_from_system() - SaveManager.last_saved)
-		text += tr(" (tự lưu %s trước)") % (tr("%d giây") % ago if ago < 60 else tr("%d phút") % (ago / 60))
-	pm.set_item_text(pm.get_item_index(2), text)
+## Cài đặt, from the top bar or (from_title) over the title screen.
+func open_settings(from_title := false) -> void:
+	_settings.open(from_title)
+	move_child(_settings, -1)
+	move_child(_toasts, -1)
+
+
+## Back to the title screen (Cài đặt → Màn hình chính).
+func show_title() -> void:
+	if _current != "":
+		toggle_panel(_current)
+	EventBus.selection_changed.emit("", 0)
+	_title.open()
+	move_child(_title, -1)
+	move_child(_toasts, -1)
+	_update_help()
+
+
+## Called by the title screen when the player goes into the game: the
+## notes about how the save loaded are shown once, the first time.
+func title_closed(new_game: bool) -> void:
+	_update_help()
+	if not _load_reported:
+		_load_reported = true
+		if new_game:
+			SaveManager.load_note = ""
+		_report_load()
+
+
+## The title screen shows when the game opens, not after a language change
+## mid-game, and never in the automated tests and screenshots.
+func _wants_title() -> bool:
+	if TitleScreen.dismissed:
+		return false
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--smoke-test") or a.begins_with("--screenshot"):
+			return false
+	return true
 
 
 ## Tells the player how the game started from the save, once the HUD is up.
@@ -336,16 +328,7 @@ func _report_load() -> void:
 		"newer":
 			show_toast(tr("File lưu đến từ bản game mới hơn nên không mở được. Hãy cập nhật game; file cũ vẫn được giữ."), false)
 	if not SaveManager.storage_is_persistent():
-		show_toast(tr("Trình duyệt này không giữ dữ liệu sau khi đóng trang. Vào Menu → Sao lưu để giữ mã lưu."), false)
-
-
-## Ticks the graphics level in the menu; on Auto it also names the level in use.
-func _update_graphics_items() -> void:
-	var pm := _menu.get_popup()
-	for i in 4:
-		var idx := pm.get_item_index(GRAPHICS_ITEM + i)
-		pm.set_item_checked(idx, (i == 0) == Graphics.auto and (i == 0 or i - 1 == Graphics.tier))
-	pm.set_item_text(pm.get_item_index(GRAPHICS_ITEM), tr("Tự động (%s)") % tr(Graphics.NAMES[Graphics.tier]) if Graphics.auto else tr("Tự động"))
+		show_toast(tr("Trình duyệt này không giữ dữ liệu sau khi đóng trang. Vào Cài đặt → Sao lưu để giữ mã lưu."), false)
 
 
 ## Scales the whole interface (and the 3D labels stay as they are).
@@ -487,7 +470,7 @@ func toggle_panel(id: String) -> void:
 
 func _update_help() -> void:
 	if _help:
-		_help.visible = _current == "" and not _selection.visible
+		_help.visible = _current == "" and not _selection.visible and not (_title and _title.visible)
 
 
 func _build_tutorial() -> void:

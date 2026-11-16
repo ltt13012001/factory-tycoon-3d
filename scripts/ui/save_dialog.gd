@@ -1,4 +1,4 @@
-## Menu → Sao lưu / chuyển máy: shows the save as a text code to copy (and,
+## Cài đặt → Sao lưu / chuyển máy: shows the save as a text code to copy (and,
 ## in the browser, a file to download), and takes a pasted code to continue
 ## a game from another device or browser.
 class_name SaveDialog

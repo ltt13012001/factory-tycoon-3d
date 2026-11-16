@@ -20,7 +20,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 VN = re.compile('[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđĐ'
                 'ÀÁẠẢÃÂẦẤẬẨẪĂẰẮẶẲẴÈÉẸẺẼÊỀẾỆỂỄÌÍỊỈĨÒÓỌỎÕÔỒỐỘỔỖƠỜỚỢỞỠÙÚỤỦŨƯỪỨỰỬỮỲÝỴỶỸ]')
 # Texts without Vietnamese letters that still need a translation.
-EXTRA = ["Menu", "Kho %d/%d", "Trong kho", "Mua %d %s", "Mua %s", "Doanh thu", "Cao",
+EXTRA = ["Kho %d/%d", "Trong kho", "Mua %d %s", "Mua %s", "Doanh thu", "Cao",
          "< Xoay", "Xoay >", "Mexico", "Indonesia", "tr", "Ngôn ngữ", "X", " (tua ×%d)", "Xem", "+ Kho"]
 # Literals in these calls are for developers, not players.
 SKIP = ("push_error", "push_warning", "print(", "printerr", "assert(")

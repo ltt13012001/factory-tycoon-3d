@@ -9,7 +9,7 @@ không có tài khoản và không yêu cầu đăng nhập.
 
 - Tiến trình chơi (kể cả kim cương) chỉ được lưu trong bộ nhớ của ứng dụng
   trên thiết bị của bạn. Xóa ứng dụng là xóa luôn dữ liệu này.
-- Mã lưu (Menu → Sao lưu / chuyển máy khác) chỉ được tạo khi bạn bấm, và chỉ
+- Mã lưu (Cài đặt → Sao lưu / chuyển máy khác) chỉ được tạo khi bạn bấm, và chỉ
   được chép vào bộ nhớ tạm (clipboard) của máy bạn.
 - Trò chơi không dùng camera, micro, vị trí chính xác, danh bạ hay ảnh.
 

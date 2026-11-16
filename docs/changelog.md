@@ -1,8 +1,14 @@
 # Changelog
 
-## 0.13.0 – Nhiều ngôn ngữ
+## 0.13.0 – Nhiều ngôn ngữ, màn hình mở đầu, bảng Cài đặt
 
-- Chọn ngôn ngữ ở **Menu → Ngôn ngữ · Language**: tiếng Việt, English,
+- **Màn hình mở đầu** khi mở game: tên game, ván đang chơi (ngày, quy mô,
+  tiền), nút Chơi tiếp, Chơi mới, Cài đặt và hàng nút chọn ngôn ngữ. Game tạm
+  dừng tới khi vào chơi. Quay lại bằng Cài đặt → Màn hình chính.
+- Nút **Menu** đổi thành **Cài đặt**, mở một bảng gom mọi tùy chọn: ngôn ngữ,
+  đồ họa, cỡ chữ và nút, lưu game, sao lưu / chuyển máy, về màn hình chính,
+  chơi lại từ đầu, kèm số phiên bản.
+- Chọn ngôn ngữ ở **Cài đặt → Ngôn ngữ · Language**: tiếng Việt, English,
   简体中文, 日本語, 한국어, हिन्दी. Đổi ngôn ngữ thì game tự lưu rồi dựng lại màn
   hình, chơi tiếp ngay chỗ cũ.
 - Lần đầu mở game chọn theo ngôn ngữ của máy (không có thì tiếng Anh); người

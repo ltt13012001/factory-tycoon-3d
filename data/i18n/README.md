@@ -1,7 +1,7 @@
 # Bản dịch / Translations
 
 Game viết bằng tiếng Việt. Mỗi file ở đây là một ngôn ngữ khác: nó ánh xạ
-câu tiếng Việt gốc sang bản dịch. Menu → Ngôn ngữ tự liệt kê mọi file.
+câu tiếng Việt gốc sang bản dịch. Cài đặt → Ngôn ngữ và màn hình mở đầu tự liệt kê mọi file.
 
 ```json
 {

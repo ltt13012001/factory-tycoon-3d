@@ -414,16 +414,18 @@ func _lang_shots(hud: Node) -> void:
 	await get_tree().create_timer(0.6).timeout
 	await _shot("56_%s_report" % lang)
 	hud.find_child("DailyReport", true, false).visible = false
-	var menu: MenuButton = hud._menu
-	menu.show_popup()
-	await get_tree().create_timer(0.4).timeout
-	var pm := menu.get_popup()
-	for i in pm.item_count:
-		if pm.get_item_submenu_node(i) != null:
-			pm.set_focused_item(i)
-			pm.get_item_submenu_node(i).popup(Rect2i(Vector2i(pm.position) + Vector2i(-pm.size.x - 4, 0) + Vector2i(0, 0), Vector2i.ZERO))
-	await get_tree().create_timer(0.4).timeout
-	await _shot("57_%s_menu" % lang)
+	hud.open_settings()
+	await get_tree().create_timer(0.5).timeout
+	await _shot("57_%s_settings" % lang)
+	hud._settings.close()
+	hud.show_title()
+	await get_tree().create_timer(0.5).timeout
+	await _shot("58_%s_title" % lang)
+	hud.open_settings(true)
+	await get_tree().create_timer(0.5).timeout
+	await _shot("59_%s_title_settings" % lang)
+	hud._settings.close()
+	hud._title.close()
 
 
 func _shot(name: String) -> void:
