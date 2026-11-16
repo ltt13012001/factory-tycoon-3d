@@ -7,6 +7,8 @@ var _dir := ""
 var _sites_only := false
 ## --screenshot-branches[=id,id]: only the branches in their scenery (0.10).
 var _branches := ""
+## --screenshot-diamonds: only the diamonds, quests and ads shots (0.11).
+var _diamonds_only := false
 
 
 func _ready() -> void:
@@ -15,6 +17,8 @@ func _ready() -> void:
 			_dir = a.trim_prefix("--screenshot=")
 		if a == "--screenshot-sites":
 			_sites_only = true
+		if a == "--screenshot-diamonds":
+			_diamonds_only = true
 		if a.begins_with("--screenshot-branches"):
 			_branches = a.trim_prefix("--screenshot-branches").trim_prefix("=")
 			if _branches == "":
@@ -53,6 +57,10 @@ func _run() -> void:
 		return
 	if _sites_only:
 		await _site_shots(hud)
+		get_tree().quit()
+		return
+	if _diamonds_only:
+		await _diamond_shots(hud)
 		get_tree().quit()
 		return
 	await _shot("01_factory")
@@ -254,6 +262,8 @@ func _branch_shots(hud: Node) -> void:
 			sim.buy_line(id)
 		sim.automate_site(id)
 		sim.automate_site(id)
+		# Factory workers on every line; in Đà Nẵng only half of them yet.
+		sim.hire_branch_workers(id, sim.expansion.workers_needed(sim.expansion.site(id)) / 2 if id == "da_nang" else 0)
 	sim.state.tick = sim.day() * sim.config.ticks_per_day + (10 - sim.config.day_start_hour) * sim.config.ticks_per_hour
 	TimeManager.set_speed(1)
 	for id in ids:
@@ -284,6 +294,21 @@ func _branch_shots(hud: Node) -> void:
 			await _shot("35_branch_%s_evening" % id)
 			sim.state.tick -= 8 * sim.config.ticks_per_hour
 			rig._yaw_target = 45.0
+	# A branch's card in the expansion panel: its factory workers.
+	EventBus.branch_visit_requested.emit("da_nang")
+	EventBus.camera_focus_requested.emit(BranchView.ORIGIN + Vector3(-10, 0, -4), 0.0)
+	rig._size_target = 30.0
+	hud.toggle_panel("expansion")
+	await get_tree().create_timer(1.0).timeout
+	var panel: Control = hud._panels["expansion"]
+	var scroll: ScrollContainer = panel.find_children("*", "ScrollContainer", true, false)[0]
+	for lab in panel.find_children("*", "Label", true, false):
+		if lab.text == "Chi nhánh Đà Nẵng":
+			scroll.scroll_vertical = int(lab.global_position.y - scroll.global_position.y) + scroll.scroll_vertical - 20
+			break
+	await get_tree().create_timer(1.0).timeout
+	await _shot("37_branch_workers_panel")
+	hud.toggle_panel("expansion")
 	var frames := Engine.get_frames_drawn()
 	var t0 := Time.get_ticks_msec()
 	await get_tree().create_timer(3.0).timeout
@@ -371,3 +396,44 @@ func _shot(name: String) -> void:
 	var img := get_viewport().get_texture().get_image()
 	img.save_png(_dir.path_join(name + ".png"))
 	print("saved ", name)
+
+
+## Diamonds, quests, senior managers, the shop and the opt-in ads (0.11).
+func _diamond_shots(hud: Node) -> void:
+	var sim := GameManager.sim
+	var list := sim.quests.daily()
+	list[0].progress = list[0].target
+	sim.claim_daily_quest(0)
+	list[1].progress = list[1].target
+	sim.diamonds.earn(400, "gift")
+	sim.recruit_senior("productivity_expert")
+	sim.recruit_senior("negotiator")
+	sim.buy_boost()
+	hud.toggle_panel("quests")
+	await get_tree().create_timer(0.8).timeout
+	await _shot("40_quests")
+	hud.toggle_panel("diamonds")
+	await get_tree().create_timer(0.8).timeout
+	await _shot("41_diamonds_shop")
+	var scroll: ScrollContainer = hud._panels["diamonds"].find_children("*", "ScrollContainer", true, false)[0]
+	scroll.scroll_vertical = 620
+	await get_tree().create_timer(0.5).timeout
+	await _shot("42_senior_managers")
+	scroll.scroll_vertical = 100000
+	await get_tree().create_timer(0.5).timeout
+	await _shot("43_diamond_uses")
+	hud.toggle_panel("diamonds")
+	var m: Dictionary = sim.state.machines[0]
+	m.broken = true
+	m.condition = 0
+	EventBus.selection_changed.emit("machine", m.id)
+	await get_tree().create_timer(0.8).timeout
+	await _shot("44_instant_repair")
+	EventBus.selection_changed.emit("", 0)
+	EventBus.report_requested.emit(sim.state.reports[-1])
+	await get_tree().create_timer(0.8).timeout
+	await _shot("45_report_ad")
+	hud.find_child("DailyReport", true, false).visible = false
+	Monetization.watch("diamonds")
+	await get_tree().create_timer(1.2).timeout
+	await _shot("46_demo_ad")

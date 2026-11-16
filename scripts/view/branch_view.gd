@@ -122,15 +122,15 @@ func _process(delta: float) -> void:
 	_update_bar(GameManager.sim)
 
 
-## Rebuilds the compound when what it shows changed (status, lines, head,
-## automation, building progress in steps of 10%).
+## Rebuilds the compound when what it shows changed (status, lines, workers,
+## head, automation, building progress in steps of 10%).
 func _refresh(sim: Simulation) -> void:
 	var l: LocationDef = sim.content.locations[current]
 	var s := sim.expansion.site(current)
 	var progress := 0
 	if not s.is_empty() and int(s.total_ticks) > 0:
 		progress = (100 - int(s.ticks_left) * 100 / int(s.total_ticks)) / 10
-	var sig := "none" if s.is_empty() else "%s|%d|%d|%s|%d" % [s.status, s.lines, s.automation, s.head, progress]
+	var sig := "none" if s.is_empty() else "%s|%d|%d|%d|%s|%d" % [s.status, s.lines, s.automation, int(s.get("workers", 0)), s.head, progress]
 	if sig != _sig:
 		_sig = sig
 		_compound.build(sim, l, s)
@@ -184,7 +184,7 @@ func _update_bar(sim: Simulation) -> void:
 	if s.is_empty():
 		_sub.text = "%s · chưa mở chi nhánh" % where
 	elif s.status == ExpansionManager.READY:
-		_sub.text = "%s · %d dây chuyền · %s" % [where, int(s.lines), "đang sản xuất" if s.head != "" else "chưa có giám đốc"]
+		_sub.text = "%s · %d dây chuyền · %d công nhân · %s" % [where, int(s.lines), sim.expansion.workers(s), "đang sản xuất" if s.head != "" else "chưa có giám đốc"]
 	else:
 		_sub.text = "%s · %s" % [where, {"surveying": "đang khảo sát", "surveyed": "đã khảo sát", "land": "đã có đất", "building": "đang xây dựng"}.get(s.status, "")]
 

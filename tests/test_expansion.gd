@@ -92,6 +92,49 @@ func test_branch_earns_only_with_head() -> void:
 	check(r.ledger_ok, "ledger balanced")
 
 
+func test_branch_factory_workers() -> void:
+	var sim := _rich_sim()
+	sim.state.company_tier = 1
+	var l: LocationDef = sim.content.locations["binh_duong"]
+	check(not sim.hire_branch_workers("binh_duong").ok, "no workers before the branch opens")
+	sim.expand("binh_duong")
+	sim.advance_ticks(l.survey_hours * sim.config.ticks_per_hour)
+	sim.expand("binh_duong")
+	sim.advance_ticks(l.build_hours * sim.config.ticks_per_hour)
+	var ex := sim.expansion
+	var s := ex.site("binh_duong")
+	s.market = 100
+	check(not sim.hire_branch_workers("binh_duong").ok, "no workers before a line")
+	for i in 3:
+		sim.buy_line("binh_duong")
+	sim.hire_site_head("binh_duong")
+	check_eq(ex.daily_income(s), 3 * l.line_profit_per_day, "machines alone")
+	var cost_before := ex.daily_cost(s)
+	var cash := sim.state.cash
+	check(sim.hire_branch_workers("binh_duong", 2).ok, "hire a crew")
+	check_eq(sim.state.cash, cash - 2 * ex.worker_hire_fee(l), "hire fee paid")
+	check_eq(ex.staffed_lines(s), 1, "one line staffed")
+	check_eq(ex.daily_income(s), 3 * l.line_profit_per_day + l.line_profit_per_day * ExpansionManager.CREW_PROFIT_PERCENT / 100, "staffed line earns more")
+	check_eq(ex.daily_cost(s), cost_before + 2 * ex.worker_wage(l), "wages in costs")
+	check(sim.hire_branch_workers("binh_duong", 0).ok, "hire the rest")
+	check_eq(ex.workers(s), 6, "two per line")
+	check(not sim.hire_branch_workers("binh_duong").ok, "no more than needed")
+	# Automation level 2 needs one worker per line; the extra ones can go.
+	sim.automate_site("binh_duong")
+	sim.automate_site("binh_duong")
+	check_eq(ex.workers_needed(s), 3, "smaller crews")
+	check(sim.fire_branch_workers("binh_duong", 0).ok, "let the extra go")
+	check_eq(ex.workers(s), 3, "three left")
+	check_eq(ex.staffed_lines(s), 3, "still all staffed")
+	check(not sim.hire_branch_workers("lot_2").ok, "factories next door hire in the staff panel")
+	# Saved and loaded with the game.
+	var b := blank_sim()
+	check(b.load_json(sim.to_json()), "load")
+	check_eq(b.expansion.workers(b.expansion.site("binh_duong")), 3, "workers survive a save")
+	sim.advance_ticks(sim.config.ticks_per_day - sim.state.tick % sim.config.ticks_per_day)
+	check(sim.state.reports[-1].ledger_ok, "ledger balanced")
+
+
 func _build_lot_2(sim: Simulation) -> void:
 	_fill_first_factory(sim)
 	check(sim.expand("lot_2").ok, "buy land")

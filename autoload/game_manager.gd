@@ -23,8 +23,14 @@ func _exit_tree() -> void:
 
 
 func new_game() -> void:
+	# Diamonds (possibly paid for) and senior managers stay with the player.
+	var keep := {}
+	for f in ["diamonds", "diamond_stats", "seniors", "iap_log", "ads"]:
+		keep[f] = sim.state.get(f)
 	SaveManager.delete_save()
 	sim.new_game(randi())
+	for f in keep:
+		sim.state.set(f, keep[f])
 	TimeManager.set_speed(1)
 
 
@@ -76,6 +82,16 @@ func expand(location_id: String) -> Dictionary: return command(sim.expand(locati
 func buy_line(location_id: String) -> Dictionary: return command(sim.buy_line(location_id))
 func automate_site(location_id: String) -> Dictionary: return command(sim.automate_site(location_id))
 func hire_site_head(location_id: String) -> Dictionary: return command(sim.hire_site_head(location_id))
+func hire_branch_workers(location_id: String, count := 1) -> Dictionary: return command(sim.hire_branch_workers(location_id, count))
+func fire_branch_workers(location_id: String, count := 1) -> Dictionary: return command(sim.fire_branch_workers(location_id, count))
 func fire_site_head(location_id: String) -> Dictionary: return command(sim.fire_site_head(location_id))
 func hire_executive(id: String) -> Dictionary: return command(sim.hire_executive(id))
 func fire_executive(id: String) -> Dictionary: return command(sim.fire_executive(id))
+func recruit_senior(id: String) -> Dictionary: return command(sim.recruit_senior(id))
+func buy_boost() -> Dictionary: return command(sim.buy_boost())
+func staff_party() -> Dictionary: return command(sim.staff_party())
+func instant_repair(id: int) -> Dictionary: return command(sim.instant_repair(id))
+func rush(kind: String, id: String) -> Dictionary: return command(sim.rush(kind, id))
+func exchange_diamonds() -> Dictionary: return command(sim.exchange_diamonds())
+func claim_daily_quest(index: int) -> Dictionary: return command(sim.claim_daily_quest(index))
+func claim_milestone(id: String) -> Dictionary: return command(sim.claim_milestone(id))

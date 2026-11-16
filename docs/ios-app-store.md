@@ -11,17 +11,20 @@ Developer**, vì Apple chỉ cho ký và tải ứng dụng lên từ đó.
 |---|---|
 | Tên hiển thị | Factory Tycoon 3D |
 | Mã gói (Bundle ID) | `com.ltt13012001.factorytycoon3d` |
-| Phiên bản / số build | 0.10.0 / 10 |
+| Phiên bản / số build | 0.11.0 / 11 |
 | Thiết bị | iPhone và iPad, iOS 14 trở lên, chỉ màn hình ngang |
 | Icon | `assets/icon.png` 1024×1024, không có nền trong suốt (đúng yêu cầu Apple) |
 | Màn hình khởi động | Nền xanh đậm của game |
 | Mã hóa (Export Compliance) | `ITSAppUsesNonExemptEncryption = NO`, không phải khai báo thêm |
-| Privacy manifest | `PrivacyInfo.xcprivacy` do Godot tạo, không theo dõi người dùng |
+| Privacy manifest | `PrivacyInfo.xcprivacy` do Godot tạo, không theo dõi người dùng (SDK AdMob mang privacy manifest riêng) |
 | Ký app | Tự động (Automatic), chỉ cần chọn Team trong Xcode |
 | Chính sách quyền riêng tư | `docs/privacy-policy.md` |
 
-Game không dùng mạng, quảng cáo, tài khoản, camera hay vị trí, nên phần khai
-báo với Apple rất đơn giản.
+Từ bản 0.11 game có **quảng cáo có thưởng (AdMob) và nạp kim cương (Apple
+In-App Purchase)**. Các bước cài plugin, tạo sản phẩm trên App Store Connect
+và khai báo quyền riêng tư (App Privacy) cho phần này nằm ở
+`docs/monetization.md`; làm xong phần đó trước khi gửi duyệt. Game không dùng
+tài khoản, camera hay vị trí.
 
 ## Bước 1: Đăng ký Apple Developer Program (một lần)
 
@@ -107,7 +110,8 @@ thành 0.10.0 cho khớp, hoặc dùng 1.0 cho lần ra mắt; khi đó sửa
   > - Quản lý nhân sự: lương, ca làm, tăng ca, tâm trạng, và cả đình công nếu bạn ép quá.
   > - Mở rộng: tăng tốc dây chuyền, xây thêm nhà máy bên cạnh, mở chi nhánh từ
   >   Bình Dương, Hải Phòng, Đà Nẵng, Hạ Long tới nước ngoài.
-  > - Chơi hoàn toàn offline, không quảng cáo, không thu thập dữ liệu.
+  > - Nhiệm vụ hằng ngày và thành tựu thưởng kim cương; chiêu mộ quản lý cấp cao.
+  > - Chơi offline được. Quảng cáo chỉ hiện khi bạn bấm xem để nhận thưởng.
   > - Điều khiển cảm ứng: kéo, chụm để phóng to, xoay hai ngón.
 
 - Support URL: `https://github.com/ltt13012001/factory-tycoon-3d/issues`
@@ -120,14 +124,15 @@ thành 0.10.0 cho khớp, hoặc dùng 1.0 cho lần ra mắt; khi đó sửa
 - Price and Availability: **Free**, chọn các quốc gia muốn phát hành.
 
 **App Privacy** → Get Started → "Do you or your third-party partners collect
-data from this app?" → **No, we do not collect data from this app** → Publish.
+data from this app?" → **Yes** (AdMob), rồi khai đúng các loại dữ liệu ở
+`docs/monetization.md` mục 4.4 → Publish.
 
 **Age Rating**: trả lời bảng câu hỏi, game không có bạo lực, cờ bạc, nội dung
 người lớn hay chat với người lạ, nên chọn "None"/"No" hết. Kết quả dự kiến 4+.
 
 **App Review Information**: điền họ tên, số điện thoại, email. Không cần tài
 khoản demo. Ghi chú gợi ý:
-`Offline single-player factory management game. No login, no network, no in-app purchases. UI is in Vietnamese.`
+`Single-player factory game. Optional rewarded ads (player taps "Xem quảng cáo"). Diamonds are sold as consumable in-app purchases via Apple IAP in the Kim cương (diamond) panel, opened from the diamond button in the top bar. No login. UI is in Vietnamese.`
 
 ## Bước 7: Gửi duyệt
 

@@ -17,6 +17,8 @@ const TEXT_SCALE := 1.2
 
 static var _fonts := {}
 static var _grabber: Texture2D
+static var _diamonds := {}
+const DIAMOND := Color("6fd3ff")
 
 
 ## True on phones and tablets, including the web build opened on a touch
@@ -204,4 +206,64 @@ static func choice(options: Array, labels: Array, current, callback: Callable) -
 			b.add_theme_stylebox_override("normal", panel_style(ACCENT, 8, 12))
 			b.add_theme_color_override("font_color", Color.WHITE)
 		h.add_child(b)
+	return h
+
+
+## The diamond currency icon, drawn once per size (no emoji font needed).
+static func diamond_icon(px: int = 22) -> Texture2D:
+	px = roundi(px * TEXT_SCALE)
+	if _diamonds.has(px):
+		return _diamonds[px]
+	var img := Image.create(px, px, false, Image.FORMAT_RGBA8)
+	var w := float(px)
+	var top := w * 0.36  # the flat table of the gem
+	for y in px:
+		for x in px:
+			var p := Vector2(x + 0.5, y + 0.5) / w
+			var inside := false
+			var shade := 1.0
+			if p.y < 0.36 and p.y > 0.1:
+				# crown: trapezoid from 0.25..0.75 at the top to 0..1 at the girdle
+				var t := (p.y - 0.1) / 0.26
+				var half := lerpf(0.25, 0.5, t)
+				inside = absf(p.x - 0.5) <= half
+				shade = 1.15 if p.x < 0.5 else 0.95
+			elif p.y >= 0.36 and p.y < 0.94:
+				# pavilion: triangle down to the point
+				var half2 := 0.5 * (0.94 - p.y) / 0.58
+				inside = absf(p.x - 0.5) <= half2
+				shade = 0.85 if p.x < 0.5 else 0.7
+			if inside:
+				var c := DIAMOND * shade
+				img.set_pixel(x, y, Color(c.r, c.g, c.b, 1.0))
+	# a little shine
+	for i in maxi(1, px / 8):
+		var sx := int(w * 0.33) + i
+		var sy := int(top * 0.6)
+		if sx < px and sy < px:
+			img.set_pixel(sx, sy, Color.WHITE)
+	_diamonds[px] = ImageTexture.create_from_image(img)
+	return _diamonds[px]
+
+
+## A button that costs diamonds: the gem icon, then the text.
+static func diamond_button(text: String, callback: Callable, disabled: bool = false) -> Button:
+	var b := button(text, callback, disabled)
+	b.icon = diamond_icon(18)
+	b.expand_icon = false
+	b.alignment = HORIZONTAL_ALIGNMENT_LEFT  # gem and text together
+	return b
+
+
+## "120" with the gem in front, for amounts in rows.
+static func diamond_amount(amount: int, size: int = 15, color: Color = DIAMOND) -> HBoxContainer:
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 4)
+	var t := TextureRect.new()
+	t.texture = diamond_icon(size)
+	t.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
+	t.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	h.add_child(t)
+	h.add_child(label(Fmt.group(amount), size, color, true))
+	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return h

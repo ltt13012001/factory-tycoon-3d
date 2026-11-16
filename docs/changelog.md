@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.11.0 – Kim cương, nhiệm vụ, quản lý cấp cao, quảng cáo có thưởng, nạp tiền
+
+- Tiền tệ mới **kim cương** (ô kim cương trên thanh trên cùng). Game mới và
+  người chơi cũ cập nhật đều được tặng 30 kim cương.
+- **Nhiệm vụ**: 3 nhiệm vụ mỗi ngày game, mục tiêu theo quy mô xưởng, xong cả
+  3 thưởng thêm; 14 thành tựu một lần từ đơn hàng đầu tiên tới tập đoàn đa
+  quốc gia. Bảng Nhiệm vụ đếm số phần thưởng chờ nhận.
+- **Quản lý cấp cao** chiêu mộ bằng kim cương, 7 vị trí × 3 cấp, không lương:
+  máy nhanh hơn, hao mòn chậm hơn, nguyên liệu rẻ hơn, giá đơn cao hơn, nhân
+  viên vui hơn, kho rộng hơn, chi nhánh lãi hơn.
+- Dùng kim cương: tăng tốc sản xuất +50%, hoàn thành ngay công trình và
+  xưởng/chi nhánh đang xây, sửa máy ngay, liên hoan nhân viên (chấm dứt đình
+  công), đổi lấy tiền mặt.
+- **Quảng cáo có thưởng, chỉ khi người chơi bấm xem**: +5 kim cương, thưởng
+  thêm 20% doanh thu ở báo cáo cuối ngày, tăng tốc 2 giờ. Tối đa 12 lần mỗi
+  ngày, game tạm dừng khi quảng cáo chạy. Không có quảng cáo bật ngang.
+- **Nạp kim cương** qua Apple In-App Purchase / Google Play (4 gói). Kim
+  cương chỉ cộng một lần cho mỗi giao dịch, được lưu trước khi báo cửa hàng.
+- Kim cương và quản lý cấp cao được giữ khi chơi lại từ đầu.
+- Bản chạy từ Godot có quảng cáo thử và cửa hàng thử để kiểm tra không cần
+  tài khoản. Bản web, Windows không có quảng cáo và nạp tiền.
+- Phiên bản lưu 7 (tự chuyển từ file lưu cũ). Chính sách quyền riêng tư cập
+  nhật; hướng dẫn cài AdMob, App Store Connect: `docs/monetization.md`.
+
 ## 0.10.0 – Lưu game an toàn hơn, ghé thăm chi nhánh giữa cảnh quan thật
 
 Lưu game:

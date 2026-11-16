@@ -7,7 +7,7 @@ const CATEGORY_NAMES := {
 	"wages": "Lương", "rent": "Thuê đất", "power": "Tiền điện", "interest": "Lãi thấu chi",
 	"construction": "Xây dựng", "upgrade": "Nâng cấp máy", "repair": "Sửa máy",
 	"expansion": "Mở rộng", "branch_income": "Lãi xưởng, chi nhánh", "branch_cost": "Chi phí xưởng, chi nhánh",
-	"executives": "Lương ban lãnh đạo",
+	"executives": "Lương ban lãnh đạo", "diamonds": "Thưởng, đổi kim cương",
 }
 
 ## Taller reports scroll instead of running off small screens.
@@ -61,6 +61,8 @@ func show_report(r: Dictionary) -> void:
 		_row("Chi phí xưởng, chi nhánh khác", "-" + Fmt.money(st.branch_costs))
 	if int(st.get("exec_wages", 0)) > 0:
 		_row("Lương ban lãnh đạo", "-" + Fmt.money(st.exec_wages))
+	if int(st.get("bonus", 0)) > 0:
+		_row("Thưởng, đổi kim cương", "+" + Fmt.money(st.bonus), UiTheme.GOOD)
 	_row("Lợi nhuận", Fmt.money(r.profit), UiTheme.GOOD if r.profit >= 0 else UiTheme.BAD, true)
 	_section("Dòng tiền (tiền mặt thực thu, thực chi)")
 	_row("Tiền đầu ngày", Fmt.money(r.start_cash))
@@ -77,6 +79,7 @@ func show_report(r: Dictionary) -> void:
 		warn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		warn.custom_minimum_size.x = 400
 		_box.add_child(warn)
+	_ad_button(r)
 	_box.add_child(UiTheme.button("Tiếp tục", func(): visible = false))
 	visible = true
 	_fit.call_deferred()
@@ -105,3 +108,18 @@ func _row(left: String, right: String, color: Color = UiTheme.TEXT, bold: bool =
 	h.add_child(l)
 	h.add_child(UiTheme.label(right, 15 if bold else 14, color, bold))
 	_box.add_child(h)
+
+
+## Opt-in rewarded ad for a bonus on the day's sales (latest report only).
+func _ad_button(r: Dictionary) -> void:
+	var sim := GameManager.sim
+	if sim == null or sim.state.reports.is_empty() or int(sim.state.reports[-1].day) != int(r.day):
+		return
+	if not Monetization.can_watch("report", r):
+		return
+	var cash := sim.diamonds.report_bonus(r)
+	var b := UiTheme.button("Xem quảng cáo: thưởng thêm %s" % Fmt.money(cash), func():
+		visible = false
+		Monetization.watch("report", r))
+	b.add_theme_color_override("font_color", UiTheme.GOOD)
+	_box.add_child(b)

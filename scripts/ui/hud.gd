@@ -9,9 +9,13 @@ const PANELS := [
 	["build", "Xây dựng", preload("res://scripts/ui/build_panel.gd")],
 	["staff", "Nhân sự", preload("res://scripts/ui/staff_panel.gd")],
 	["expansion", "Mở rộng", preload("res://scripts/ui/expansion_panel.gd")],
+	["quests", "Nhiệm vụ", preload("res://scripts/ui/quests_panel.gd")],
+	["diamonds", "Kim cương", preload("res://scripts/ui/diamond_panel.gd")],
 ]
 
 var _cash: Label
+var _gems: Button
+var _boost_status: Label
 var _tier: Label
 var _rep: Label
 var _clock: Label
@@ -93,6 +97,8 @@ func _ready() -> void:
 	EventBus.site_opened.connect(func(d): show_toast(("%s đã xây xong! Vào Xây dựng để đặt máy, Nhân sự để tuyển công nhân cho xưởng." if str(d.id).begins_with("lot_") else "%s đã xây xong! Nhớ tuyển người quản lý và mua dây chuyền.") % d.name, true))
 	EventBus.site_surveyed.connect(func(d): show_toast("Khảo sát %s xong: sức mua %d%%." % [GameManager.sim.content.locations[d.id].display_name, d.market], true))
 	EventBus.strike_started.connect(func(_d): show_toast("Công nhân đình công vì lương thấp! Vào Nhân sự để tăng lương hoặc bớt tăng ca.", false))
+	EventBus.quest_completed.connect(func(d): show_toast("Xong nhiệm vụ: %s. Vào Nhiệm vụ để nhận kim cương." % d.text, true))
+	EventBus.boost_ended.connect(func(_d): show_toast("Hết thời gian tăng tốc sản xuất.", true))
 	EventBus.strike_ended.connect(func(_d): show_toast("Công nhân đã quay lại làm việc.", true))
 	EventBus.staff_unhappy.connect(func(_d): show_toast("Công nhân đang bất mãn với lương và giờ làm. Coi chừng đình công!", false))
 	EventBus.panel_requested.connect(func(id):
@@ -150,6 +156,16 @@ func _process(delta: float) -> void:
 	if ready > 0:
 		badge += "  %d giao được" % ready
 	_nav_buttons["orders"].text = "Đơn hàng" + badge
+	var claim := sim.quests.claimable()
+	_gems.text = Fmt.group(sim.diamonds.balance())
+	if claim > 0 and UiTheme.is_mobile():
+		_gems.text += "  %d ✓" % claim
+	_nav_buttons["quests"].text = "Nhiệm vụ" + ("  %d ✓" % claim if claim > 0 else "")
+	_nav_buttons["quests"].add_theme_color_override("font_color", UiTheme.GOOD if claim > 0 else UiTheme.TEXT)
+	var boost := sim.diamonds.boost_ticks_left()
+	_boost_status.visible = boost > 0 and not UiTheme.is_mobile()
+	if boost > 0:
+		_boost_status.text = "Tăng tốc +%d%%: còn %d giờ" % [DiamondManager.BOOST_PERCENT, ceili(float(boost) / sim.config.ticks_per_hour)]
 	var text := sim.tutorial.current_text()
 	_tutorial.visible = text != ""
 	_tutorial_label.text = text
@@ -197,7 +213,15 @@ func _build_top_bar() -> void:
 	_clock = UiTheme.label("", 16)
 	_raw = UiTheme.label("", 16)
 	_finished = UiTheme.label("", 16)
-	for l in [_cash, _tier, _rep, _clock, _raw, _finished]:
+	_gems = UiTheme.diamond_button("0", func():
+		if _current != "diamonds":
+			toggle_panel("diamonds"))
+	_gems.tooltip_text = "Kim cương: nhận từ nhiệm vụ, quảng cáo hoặc nạp"
+	_gems.add_theme_color_override("font_color", UiTheme.DIAMOND)
+	_gems.add_theme_font_override("font", UiTheme.font(600))
+	h.add_child(_cash)
+	h.add_child(_gems)
+	for l in [_tier, _rep, _clock, _raw, _finished]:
 		h.add_child(l)
 	_cash.mouse_filter = Control.MOUSE_FILTER_PASS  # exact amount in the tooltip
 	var spacer := Control.new()
@@ -236,7 +260,7 @@ func _build_top_bar() -> void:
 	h.add_child(_menu)
 	_confirm = ConfirmationDialog.new()
 	_confirm.title = "Chơi lại từ đầu?"
-	_confirm.dialog_text = "Tiến trình hiện tại sẽ bị xóa."
+	_confirm.dialog_text = "Tiến trình hiện tại sẽ bị xóa. Kim cương và quản lý cấp cao được giữ lại."
 	_confirm.ok_button_text = "Chơi lại"
 	_confirm.cancel_button_text = "Hủy"
 	_confirm.confirmed.connect(func():
@@ -343,6 +367,7 @@ func _relayout() -> void:
 	_compact = w < 1000
 	_top_bar.add_theme_constant_override("separation", 10 if _compact else 18)
 	_cash.add_theme_font_size_override("font_size", roundi((15 if _compact else 18) * UiTheme.TEXT_SCALE))
+	_gems.add_theme_font_size_override("font_size", roundi((14 if _compact else 16) * UiTheme.TEXT_SCALE))
 	for l in [_tier, _rep, _clock, _raw, _finished]:
 		l.add_theme_font_size_override("font_size", roundi((13 if _compact else 16) * UiTheme.TEXT_SCALE))
 	for b in _speed_buttons:
@@ -375,6 +400,10 @@ func _build_nav() -> void:
 		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		nav.add_child(b)
 		_nav_buttons[id] = b
+		# Phones have no room for more buttons on the left: the gem in the
+		# top bar opens Kim cương, which links to Nhiệm vụ.
+		if UiTheme.is_mobile() and id in ["quests", "diamonds"]:
+			b.visible = false
 		var panel: SidePanel = p[2].new()
 		panel.anchor_top = 0
 		panel.anchor_bottom = 1
@@ -410,6 +439,12 @@ func _build_nav() -> void:
 	_build_status.add_theme_stylebox_override("normal", UiTheme.panel_style(UiTheme.BG, 8, 8))
 	_build_status.visible = false
 	nav.add_child(_build_status)
+	_boost_status = UiTheme.label("", 15, UiTheme.DIAMOND)
+	_boost_status.custom_minimum_size.x = 170
+	_boost_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_boost_status.add_theme_stylebox_override("normal", UiTheme.panel_style(UiTheme.BG, 8, 8))
+	_boost_status.visible = false
+	nav.add_child(_boost_status)
 
 
 func _select_broken_machine() -> void:

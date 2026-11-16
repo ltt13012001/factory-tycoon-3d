@@ -11,7 +11,7 @@ const FIELDS := [
 	"ledger", "reports", "tutorial_step", "next_id", "name_index",
 	"total_revenue", "machines_bought", "buildings", "construction", "settings",
 	"order_spawn", "line_speed_level", "company_tier", "sites", "executives",
-	"strike",
+	"strike", "diamonds", "diamond_stats", "seniors", "quests", "boost", "ads", "iap_log",
 ]
 
 var tick: int = 0
@@ -71,6 +71,20 @@ var sites: Array = []
 var executives: Dictionary = {}
 ## {} or {since_tick} while the staff are on strike.
 var strike: Dictionary = {}
+## Premium currency (see DiamondManager) and its totals: earned_<source>, spent.
+var diamonds: int = 0
+var diamond_stats: Dictionary = {}
+## Senior managers recruited with diamonds: id -> {name, level}.
+var seniors: Dictionary = {}
+## {day, daily: [{kind, target, progress, claimed}], bonus_claimed,
+##  claimed: [achievement ids], shipped}
+var quests: Dictionary = {}
+## {} or {ticks_left} while the production boost runs.
+var boost: Dictionary = {}
+## Rewarded ads watched on the current real day: {date, count, diamonds, report_day}.
+var ads: Dictionary = {}
+## Store transactions already credited: {txn, product, diamonds, tick}.
+var iap_log: Array = []
 
 
 func finished_total() -> int:
