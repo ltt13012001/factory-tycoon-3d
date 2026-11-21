@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.15.0 – Mượt hơn trên iPad và điện thoại
+
+Hình ảnh giữ như bản 0.14, chỉ bớt phần việc thừa của card đồ họa:
+
+- **Chỉ vẽ phần trên màn hình**: cảnh quan, rừng, cỏ (cả ở nhà máy chính và
+  các chi nhánh) được chia thành từng ô 50–80 m; ô nằm ngoài màn hình hoặc
+  ngoài vùng đổ bóng được bỏ qua. Trước đây cả bản đồ (khoảng 530 nghìn tam
+  giác ở mức Vừa) được vẽ mọi khung hình dù chỉ thấy một góc.
+- **Màn hình Retina**: iPad có 4 đến 5,6 triệu điểm ảnh, gấp 2–3 lần điện
+  thoại. Trên điện thoại và máy tính bảng, thế giới 3D giờ vẽ tối đa khoảng
+  1,2 / 1,8 / 2,6 triệu điểm ảnh (Thấp / Vừa / Cao) rồi phóng lên vừa màn hình;
+  chữ và nút vẫn vẽ đủ độ phân giải. Ở mức Vừa, điện thoại
+  2400×1080 vẽ khoảng 83%, iPad 12,9 inch khoảng 57%.
+- Khử răng cưa 2× thay cho 4× ở mức Vừa trên điện thoại và máy tính bảng
+  (trên màn hình mật độ cao nhìn như nhau, card đồ họa đỡ gần một nửa việc).
+- Shader cỏ đọc độ gồ của cỏ từ một texture tính sẵn: 1 lần đọc thay vì 3.
+- Chế độ đồ họa **Tự động** trên điện thoại và máy tính bảng hạ mức khi tốc độ
+  dưới 40 khung hình/giây (trước là 22), không tính lúc game tạm dừng.
+- Công cụ đo hiệu năng: `-- --perf=/tmp/perf.json [--quality=medium]
+  [--mobile] [--perf-ablate]` in thời gian khung hình, số lệnh vẽ, số tam giác
+  cho từng mức đồ họa và góc camera.
+
 ## 0.14.0 – Cảnh quan chân thực hơn
 
 - **Đồi núi thật**: các gò tròn quanh nhà máy được thay bằng địa hình đồi lượn

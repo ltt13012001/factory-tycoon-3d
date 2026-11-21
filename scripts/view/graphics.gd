@@ -28,7 +28,11 @@ var _frames := 0
 var _seconds := 0.0
 var _slow := 0
 
+## Below this rate (two windows in a row) Auto steps the level down. Phones
+## and tablets aim for a smooth 60, so 40 there; a desktop steps down only
+## when it really struggles.
 const SLOW_FPS := 22.0
+const SLOW_FPS_HANDHELD := 40.0
 const WINDOW := 4.0
 
 ## Frame rate, to save battery and heat without looking any different.
@@ -50,6 +54,7 @@ var _focused := true
 
 func _ready() -> void:
 	var vp := get_viewport()
+	vp.size_changed.connect(_apply_resolution)
 	_msaa = vp.msaa_3d
 	_screen_aa = vp.screen_space_aa
 	_ssao = environment.ssao_enabled
@@ -71,6 +76,12 @@ func _ready() -> void:
 		auto = true
 		tier = detect()
 	apply()
+
+
+## Phone, tablet or browser (or a desktop previewing the phone build with
+## `-- --mobile`).
+static func is_handheld() -> bool:
+	return Palette.low_end()
 
 
 ## Best starting level for this device.
@@ -134,7 +145,7 @@ func set_tier(value: int, by_player := true) -> void:
 ## interface is drawn at full resolution on every level.
 func apply() -> void:
 	var web := OS.has_feature("web")
-	var handheld := web or OS.has_feature("mobile")
+	var handheld := is_handheld()
 	var vp := get_viewport()
 	sun.shadow_enabled = tier != LOW
 	if tier == HIGH or not web:
@@ -144,14 +155,12 @@ func apply() -> void:
 		# Browsers: one shadow map instead of a split one.
 		sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
 		sun.directional_shadow_max_distance = 90.0
-	match tier:
-		LOW:
-			vp.scaling_3d_scale = 0.6 if web else 0.75
-		MEDIUM:
-			vp.scaling_3d_scale = 0.75 if web else 1.0
-		_:
-			vp.scaling_3d_scale = 1.0
+	_apply_resolution()
 	vp.msaa_3d = _msaa if tier != LOW else Viewport.MSAA_DISABLED
+	if handheld and tier == MEDIUM:
+		# 4× edge smoothing costs a phone or tablet GPU nearly twice as much
+		# as 2×, which looks the same on a dense screen.
+		vp.msaa_3d = mini(vp.msaa_3d, Viewport.MSAA_2X)
 	if RenderingServer.get_current_rendering_method() != "gl_compatibility":
 		vp.screen_space_aa = _screen_aa if tier != LOW else Viewport.SCREEN_SPACE_AA_DISABLED
 	environment.glow_enabled = tier != LOW
@@ -159,6 +168,32 @@ func apply() -> void:
 	environment.ssao_enabled = _ssao and tier == HIGH
 	_stylize(web)
 	Engine.max_fps = fps_cap()
+
+
+## Most pixels the 3D view draws per frame on a phone or tablet, per level.
+## A Retina iPad has 4 to 5.6 million pixels, two to three times a phone, and
+## shading every one of them is what makes it lag and heat up. Above the
+## budget the world is drawn smaller and scaled up to the screen; the
+## interface is always drawn at the screen's full resolution. On Medium a
+## 2400×1080 phone draws the world at 83% (hardly visible at its density),
+## a 12.9-inch iPad at 57%.
+const HANDHELD_PIXELS := [1.2e6, 1.8e6, 2.6e6]
+
+
+## 3D resolution: the level's scale, capped by the pixel budget on phones
+## and tablets. Called again when the window changes size.
+func _apply_resolution() -> void:
+	var web := OS.has_feature("web")
+	var vp := get_viewport()
+	var scale: float = [0.6 if web else 0.75, 0.75 if web else 1.0, 1.0][tier]
+	if is_handheld():
+		var px := Vector2(DisplayServer.window_get_size())
+		var drawn := px.x * px.y * scale * scale
+		if drawn > HANDHELD_PIXELS[tier]:
+			scale *= sqrt(HANDHELD_PIXELS[tier] / drawn)
+	scale = clampf(snappedf(scale, 0.01), 0.4, 1.0)
+	# Bilinear: FSR would sharpen it but only exists in the desktop renderer.
+	vp.scaling_3d_scale = scale
 
 
 ## Stylized realism per level. Every level gets the same palette, the
@@ -190,7 +225,7 @@ func _stylize(web: bool) -> void:
 ## screen's own rate).
 func fps_cap() -> int:
 	var web := OS.has_feature("web")
-	var handheld := web or OS.has_feature("mobile")
+	var handheld := is_handheld()
 	if not _focused and not web:
 		return BACKGROUND_FPS
 	var cap := 0
@@ -241,7 +276,10 @@ func _process(delta: float) -> void:
 	var fps := _frames / _seconds
 	_frames = 0
 	_seconds = 0.0
-	_slow = _slow + 1 if fps < SLOW_FPS else 0
+	var slow := SLOW_FPS_HANDHELD if OS.has_feature("mobile") else SLOW_FPS
+	if cap > 0 and cap < slow * 1.2:
+		return  # held at a low rate on purpose (paused and idle)
+	_slow = _slow + 1 if fps < slow else 0
 	if _slow >= 2:
 		set_tier(tier - 1, false)
 		EventBus.toast.emit(tr("Đã giảm đồ họa xuống %s cho mượt hơn (đổi ở Menu).") % tr(NAMES[tier]), true)

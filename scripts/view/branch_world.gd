@@ -68,6 +68,11 @@ func _init() -> void:
 	_paving = Palette.surface("paving")
 	_rubber = Palette.surface("rubber")
 	_screen = Palette.surface("screen")
+	# Merged geometry split into cells so the parts off screen are skipped.
+	_b.chunk = 48.0
+	_flat.chunk = 64.0
+	_far.chunk = 80.0
+	_detail.chunk = 48.0
 	_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
 	_noise.frequency = 0.02
 	_noise.fractal_type = FastNoiseLite.FRACTAL_FBM

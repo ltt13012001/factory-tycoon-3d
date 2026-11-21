@@ -39,7 +39,7 @@ static var _grain: ImageTexture
 
 ## True on phones, tablets and in the browser: fewer decorative extras.
 static func low_end() -> bool:
-	return OS.has_feature("web") or OS.has_feature("mobile")
+	return OS.has_feature("web") or OS.has_feature("mobile") or "--mobile" in OS.get_cmdline_user_args()
 
 
 ## Shared vertex-coloured materials for MeshBatch geometry:

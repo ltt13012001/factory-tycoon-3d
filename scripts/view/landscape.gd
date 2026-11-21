@@ -20,6 +20,9 @@ extends RefCounted
 
 static var _noise: ImageTexture
 static var _waves: ImageTexture
+static var _bump: ImageTexture
+## Slopes are stored as 0.5 + slope * BUMP_SCALE in the bump texture.
+const BUMP_SCALE := 1.0
 static var _shaders := {}
 
 const COMMON := """
@@ -41,6 +44,8 @@ shader_type spatial;
 render_mode blend_mix, depth_draw_opaque, cull_back, diffuse_lambert_wrap, specular_schlick_ggx;
 %s
 uniform float cloud_shadow = 0.0;
+uniform sampler2D bump_tex : filter_linear_mipmap, repeat_enable;
+const float BUMP_SCALE = %s;
 
 void vertex() {
 	wpos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
@@ -73,11 +78,11 @@ void fragment() {
 	vec3 n = wnor;
 	if (quality > 0.5 && top) {
 		// A grassy bump: the slope of a fine noise tilts the normal.
-		vec2 q = p * (1.0 / 0.9);
-		float h0 = texture(noise_tex, q).a;
-		float hx = texture(noise_tex, q + vec2(0.012, 0.0)).a;
-		float hz = texture(noise_tex, q + vec2(0.0, 0.012)).a;
-		n = normalize(wnor + vec3(h0 - hx, 0.0, h0 - hz) * (2.2 + 2.0 * green));
+		// Height and slope come baked in one texture read (bump_texture).
+		vec3 bump = texture(bump_tex, p * (1.0 / 0.9)).rgb;
+		float h0 = bump.b;
+		vec2 slope = (bump.rg - 0.5) * (1.0 / BUMP_SCALE);
+		n = normalize(wnor + vec3(slope.x, 0.0, slope.y) * (2.2 + 2.0 * green));
 		col *= 0.9 + 0.2 * h0;
 		// Shadows of passing clouds, drifting with the wind.
 		float c = texture(noise_tex, (p + vec2(TIME * 1.2, TIME * 0.35)) * (1.0 / 150.0) + vec2(0.5, 0.2)).r;
@@ -204,7 +209,7 @@ static func material(kind: String) -> ShaderMaterial:
 	if not _shaders.has(kind):
 		var code: String = {"ground": GROUND, "foliage": FOLIAGE, "water": WATER}[kind]
 		var sh := Shader.new()
-		sh.code = code % COMMON
+		sh.code = code % ([COMMON, "%.3f" % BUMP_SCALE] if kind == "ground" else [COMMON])
 		_shaders[kind] = sh
 	var m := ShaderMaterial.new()
 	m.shader = _shaders[kind]
@@ -212,6 +217,8 @@ static func material(kind: String) -> ShaderMaterial:
 	m.set_shader_parameter("occlusion_tex", Palette.occlusion_texture())
 	if kind == "water":
 		m.set_shader_parameter("wave_tex", wave_texture())
+	if kind == "ground":
+		m.set_shader_parameter("bump_tex", bump_texture())
 	return m
 
 
@@ -266,6 +273,35 @@ static func noise_texture() -> ImageTexture:
 	img.generate_mipmaps()
 	_noise = ImageTexture.create_from_image(img)
 	return _noise
+
+
+## The grass bump of the ground shader baked from the A channel of the
+## noise texture: R and G hold the drop in height towards +x and +z over
+## three texels (the offset the shader used to sample three times), B the
+## height itself, so the shader reads one texel instead of three.
+static func bump_texture() -> ImageTexture:
+	if _bump:
+		return _bump
+	var src := noise_texture().get_image()
+	var size := src.get_width()
+	var data := src.get_data()  # level 0 comes first
+	var out := PackedByteArray()
+	out.resize(size * size * 4)
+	var d := 3
+	for y in size:
+		for x in size:
+			var h0 := data[(y * size + x) * 4 + 3] / 255.0
+			var hx := data[(y * size + (x + d) % size) * 4 + 3] / 255.0
+			var hz := data[(((y + d) % size) * size + x) * 4 + 3] / 255.0
+			var i := (y * size + x) * 4
+			out[i] = clampi(roundi((0.5 + (h0 - hx) * BUMP_SCALE) * 255.0), 0, 255)
+			out[i + 1] = clampi(roundi((0.5 + (h0 - hz) * BUMP_SCALE) * 255.0), 0, 255)
+			out[i + 2] = data[i + 3]
+			out[i + 3] = 255
+	var img := Image.create_from_data(size, size, false, Image.FORMAT_RGBA8, out)
+	img.generate_mipmaps()
+	_bump = ImageTexture.create_from_image(img)
+	return _bump
 
 
 ## Tileable ripple normals for water.

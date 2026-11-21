@@ -112,3 +112,5 @@ func _ready() -> void:
 	for a in args:
 		if a.begins_with("--screenshot="):
 			add_child(load("res://tests/screenshot_tool.gd").new())
+		if a.begins_with("--perf="):
+			add_child(load("res://tests/perf_probe.gd").new())
