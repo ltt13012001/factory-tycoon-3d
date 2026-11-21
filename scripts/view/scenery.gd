@@ -60,6 +60,10 @@ var _leaf: Material
 
 func _ready() -> void:
 	_rng.seed = 11
+	# Split the merged scenery into cells so the parts off screen are skipped.
+	_b.chunk = 48.0
+	_flat.chunk = 64.0
+	_far.chunk = 80.0
 	lamp_material = StandardMaterial3D.new()
 	lamp_material.albedo_color = Color("fff3c4")
 	lamp_material.emission_enabled = true
@@ -815,7 +819,7 @@ func _build_terrain() -> void:
 
 ## Woods on the hills: thick in patches, thinning out towards the
 ## meadows. Three kinds of tree, each drawn as one MultiMesh, so a forest
-## of hundreds costs three draw calls.
+## of hundreds costs a few draw calls, and only the cells on screen are drawn.
 func _build_forest() -> void:
 	var patches := FastNoiseLite.new()
 	patches.seed = 31
@@ -837,8 +841,9 @@ func _build_forest() -> void:
 	for k in kinds:
 		meshes.append(k.build_mesh())
 	var target := 450 if Palette.low_end() else 1500
-	var xforms: Array = [[], [], []]
-	var tints: Array = [[], [], []]
+	# Trees grouped by kind and by 80 m cell: a cell off screen is skipped.
+	var xforms := {}
+	var tints := {}
 	var tries := 0
 	var placed := 0
 	while placed < target and tries < target * 12:
@@ -853,19 +858,23 @@ func _build_forest() -> void:
 			continue
 		var kind := 1 if h > 13.0 and _rng.randf() < 0.7 else _rng.randi() % 3
 		var s := _rng.randf_range(0.9, 1.6)
-		xforms[kind].append(Transform3D(Basis(Vector3.UP, _rng.randf() * TAU).scaled(Vector3(s, s * _rng.randf_range(0.85, 1.2), s)), Vector3(x, h - 0.2, z)))
+		var key := Vector3i(kind, floori(x / 80.0), floori(z / 80.0))
+		if not xforms.has(key):
+			xforms[key] = []
+			tints[key] = []
+		xforms[key].append(Transform3D(Basis(Vector3.UP, _rng.randf() * TAU).scaled(Vector3(s, s * _rng.randf_range(0.85, 1.2), s)), Vector3(x, h - 0.2, z)))
 		var v := _rng.randf_range(0.82, 1.12)
-		tints[kind].append(Color(v * _rng.randf_range(0.95, 1.08), v, v * _rng.randf_range(0.85, 1.0)))
+		tints[key].append(Color(v * _rng.randf_range(0.95, 1.08), v, v * _rng.randf_range(0.85, 1.0)))
 		placed += 1
-	for k in 3:
+	for key in xforms:
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
 		mm.use_colors = true
-		mm.mesh = meshes[k]
-		mm.instance_count = xforms[k].size()
-		for i in xforms[k].size():
-			mm.set_instance_transform(i, xforms[k][i])
-			mm.set_instance_color(i, tints[k][i])
+		mm.mesh = meshes[key.x]
+		mm.instance_count = xforms[key].size()
+		for i in xforms[key].size():
+			mm.set_instance_transform(i, xforms[key][i])
+			mm.set_instance_color(i, tints[key][i])
 		var mmi := MultiMeshInstance3D.new()
 		mmi.multimesh = mm
 		# Far woods only cast shadows where shadows are cheap.
@@ -964,15 +973,29 @@ func _build_grass() -> void:
 		var s := _rng.randf_range(0.7, 1.6)
 		p.y = land_height(p.x, p.z) - 0.05
 		xforms.append(Transform3D(Basis(Vector3.UP, _rng.randf() * TAU).scaled(Vector3(s, s * _rng.randf_range(0.8, 1.3), s)), p))
-	mm.instance_count = xforms.size()
 	var greens := [Color("6aa04c"), Color("5c9442"), Color("7cab52"), Color("8aa850"), Color("4f8a3c")]
+	# One MultiMesh per 60 m cell, so off-screen tufts are skipped.
+	var cells := {}
 	for i in xforms.size():
-		mm.set_instance_transform(i, xforms[i])
-		mm.set_instance_color(i, greens[_rng.randi() % greens.size()])
-	var mmi := MultiMeshInstance3D.new()
-	mmi.multimesh = mm
-	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(mmi)
+		var key := Vector2i(floori(xforms[i].origin.x / 60.0), floori(xforms[i].origin.z / 60.0))
+		if not cells.has(key):
+			cells[key] = [[], []]
+		cells[key][0].append(xforms[i])
+		cells[key][1].append(greens[_rng.randi() % greens.size()])
+	var tuft_mesh := mm.mesh
+	for key in cells:
+		var cm := MultiMesh.new()
+		cm.transform_format = MultiMesh.TRANSFORM_3D
+		cm.use_colors = true
+		cm.mesh = tuft_mesh
+		cm.instance_count = cells[key][0].size()
+		for i in cm.instance_count:
+			cm.set_instance_transform(i, cells[key][0][i])
+			cm.set_instance_color(i, cells[key][1][i])
+		var mmi := MultiMeshInstance3D.new()
+		mmi.multimesh = cm
+		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(mmi)
 
 
 func _build_clouds() -> void:

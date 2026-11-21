@@ -311,7 +311,7 @@ func _wants_title() -> bool:
 	if TitleScreen.dismissed:
 		return false
 	for a in OS.get_cmdline_user_args():
-		if a.begins_with("--smoke-test") or a.begins_with("--screenshot"):
+		if a.begins_with("--smoke-test") or a.begins_with("--screenshot") or a.begins_with("--perf"):
 			return false
 	return true
 

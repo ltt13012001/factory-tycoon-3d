@@ -27,6 +27,12 @@ Vulkan tự chuyển sang OpenGL ES 3. Trên điện thoại tắt SSAO, bóng �
 bản đồ 2048 px và lọc mềm mức thấp để đỡ nóng máy và tốn pin. Máy tính vẫn
 dùng Forward+ như cũ.
 
+Từ bản 0.15, thế giới 3D trên điện thoại và máy tính bảng vẽ tối đa khoảng
+1,2 / 1,8 / 2,6 triệu điểm ảnh (Thấp / Vừa / Cao) rồi phóng lên vừa màn hình, nên iPad Retina không phải tô gấp 2–3 lần điện thoại; giao diện vẫn vẽ
+đủ độ phân giải. Mức Vừa dùng khử răng cưa 2×. Đo hiệu năng trên máy tính
+với nội dung bản di động:
+`godot --path . --rendering-method mobile -- --perf=/tmp/perf.json --mobile --quality=medium`.
+
 ## Android
 
 ### Cài file APK có sẵn

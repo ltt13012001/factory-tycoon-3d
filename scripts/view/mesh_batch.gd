@@ -22,7 +22,13 @@ static var _shapes := {}
 ## Optional transform applied to every shape added afterwards.
 var origin := Transform3D.IDENTITY
 
-## Material -> [Array of PackedVector3Array, normals likewise, Array of
+## Side of the square cells (metres, 0 = one cell) that build() splits the
+## merged geometry into. A cell entirely off screen, or outside the sun's
+## shadow area, is skipped by the renderer, which a single mesh spread over
+## the whole map never is. Shapes go to the cell of their centre.
+var chunk := 0.0
+
+## Cell -> Material -> [Array of PackedVector3Array, normals likewise, Array of
 ## PackedColorArray, Array of PackedVector2Array (occlusion)]. Kept as chunks and joined once in build(), because
 ## appending to a packed array stored in a Dictionary copies it every time.
 var _parts := {}
@@ -114,33 +120,56 @@ func is_empty() -> bool:
 	return _parts.is_empty()
 
 
-## Builds the merged mesh as a child of parent and clears the batch.
+## Builds the merged mesh (one per cell, see chunk) as children of parent
+## and clears the batch. Returns the first.
 func build(parent: Node, cast_shadows := true) -> MeshInstance3D:
-	var mi := MeshInstance3D.new()
-	mi.mesh = build_mesh()
-	if not cast_shadows:
-		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	parent.add_child(mi)
-	return mi
+	var first: MeshInstance3D = null
+	for cell in _parts:
+		var mi := MeshInstance3D.new()
+		mi.mesh = _mesh_of([_parts[cell]])
+		if not cast_shadows:
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		parent.add_child(mi)
+		if first == null:
+			first = mi
+	_parts.clear()
+	if first == null:
+		first = MeshInstance3D.new()
+		first.mesh = ArrayMesh.new()
+		parent.add_child(first)
+	return first
 
 
 ## Returns the merged mesh (to share between several instances) and clears
 ## the batch.
 func build_mesh() -> ArrayMesh:
+	var mesh := _mesh_of(_parts.values())
+	_parts.clear()
+	return mesh
+
+
+func _mesh_of(cells: Array) -> ArrayMesh:
+	var by_mat := {}
+	for c in cells:
+		for m in c:
+			if not by_mat.has(m):
+				by_mat[m] = [[], [], [], []]
+			for k in 4:
+				by_mat[m][k].append_array(c[m][k])
 	var mesh := ArrayMesh.new()
-	for m in _parts:
+	for m in by_mat:
 		var verts := PackedVector3Array()
 		var normals := PackedVector3Array()
 		var colors := PackedColorArray()
-		for chunk in _parts[m][0]:
-			verts.append_array(chunk)
-		for chunk in _parts[m][1]:
-			normals.append_array(chunk)
-		for chunk in _parts[m][2]:
-			colors.append_array(chunk)
+		for piece in by_mat[m][0]:
+			verts.append_array(piece)
+		for piece in by_mat[m][1]:
+			normals.append_array(piece)
+		for piece in by_mat[m][2]:
+			colors.append_array(piece)
 		var occlusion := PackedVector2Array()
-		for chunk in _parts[m][3]:
-			occlusion.append_array(chunk)
+		for piece in by_mat[m][3]:
+			occlusion.append_array(piece)
 		var arrays := []
 		arrays.resize(Mesh.ARRAY_MAX)
 		arrays[Mesh.ARRAY_VERTEX] = verts
@@ -149,15 +178,20 @@ func build_mesh() -> ArrayMesh:
 		arrays[Mesh.ARRAY_TEX_UV2] = occlusion
 		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 		mesh.surface_set_material(mesh.get_surface_count() - 1, m)
-	_parts.clear()
 	return mesh
 
 
 func _add(shape: Array, xform: Transform3D, color: Color, mat: Material) -> void:
 	var m: Material = mat if mat != null else Palette.surface("matte")
-	if not _parts.has(m):
-		_parts[m] = [[], [], [], []]
 	var t := origin * xform
+	var cell := Vector2i.ZERO
+	if chunk > 0.0:
+		cell = Vector2i(floori(t.origin.x / chunk), floori(t.origin.z / chunk))
+	if not _parts.has(cell):
+		_parts[cell] = {}
+	var parts: Dictionary = _parts[cell]
+	if not parts.has(m):
+		parts[m] = [[], [], [], []]
 	var src_v: PackedVector3Array = shape[0]
 	var src_n: PackedVector3Array = shape[1]
 	var vs: PackedVector3Array = t * src_v
@@ -165,7 +199,7 @@ func _add(shape: Array, xform: Transform3D, color: Color, mat: Material) -> void
 	var cs := PackedColorArray()
 	cs.resize(vs.size())
 	cs.fill(color)
-	var part: Array = _parts[m]
+	var part: Array = parts[m]
 	part[0].append(vs)
 	part[1].append(ns)
 	part[2].append(cs)
